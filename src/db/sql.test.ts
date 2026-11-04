@@ -8,13 +8,14 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildSeedGames } from "../domain/seed";
+import { NO_METADATA, buildSeedGames } from "../domain/seed";
 import { createBackup, parseBackup, serializeBackup } from "../domain/backup";
 import { SEED_SETTINGS } from "../domain/seed";
 import {
   DELETE_ALL_GAMES,
   completedOrderStatements,
   deleteGameStatement,
+  dropGameStatement,
   finishGameStatement,
   insertCompletedGameStatement,
   insertGameStatement,
@@ -28,7 +29,14 @@ import {
 import { settingsStatements, upsertSetting } from "./settings";
 import { lit } from "./sql";
 
-const MIGRATIONS = ["0001_initial.sql", "0002_platform.sql", "0003_paused_status.sql"].map((file) =>
+const MIGRATIONS = [
+  "0001_initial.sql",
+  "0002_platform.sql",
+  "0003_paused_status.sql",
+  "0004_genre.sql",
+  "0005_rawg_and_dropped.sql",
+  "0006_provider.sql",
+].map((file) =>
   readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
 );
 
@@ -60,7 +68,7 @@ function batch(statements: readonly string[]): void {
 function completed(): CompletedRow[] {
   return db
     .prepare(
-      "SELECT id, title, completed_order, completed_at, rating, review FROM games WHERE status = 'completed' ORDER BY completed_order",
+      "SELECT id, title, completed_order, completed_at, rating, review FROM games WHERE status IN ('completed', 'dropped') ORDER BY completed_order",
     )
     .all() as unknown as CompletedRow[];
 }
@@ -68,7 +76,7 @@ function completed(): CompletedRow[] {
 function plan(platform = "pc"): Row[] {
   return db
     .prepare(
-      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status != 'completed' AND platform = ? ORDER BY position",
+      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status NOT IN ('completed', 'dropped') AND platform = ? ORDER BY position",
     )
     .all(platform) as unknown as Row[];
 }
@@ -117,6 +125,7 @@ describe("plan order statements", () => {
       insertGameStatement({
         title: "Hades",
         type: "medium",
+        genre: "roguelike",
         platform: "pc",
         status: "pending",
         casualHours: 12.5,
@@ -126,6 +135,7 @@ describe("plan order statements", () => {
         completedAt: null,
         rating: null,
         review: null,
+        ...NO_METADATA,
       }),
       ...order.flatMap((id, i) => (id === "new" ? [] : [positionStatement(id, i + 1)])),
     ]);
@@ -209,12 +219,14 @@ describe("finishing and rating", () => {
       insertCompletedGameStatement({
         title: "Portal 2",
         type: "linear",
+        genre: "puzzle",
         platform: "ps4",
         casualHours: 8,
         note: null,
         completedAt: null,
         rating: 10,
         review: null,
+        ...NO_METADATA,
       }),
     );
     const done = completed();
@@ -283,6 +295,7 @@ describe("platforms", () => {
       insertGameStatement({
         title,
         type: "linear",
+        genre: null,
         platform: "ps5",
         status: position === 1 ? "in_progress" : "pending",
         casualHours: 0,
@@ -292,6 +305,7 @@ describe("platforms", () => {
         completedAt: null,
         rating: null,
         review: null,
+        ...NO_METADATA,
       }),
     );
   }
@@ -365,5 +379,118 @@ describe("statuses and finish order", () => {
     expect(done[1]).toMatchObject({ title: "Marvel's Spider-Man", completed_order: 2 });
     expect(done.map((r) => r.completed_order)).toEqual(done.map((_, i) => i + 1));
     expect(plan()).toHaveLength(27);
+  });
+});
+
+describe("genre", () => {
+  it("stores the genre from the seed and the Hades insert", () => {
+    const witcher = db.prepare("SELECT genre FROM games WHERE title = 'The Witcher 3'").get() as unknown as { genre: string };
+    expect(witcher.genre).toBe("rpg");
+    const update = updateGameQuery(plan()[0].id, { genre: "stealth" })!;
+    db.prepare(update.sql).run(...(update.values as (string | number | null)[]));
+    expect(db.prepare("SELECT genre FROM games WHERE id = ?").get(plan()[0].id)).toMatchObject({ genre: "stealth" });
+    const clear = updateGameQuery(plan()[0].id, { genre: null })!;
+    db.prepare(clear.sql).run(...(clear.values as (string | number | null)[]));
+    expect(db.prepare("SELECT genre FROM games WHERE id = ?").get(plan()[0].id)).toMatchObject({ genre: null });
+  });
+
+  it("backfills genres for seed titles that were stored before the column existed", () => {
+    // Simulate an old database: run migrations 1–3, insert the seed without a genre, then migrate.
+    const old = new DatabaseSync(":memory:");
+    for (const migration of MIGRATIONS.slice(0, 3)) old.exec(migration);
+    const insert = old.prepare(
+      "INSERT INTO games (title, type, platform, status, casual_hours, position, completed_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    for (const game of buildSeedGames()) {
+      insert.run(game.title, game.type, game.platform, game.status, game.casualHours, game.position, game.completedOrder);
+    }
+    expect(old.prepare("SELECT COUNT(*) AS n FROM games").get()).toMatchObject({ n: 37 });
+    old.exec(MIGRATIONS[3]);
+    const filled = old.prepare("SELECT COUNT(*) AS n FROM games WHERE genre IS NOT NULL").get() as unknown as { n: number };
+    expect(filled.n).toBe(37);
+    expect(old.prepare("SELECT genre FROM games WHERE title = 'Assassin''s Creed Shadows'").get()).toMatchObject({
+      genre: "action_adventure",
+    });
+  });
+});
+
+describe("dropped status and RAWG metadata", () => {
+  it("drops a planned game into the finished list and closes the gap", () => {
+    const ids = plan().map((r) => r.id);
+    batch([dropGameStatement(ids[0], "2026-11-05"), ...planOrderStatements(ids.slice(1), "pc")]);
+    expect(plan()).toHaveLength(26);
+    expect(plan()[0]).toMatchObject({ title: "Resident Evil 4 Remake", position: 1 });
+    const row = db
+      .prepare("SELECT status, position, completed_order, completed_at, rating FROM games WHERE id = ?")
+      .get(ids[0]) as unknown as Record<string, unknown>;
+    expect(row).toMatchObject({ status: "dropped", position: null, completed_order: 11, completed_at: "2026-11-05", rating: null });
+    expect(() => db.exec(startGameStatement(ids[0]))).not.toThrow();
+    expect(db.prepare("SELECT status FROM games WHERE id = ?").get(ids[0])).toMatchObject({ status: "dropped" });
+  });
+
+  it("stores and reads RAWG metadata as JSON lists", () => {
+    const stmt = insertGameStatement({
+      title: "The Witcher 3: Wild Hunt",
+      type: "giant",
+      genre: "rpg",
+      platform: "ps5",
+      status: "pending",
+      casualHours: 46,
+      note: null,
+      position: 1,
+      completedOrder: null,
+      completedAt: null,
+      rating: null,
+      review: null,
+      source: "igdb",
+      externalId: 3328,
+      coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/x.jpg",
+      releaseDate: "2015-05-18",
+      providerGenres: ["Action", "RPG"],
+      providerTags: ["Singleplayer", "Open World"],
+    });
+    db.exec(stmt);
+    const row = db
+      .prepare("SELECT source, external_id, cover_url, release_date, provider_genres, provider_tags FROM games WHERE external_id = 3328")
+      .get() as unknown as Record<string, unknown>;
+    expect(row).toMatchObject({
+      source: "igdb",
+      external_id: 3328,
+      release_date: "2015-05-18",
+      provider_genres: '["Action","RPG"]',
+      provider_tags: '["Singleplayer","Open World"]',
+    });
+    const id = (db.prepare("SELECT id FROM games WHERE external_id = 3328").get() as unknown as { id: number }).id;
+    const unlink = updateGameQuery(id, { source: null, externalId: null, coverUrl: null, releaseDate: null, providerGenres: [], providerTags: [] })!;
+    db.prepare(unlink.sql).run(...(unlink.values as (string | number | null)[]));
+    expect(db.prepare("SELECT source, external_id, provider_tags FROM games WHERE id = ?").get(id)).toMatchObject({
+      source: null,
+      external_id: null,
+      provider_tags: "[]",
+    });
+  });
+
+  it("keeps every row and id through the second rebuild", () => {
+    expect(plan()).toHaveLength(27);
+    expect(completed()).toHaveLength(10);
+    expect(db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'games'").get()).toMatchObject({ seq: 37 });
+    expect(db.prepare("SELECT provider_genres FROM games WHERE id = 1").get()).toMatchObject({ provider_genres: "[]" });
+  });
+});
+
+describe("provider migration", () => {
+  it("renames the RAWG columns, adds source and backfills it for linked rows", () => {
+    const old = new DatabaseSync(":memory:");
+    for (const migration of MIGRATIONS.slice(0, 5)) old.exec(migration);
+    old.exec(
+      "INSERT INTO games (title, type, platform, status, casual_hours, rawg_id, rawg_genres, rawg_tags) VALUES ('Linked', 'linear', 'pc', 'pending', 1, 42, '[\"RPG\"]', '[]')",
+    );
+    old.exec("INSERT INTO games (title, type, platform, status, casual_hours) VALUES ('Plain', 'linear', 'pc', 'pending', 1)");
+    old.exec(MIGRATIONS[5]);
+    const rows = old.prepare("SELECT title, source, external_id, provider_genres FROM games ORDER BY id").all() as unknown as Record<string, unknown>[];
+    expect(rows).toEqual([
+      { title: "Linked", source: "rawg", external_id: 42, provider_genres: '["RPG"]' },
+      { title: "Plain", source: null, external_id: null, provider_genres: "[]" },
+    ]);
   });
 });

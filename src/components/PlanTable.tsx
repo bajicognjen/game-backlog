@@ -15,7 +15,11 @@ import { formatHours, formatWeeks } from "../domain/format";
 import type { ScheduleRow } from "../domain/schedule";
 import type { Game, GameStatus } from "../domain/types";
 import { t } from "../i18n/sr";
+import { GenreChip } from "./GenreChip";
+import { IconButton } from "./IconButton";
+import { RowMenu } from "./RowMenu";
 import { StatusBadge } from "./StatusBadge";
+import { TitleCell } from "./TitleCell";
 import { TypeChip } from "./TypeChip";
 
 /** One row of a plan: the PC plan carries schedule numbers, a plain queue does not. */
@@ -33,11 +37,14 @@ interface Props {
   onEdit(game: Game): void;
   onDelete(game: Game): void;
   onFinish(game: Game): void;
-  onStatus(game: Game, status: Exclude<GameStatus, "completed">): void;
+  onDrop(game: Game): void;
+  onStatus(game: Game, status: PlanStatus): void;
   onMove(activeId: number, overId: number): void;
 }
 
-export function PlanTable({ rows, showSchedule, emptyText, onEdit, onDelete, onFinish, onStatus, onMove }: Props) {
+export type PlanStatus = Extract<GameStatus, "in_progress" | "pending" | "paused">;
+
+export function PlanTable({ rows, showSchedule, emptyText, onEdit, onDelete, onFinish, onDrop, onStatus, onMove }: Props) {
   const sensors = useSensors(
     // A small distance threshold keeps plain clicks on buttons from starting a drag.
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -64,6 +71,7 @@ export function PlanTable({ rows, showSchedule, emptyText, onEdit, onDelete, onF
               <th className="num">{t.columns.index}</th>
               <th>{t.columns.title}</th>
               <th>{t.columns.type}</th>
+              <th>{t.columns.genre}</th>
               <th>{t.columns.status}</th>
               {showSchedule && (
                 <>
@@ -88,6 +96,7 @@ export function PlanTable({ rows, showSchedule, emptyText, onEdit, onDelete, onF
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onFinish={onFinish}
+                  onDrop={onDrop}
                   onStatus={onStatus}
                 />
               ))}
@@ -105,10 +114,11 @@ interface RowProps {
   onEdit(game: Game): void;
   onDelete(game: Game): void;
   onFinish(game: Game): void;
-  onStatus(game: Game, status: Exclude<GameStatus, "completed">): void;
+  onDrop(game: Game): void;
+  onStatus(game: Game, status: PlanStatus): void;
 }
 
-function SortableRow({ row, showSchedule, onEdit, onDelete, onFinish, onStatus }: RowProps) {
+function SortableRow({ row, showSchedule, onEdit, onDelete, onFinish, onDrop, onStatus }: RowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: row.game.id,
   });
@@ -144,9 +154,14 @@ function SortableRow({ row, showSchedule, onEdit, onDelete, onFinish, onStatus }
         </button>
       </td>
       <td className="num muted">{row.index}</td>
-      <td className="title">{game.title}</td>
+      <td className="title">
+        <TitleCell game={game} />
+      </td>
       <td>
         <TypeChip type={game.type} />
+      </td>
+      <td>
+        <GenreChip genre={game.genre} />
       </td>
       <td>
         <StatusBadge status={game.status} />
@@ -164,31 +179,24 @@ function SortableRow({ row, showSchedule, onEdit, onDelete, onFinish, onStatus }
       <td className="actions-col">
         <div className={`row-actions ${active ? "row-actions-visible" : ""}`}>
           {game.status === "pending" && (
-            <button type="button" className="button button-small" onClick={() => onStatus(game, "in_progress")}>
-              ▶ {t.actions.start}
-            </button>
+            <IconButton label={t.actions.start} icon={"\u25B6\uFE0E"} onClick={() => onStatus(game, "in_progress")} />
           )}
           {game.status === "paused" && (
-            <button type="button" className="button button-small" onClick={() => onStatus(game, "in_progress")}>
-              ▶ {t.actions.resume}
-            </button>
+            <IconButton label={t.actions.resume} icon={"\u25B6\uFE0E"} onClick={() => onStatus(game, "in_progress")} />
           )}
           {game.status === "in_progress" && (
             <>
-              <button type="button" className="button button-small button-success" onClick={() => onFinish(game)}>
-                ✓ {t.actions.finish}
-              </button>
-              <button type="button" className="button button-small" onClick={() => onStatus(game, "paused")}>
-                ⏸ {t.actions.pause}
-              </button>
+              <IconButton label={t.actions.finish} icon="✓" variant="success" onClick={() => onFinish(game)} />
+              <IconButton label={t.actions.pause} icon={"\u23F8\uFE0E"} onClick={() => onStatus(game, "paused")} />
             </>
           )}
-          <button type="button" className="button button-small" onClick={() => onEdit(game)}>
-            {t.actions.edit}
-          </button>
-          <button type="button" className="button button-small button-danger-ghost" onClick={() => onDelete(game)}>
-            {t.actions.delete}
-          </button>
+          <IconButton label={t.actions.edit} icon={"\u270E\uFE0E"} onClick={() => onEdit(game)} />
+          <RowMenu
+            items={[
+              ...(active ? [{ label: t.actions.drop, danger: true, onSelect: () => onDrop(game) }] : []),
+              { label: t.actions.delete, danger: true, onSelect: () => onDelete(game) },
+            ]}
+          />
         </div>
       </td>
     </tr>

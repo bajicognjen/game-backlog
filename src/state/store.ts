@@ -10,7 +10,8 @@ import {
 import { backupFileName, createBackup, parseBackup, serializeBackup, type Backup } from "../domain/backup";
 import { completedIds, insertAt, moveItem, plannedIds, withCompletedOrder, withPlanOrder } from "../domain/plan";
 import { SEED_SETTINGS } from "../domain/seed";
-import type { Game, GameStatus, Platform, Settings } from "../domain/types";
+import type { Game, Platform, Settings } from "../domain/types";
+import { todayIso } from "../domain/dates";
 import { openTextFile, saveTextFile } from "../platform/files";
 
 export type LoadStatus = "loading" | "ready" | "error";
@@ -41,7 +42,9 @@ export interface AppState {
   /** Set or change the rating and review of a completed game. */
   rateGame(id: number, rating: number | null, review: string | null): Promise<boolean>;
   /** Start, pause or resume a planned game. */
-  setGameStatus(id: number, status: Exclude<GameStatus, "completed">): Promise<boolean>;
+  setGameStatus(id: number, status: "in_progress" | "pending" | "paused"): Promise<boolean>;
+  /** Give up on a planned game: it moves to the finished list as dropped, dated today. */
+  dropGame(id: number): Promise<boolean>;
   /** Drag-and-drop within one platform: put `activeId` where `overId` currently is. */
   moveGame(activeId: number, overId: number): Promise<void>;
   /** Drag-and-drop in the completed list: put `activeId` where `overId` currently is (finish order). */
@@ -174,6 +177,12 @@ export const useStore = create<AppState>((set, get) => {
 
     setGameStatus(id, status) {
       return persist(() => repository.updateGame(id, { status }));
+    },
+
+    dropGame(id) {
+      const game = get().games.find((g) => g.id === id);
+      if (!game) return Promise.resolve(false);
+      return persist(() => repository.dropGame(id, todayIso(), orderWithout(game.platform, id)));
     },
 
     async moveGame(activeId, overId) {

@@ -177,9 +177,8 @@ input {
 main {
   flex: 1;
   width: 100%;
-  max-width: 1480px;
   margin: 0 auto;
-  padding: 20px 24px 48px;
+  padding: 20px 28px 48px;
 }
 
 .section {
@@ -362,7 +361,7 @@ input[aria-invalid="true"] {
 
 .table th,
 .table td {
-  padding: 8px 12px;
+  padding: 7px 10px;
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--border);
@@ -423,7 +422,8 @@ input[aria-invalid="true"] {
 
 .table .note {
   color: var(--text-muted);
-  min-width: 220px;
+  min-width: 200px;
+  max-width: 360px;
 }
 
 .row-current td {
@@ -609,8 +609,10 @@ input[aria-invalid="true"] {
 
 .row-actions {
   display: flex;
-  gap: 4px;
-  opacity: 0.55;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  opacity: 0.6;
   transition: opacity 120ms;
 }
 
@@ -951,4 +953,300 @@ body,
 .drag-handle:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+/* ---------- Genre ---------- */
+
+.chip-genre {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.form-row-5 {
+  grid-template-columns: 0.8fr 1fr 1.1fr 0.8fr 0.8fr;
+}
+
+/* ---------- Game search, covers, dropped ---------- */
+
+.search-search {
+  position: relative;
+}
+
+.search-search input[type="search"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.search-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin-top: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.search-section {
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-item:hover,
+.search-item:focus-visible {
+  background: var(--surface-2);
+}
+
+.search-item:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.search-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.search-item-title {
+  font-weight: 600;
+}
+
+.search-item-note {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.search-thumb,
+.search-thumb-empty {
+  flex: none;
+  width: 48px;
+  height: 29px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.search-status {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.search-linked {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.search-linked-cover {
+  flex: none;
+  width: 100px;
+  height: 60px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.search-linked-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.search-linked-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.search-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.title-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-cell .cover {
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.title-cell .year {
+  font-weight: 400;
+}
+
+.status-dropped {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.settings-fields-secondary {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.field-wide input {
+  min-width: 360px;
+}
+
+.settings-hint-wide {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ---------- Icon buttons and row menu ---------- */
+
+.button-icon-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text);
+}
+
+.button-icon-sm:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.button-icon-success {
+  color: var(--done-fg);
+  font-weight: 700;
+}
+
+.button-icon-success:hover {
+  background: var(--done-bg);
+  border-color: var(--done-fg);
+}
+
+.row-menu {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--surface-2);
+}
+
+.menu-item-danger {
+  color: var(--danger);
+}
+
+/* ---------- Compact table below 1400px (the app opens at 1280) ---------- */
+
+@media (max-width: 1400px) {
+  main {
+    padding: 16px 16px 40px;
+  }
+
+  .table th,
+  .table td {
+    padding: 6px 7px;
+  }
+
+  .table .title {
+    white-space: normal;
+    min-width: 170px;
+    max-width: 260px;
+  }
+
+  .table .note {
+    min-width: 150px;
+    max-width: 230px;
+    font-size: 12px;
+  }
+
+  .chip {
+    padding: 1px 7px;
+    font-size: 11px;
+  }
+
+  .status {
+    font-size: 11px;
+  }
+
+  .table .date,
+  .table .num {
+    font-size: 13px;
+  }
+
+  .stat {
+    min-width: 100px;
+    padding: 6px 10px;
+  }
 }

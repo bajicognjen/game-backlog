@@ -92,6 +92,14 @@ export function createMemoryRepository(): Repository {
       games = withCompletedOrder(games, ids);
     },
 
+    async dropGame(id, droppedAt, planOrder) {
+      const order = nextCompletedOrder();
+      games = games.map((g) =>
+        g.id === id ? { ...g, status: "dropped", position: null, completedOrder: order, completedAt: droppedAt } : g,
+      );
+      games = withPlanOrder(games, planOrder.ids, planOrder.platform);
+    },
+
     async replaceAll(backup) {
       games = backup.games.map((g) => ({ ...g }));
       settings = { ...backup.settings };

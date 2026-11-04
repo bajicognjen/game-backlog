@@ -1,5 +1,5 @@
 import { addDays, parseIsoDate } from "./dates";
-import { SCHEDULED_PLATFORM, type Game, type Platform, type Settings } from "./types";
+import { SCHEDULED_PLATFORM, isDone, type Game, type Platform, type Settings } from "./types";
 
 export interface ScheduleRow {
   game: Game;
@@ -43,14 +43,14 @@ export function planHours(game: Pick<Game, "casualHours">): number {
 /** Games still in a plan (not completed), in plan order; one platform or all of them. */
 export function plannedGames(games: readonly Game[], platform?: Platform): Game[] {
   return games
-    .filter((game) => game.status !== "completed" && (platform === undefined || game.platform === platform))
+    .filter((game) => !isDone(game) && (platform === undefined || game.platform === platform))
     .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity) || a.id - b.id);
 }
 
-/** Completed games in finish order. */
+/** Finished games (completed or dropped) in finish order. */
 export function completedGames(games: readonly Game[]): Game[] {
   return games
-    .filter((game) => game.status === "completed")
+    .filter((game) => isDone(game))
     .sort((a, b) => (a.completedOrder ?? Infinity) - (b.completedOrder ?? Infinity) || a.id - b.id);
 }
 

@@ -1,15 +1,19 @@
 import { isValidIsoDate } from "./dates";
 import { withPlanOrder } from "./plan";
 import { completedGames, plannedGames } from "./schedule";
-import { GAME_STATUSES, GAME_TYPES, PLATFORMS, type Game, type Settings, type Theme } from "./types";
+import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, type Settings, type Theme } from "./types";
 
 /**
  * Bump when the file format changes. Older versions still import:
  *  1 — no platform field (everything is PC).
  *  2 — platform per game.
  *  3 — "paused" status; statuses are no longer derived from the plan order.
+ *  4 — optional genre per game.
+ *  5 — "dropped" status and RAWG metadata (rawgId, coverUrl, releaseDate, rawgGenres, rawgTags).
+ *  6 — provider-neutral metadata (source, externalId, providerGenres, providerTags), gameSource setting.
+ *  7 — IGDB is the only source; RAWG links from older files import as unlinked cached data.
  */
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 7;
 
 export interface Backup {
   app: "game-backlog";
@@ -37,7 +41,8 @@ export function createBackup(games: readonly Game[], settings: Settings, now: Da
     app: "game-backlog",
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
-    settings: { ...settings },
+    // Credentials and tokens are local secrets and stay out of the file.
+    settings: { ...settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0 },
     games: [...PLATFORMS.flatMap((platform) => plannedGames(games, platform)), ...completedGames(games)].map((game) => ({
       ...game,
     })),
@@ -116,7 +121,15 @@ function parseSettings(obj: Record<string, unknown>): Settings {
   if (hoursPerWeek <= 0) throw new BackupError("settings.hoursPerWeek", "range");
   const theme = obj.theme ?? "system";
   if (theme !== "system" && theme !== "light" && theme !== "dark") throw new BackupError("settings.theme", "enum");
-  return { startDate, hoursPerWeek, theme: theme as Theme };
+  return {
+    startDate,
+    hoursPerWeek,
+    theme: theme as Theme,
+    igdbClientId: "",
+    igdbClientSecret: "",
+    igdbAccessToken: "",
+    igdbTokenExpiresAt: 0,
+  };
 }
 
 function parseGame(obj: Record<string, unknown>, path: string): Game {
@@ -136,6 +149,10 @@ function parseGame(obj: Record<string, unknown>, path: string): Game {
   if (typeof status !== "string") throw new BackupError(`${path}.status`, "type");
   if (!(GAME_STATUSES as readonly string[]).includes(status)) throw new BackupError(`${path}.status`, "enum");
 
+  const genre = obj.genre ?? null;
+  if (genre !== null && typeof genre !== "string") throw new BackupError(`${path}.genre`, "type");
+  if (genre !== null && !(GENRES as readonly string[]).includes(genre)) throw new BackupError(`${path}.genre`, "enum");
+
   // Version 1 files have no platform: everything was PC.
   const platform = obj.platform ?? "pc";
   if (typeof platform !== "string") throw new BackupError(`${path}.platform`, "type");
@@ -153,10 +170,15 @@ function parseGame(obj: Record<string, unknown>, path: string): Game {
   if (completedAt !== null && typeof completedAt !== "string") throw new BackupError(`${path}.completedAt`, "type");
   if (completedAt !== null && !isValidIsoDate(completedAt)) throw new BackupError(`${path}.completedAt`, "date");
 
+  const releaseDate = obj.releaseDate ?? null;
+  if (releaseDate !== null && typeof releaseDate !== "string") throw new BackupError(`${path}.releaseDate`, "type");
+  if (releaseDate !== null && !isValidIsoDate(releaseDate)) throw new BackupError(`${path}.releaseDate`, "date");
+
   return {
     id,
     title: title.trim(),
     type: type as Game["type"],
+    genre: genre as Game["genre"],
     platform: platform as Game["platform"],
     status: status as Game["status"],
     casualHours,
@@ -166,7 +188,35 @@ function parseGame(obj: Record<string, unknown>, path: string): Game {
     completedAt,
     rating,
     review: optionalString(obj.review, `${path}.review`),
+    ...parseMetadata(obj, path, releaseDate),
   };
+}
+
+/**
+ * Versions 5 and 6 could carry RAWG links (`rawgId`, or `source: "rawg"`).
+ * Their cached cover, date, genres and tags are kept; the link itself is
+ * dropped, since the app no longer talks to RAWG.
+ */
+function parseMetadata(obj: Record<string, unknown>, path: string, releaseDate: string | null) {
+  const legacy = obj.externalId === undefined && obj.rawgId !== undefined;
+  const rawSource = obj.source ?? null;
+  if (rawSource !== null && typeof rawSource !== "string") throw new BackupError(`${path}.source`, "type");
+  const linked = rawSource !== null && isGameSource(rawSource);
+  const externalId = linked ? optionalInteger(obj.externalId, `${path}.externalId`) : null;
+  return {
+    source: (linked && externalId !== null ? rawSource : null) as Game["source"],
+    externalId: linked ? externalId : null,
+    coverUrl: optionalString(obj.coverUrl, `${path}.coverUrl`),
+    releaseDate,
+    providerGenres: stringList(legacy ? obj.rawgGenres : obj.providerGenres, `${path}.providerGenres`),
+    providerTags: stringList(legacy ? obj.rawgTags : obj.providerTags, `${path}.providerTags`),
+  };
+}
+
+function stringList(value: unknown, path: string): string[] {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw new BackupError(path, "type");
+  return value as string[];
 }
 
 function expectObject(value: unknown, path: string): Record<string, unknown> {

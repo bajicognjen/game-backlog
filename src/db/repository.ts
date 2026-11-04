@@ -1,5 +1,5 @@
 import type { Backup } from "../domain/backup";
-import type { Game, GameStatus, GameType, Platform, Settings } from "../domain/types";
+import type { Game, GameSource, GameStatus, GameType, Genre, Platform, Settings } from "../domain/types";
 
 export interface Snapshot {
   games: Game[];
@@ -10,9 +10,16 @@ export interface Snapshot {
 export interface GameInput {
   title: string;
   type: GameType;
+  genre: Genre | null;
   platform: Platform;
   casualHours: number;
   note: string | null;
+  source: GameSource | null;
+  externalId: number | null;
+  coverUrl: string | null;
+  releaseDate: string | null;
+  providerGenres: string[];
+  providerTags: string[];
 }
 
 /** The fields only completed games carry. */
@@ -66,8 +73,10 @@ export interface Repository {
   setPlanOrder(planOrder: PlanOrder): Promise<void>;
   /** Mark `id` completed (next finish order), reorder its platform, optionally move `startDate` and start the next game. */
   finishGame(id: number, input: FinishInput, planOrder: PlanOrder): Promise<void>;
-  /** Renumber the finish order of all completed games. */
+  /** Renumber the finish order of all finished games. */
   setCompletedOrder(ids: readonly number[]): Promise<void>;
+  /** Give up on a planned game: it leaves the plan and joins the finished list as dropped. */
+  dropGame(id: number, droppedAt: string, planOrder: PlanOrder): Promise<void>;
   /** Replace every game and setting with the contents of a backup, atomically. */
   replaceAll(backup: Backup): Promise<void>;
 }

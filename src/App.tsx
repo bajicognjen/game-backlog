@@ -99,6 +99,7 @@ type PlanDialog =
   | { kind: "edit"; game: Game }
   | { kind: "delete"; game: Game }
   | { kind: "finish"; game: Game }
+  | { kind: "drop"; game: Game }
   | null;
 
 interface PlanSectionProps {
@@ -115,6 +116,7 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
   const moveGame = useStore((s) => s.moveGame);
   const finishGame = useStore((s) => s.finishGame);
   const setGameStatus = useStore((s) => s.setGameStatus);
+  const dropGame = useStore((s) => s.dropGame);
   const [dialog, setDialog] = useState<PlanDialog>(null);
 
   // Recomputed on every change to games or settings: this is the "live" part.
@@ -161,6 +163,7 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
         onEdit={(game) => setDialog({ kind: "edit", game })}
         onDelete={(game) => setDialog({ kind: "delete", game })}
         onFinish={(game) => setDialog({ kind: "finish", game })}
+        onDrop={(game) => setDialog({ kind: "drop", game })}
         onStatus={(game, status) => void setGameStatus(game.id, status)}
         onMove={(activeId, overId) => void moveGame(activeId, overId)}
       />
@@ -192,6 +195,16 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
           warning={t.deleteDialog.warning}
           confirmLabel={t.actions.delete}
           onConfirm={() => removeGame(dialog.game.id)}
+          onClose={close}
+        />
+      )}
+      {dialog?.kind === "drop" && (
+        <ConfirmDialog
+          title={t.dropDialog.title}
+          question={t.dropDialog.question.replace("{title}", dialog.game.title)}
+          warning={t.dropDialog.warning}
+          confirmLabel={t.actions.drop}
+          onConfirm={() => dropGame(dialog.game.id)}
           onClose={close}
         />
       )}

@@ -1,4 +1,4 @@
-import type { Game } from "./types";
+import { isDone, type Game } from "./types";
 
 export type CompletedSortKey = "order" | "date" | "rating";
 export type SortDirection = "asc" | "desc";
@@ -17,7 +17,7 @@ export const DEFAULT_SORT_DIRECTION: Record<CompletedSortKey, SortDirection> = {
 export function sortCompleted(games: readonly Game[], key: CompletedSortKey, direction: SortDirection): Game[] {
   const sign = direction === "asc" ? 1 : -1;
   return games
-    .filter((game) => game.status === "completed")
+    .filter((game) => isDone(game))
     .slice()
     .sort((a, b) => {
       if (key === "order") return sign * byOrder(a, b);

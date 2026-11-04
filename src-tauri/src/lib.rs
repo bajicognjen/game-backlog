@@ -25,6 +25,24 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0003_paused_status.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "add genre to games",
+            sql: include_str!("../migrations/0004_genre.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "add dropped status and RAWG metadata",
+            sql: include_str!("../migrations/0005_rawg_and_dropped.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "provider-neutral metadata columns",
+            sql: include_str!("../migrations/0006_provider.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -33,6 +51,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations())

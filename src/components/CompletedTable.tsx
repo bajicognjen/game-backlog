@@ -13,7 +13,11 @@ import type { CSSProperties } from "react";
 import { formatDate } from "../domain/dates";
 import type { Game } from "../domain/types";
 import { t } from "../i18n/sr";
+import { GenreChip } from "./GenreChip";
+import { IconButton } from "./IconButton";
 import { PlatformChip } from "./PlatformChip";
+import { RowMenu } from "./RowMenu";
+import { TitleCell } from "./TitleCell";
 import { TypeChip } from "./TypeChip";
 
 interface Props {
@@ -51,6 +55,7 @@ export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, on
               <th className="num">{t.columns.index}</th>
               <th>{t.columns.title}</th>
               <th>{t.columns.type}</th>
+              <th>{t.columns.genre}</th>
               <th>{t.columns.platform}</th>
               <th className="date">{t.columns.completedAt}</th>
               <th className="num">{t.columns.rating}</th>
@@ -116,9 +121,14 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete }: RowProps) 
         </button>
       </td>
       <td className="num muted">{game.completedOrder ?? t.none}</td>
-      <td className="title">{game.title}</td>
+      <td className="title">
+        <TitleCell game={game} />
+      </td>
       <td>
         <TypeChip type={game.type} />
+      </td>
+      <td>
+        <GenreChip genre={game.genre} />
       </td>
       <td>
         <PlatformChip platform={game.platform} />
@@ -146,12 +156,8 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete }: RowProps) 
       <td className="note">{game.note}</td>
       <td className="actions-col">
         <div className="row-actions">
-          <button type="button" className="button button-small" onClick={() => onEdit(game)}>
-            {t.actions.edit}
-          </button>
-          <button type="button" className="button button-small button-danger-ghost" onClick={() => onDelete(game)}>
-            {t.actions.delete}
-          </button>
+          <IconButton label={t.actions.edit} icon={"\u270E\uFE0E"} onClick={() => onEdit(game)} />
+          <RowMenu items={[{ label: t.actions.delete, danger: true, onSelect: () => onDelete(game) }]} />
         </div>
       </td>
     </tr>

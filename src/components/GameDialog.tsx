@@ -1,8 +1,21 @@
 import { useState, type FormEvent } from "react";
 import type { GameInput } from "../db";
-import { GAME_TYPES, PLAN_PLATFORMS, SCHEDULED_PLATFORM, type Game, type GameType, type Platform } from "../domain/types";
-import { platformLabels, t, typeLabels } from "../i18n/sr";
+import {
+  GAME_TYPES,
+  GENRES,
+  PLAN_PLATFORMS,
+  SCHEDULED_PLATFORM,
+  type Game,
+  type GameType,
+  type Genre,
+  type Platform,
+} from "../domain/types";
+import { NO_METADATA } from "../domain/seed";
+import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/sr";
+import { metadataOf, toMetadata, type Metadata } from "../domain/provider";
 import { Modal } from "./Modal";
+import { ProviderLinked } from "./ProviderLinked";
+import { GameSearch, type SearchPick } from "./GameSearch";
 
 interface Props {
   mode: "add" | "edit";
@@ -28,11 +41,35 @@ interface Errors {
 export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose }: Props) {
   const [title, setTitle] = useState(game?.title ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
+  const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
   const [platform, setPlatform] = useState<Platform>(game?.platform ?? defaultPlatform);
   const [hours, setHours] = useState(game && game.casualHours > 0 ? String(game.casualHours) : "");
   const [note, setNote] = useState(game?.note ?? "");
+  const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
+  const [pickNote, setPickNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
+
+  function applyPick(pick: SearchPick) {
+    if (pick.kind === "library") {
+      const g = pick.game;
+      setTitle(g.title);
+      setType(g.type);
+      setGenre(g.genre ?? "");
+      setHours(g.casualHours > 0 ? String(g.casualHours) : "");
+      setNote(g.note ?? "");
+      setMeta(metadataOf(g));
+      setPickNote(t.search.inLibraryNote);
+      return;
+    }
+    const m = pick.meta;
+    setTitle(m.title);
+    if (m.genre) setGenre(m.genre);
+    if (m.typeHint) setType(m.typeHint);
+    if (m.playtimeHours && hours.trim() === "") setHours(String(m.playtimeHours));
+    setMeta(toMetadata(m));
+    setPickNote(t.search.filled.replace("{source}", sourceLabels[m.source]));
+  }
 
   // The position picks a slot among the other planned games of the chosen platform.
   const samePlatform = mode === "edit" && game?.platform === platform && currentIndex !== undefined;
@@ -71,7 +108,15 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
 
     setBusy(true);
     const ok = await onSubmit(
-      { title: title.trim(), type, platform, casualHours: hoursNumber, note: note.trim() === "" ? null : note.trim() },
+      {
+        title: title.trim(),
+        type,
+        genre: genre === "" ? null : genre,
+        platform,
+        casualHours: hoursNumber,
+        note: note.trim() === "" ? null : note.trim(),
+        ...meta,
+      },
       positionNumber - 1,
     );
     setBusy(false);
@@ -81,13 +126,23 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   return (
     <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose}>
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
+        <GameSearch onPick={applyPick} />
+        <ProviderLinked
+          meta={meta}
+          note={pickNote}
+          onUnlink={() => {
+            setMeta(NO_METADATA);
+            setPickNote(null);
+          }}
+        />
+
         <label className="field">
           <span className="field-label">{t.gameDialog.title}</span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus aria-invalid={!!errors.title} />
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
           {errors.title && <span className="field-error">{errors.title}</span>}
         </label>
 
-        <div className="form-row form-row-4">
+        <div className="form-row form-row-5">
           <label className="field">
             <span className="field-label">{t.gameDialog.platform}</span>
             <select value={platform} onChange={(e) => changePlatform(e.target.value as Platform)}>
@@ -105,6 +160,18 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
               {GAME_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {typeLabels[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">{t.gameDialog.genre}</span>
+            <select value={genre} onChange={(e) => setGenre(e.target.value as Genre | "")}>
+              <option value="">{t.gameDialog.noGenre}</option>
+              {GENRES.map((value) => (
+                <option key={value} value={value}>
+                  {genreLabels[value]}
                 </option>
               ))}
             </select>
@@ -161,3 +228,4 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
     </Modal>
   );
 }
+

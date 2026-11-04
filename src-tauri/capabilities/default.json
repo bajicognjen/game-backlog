@@ -16,6 +16,13 @@
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://id.twitch.tv/*" },
+        { "url": "https://api.igdb.com/*" }
+      ]
     }
   ]
 }

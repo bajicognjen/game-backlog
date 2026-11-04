@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isValidRating, sortCompleted } from "./completed";
+import { NO_METADATA } from "./seed";
 import type { Game } from "./types";
 
 function done(id: number, order: number, completedAt: string | null, rating: number | null): Game {
@@ -7,6 +8,7 @@ function done(id: number, order: number, completedAt: string | null, rating: num
     id,
     title: `Game ${id}`,
     type: "linear",
+    genre: null,
     platform: "pc",
     status: "completed",
     casualHours: 0,
@@ -16,6 +18,7 @@ function done(id: number, order: number, completedAt: string | null, rating: num
     completedAt,
     rating,
     review: null,
+    ...NO_METADATA,
   };
 }
 

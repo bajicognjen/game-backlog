@@ -1,15 +1,20 @@
-import type { Game, GameType, Settings } from "./types";
+import type { Game, GameType, Genre, Settings } from "./types";
 
 /** Settings loaded on the first run. */
 export const SEED_SETTINGS: Settings = {
   startDate: "2026-11-02",
   hoursPerWeek: 13,
   theme: "system",
+  igdbClientId: "",
+  igdbClientSecret: "",
+  igdbAccessToken: "",
+  igdbTokenExpiresAt: 0,
 };
 
 export interface SeedPlanEntry {
   title: string;
   type: GameType;
+  genre: Genre;
   hours: number;
   note?: string;
 }
@@ -17,39 +22,40 @@ export interface SeedPlanEntry {
 export interface SeedCompletedEntry {
   title: string;
   type: GameType;
+  genre: Genre;
   completedAt?: string;
   note?: string;
 }
 
 /** The plan, in order. The first game is the one in progress. */
 export const SEED_PLAN: readonly SeedPlanEntry[] = [
-  { title: "Batman: Arkham Knight", type: "open_world", hours: 25 },
-  { title: "Resident Evil 4 Remake", type: "linear", hours: 18 },
-  { title: "Assassin's Creed Shadows", type: "giant", hours: 55, note: "Glavna priča ~35–40h, ne čisti celu mapu" },
-  { title: "Detroit: Become Human", type: "linear", hours: 13 },
-  { title: "GTA Vice City", type: "open_world", hours: 18, note: "GTA serijal igraj redom: VC → SA → IV" },
-  { title: "The Forest", type: "open_world", hours: 20, note: "Najbolja u co-opu sa ekipom" },
-  { title: "Ori and the Will of the Wisps", type: "linear", hours: 14 },
-  { title: "The Witcher 3", type: "giant", hours: 100, note: "+~40h ako imaš obe ekspanzije" },
-  { title: "Mafia: Definitive Edition", type: "linear", hours: 15, note: "Mafije igraj redom: 1 → 2 → 3" },
-  { title: "Dying Light Essentials", type: "open_world", hours: 40, note: "Uključuje The Following" },
-  { title: "Dave the Diver", type: "relaxed", hours: 25, note: "Zgodna za kraće sesije radnim danima" },
-  { title: "Watch Dogs 2", type: "open_world", hours: 27 },
-  { title: "Control", type: "linear", hours: 17, note: "+~8h DLC ako imaš Ultimate" },
-  { title: "Red Dead Redemption 2", type: "giant", hours: 75, note: "Najbolja vikendom" },
-  { title: "Mafia II: Definitive Edition", type: "linear", hours: 15, note: "DLC-ovi su opcioni" },
-  { title: "GTA San Andreas", type: "open_world", hours: 40 },
-  { title: "Life is Strange", type: "linear", hours: 15, note: "5 epizoda, zgodno za radne dane" },
-  { title: "Far Cry 6", type: "open_world", hours: 33, note: "Ne čisti celu mapu" },
-  { title: "Mafia 3", type: "open_world", hours: 27, note: "Najrepetitivnija na spisku" },
-  { title: "Rise of the Tomb Raider", type: "linear", hours: 20 },
-  { title: "GTA IV", type: "open_world", hours: 38, note: "Osnovna igra, DLC-ovi su kasnije na listi" },
-  { title: "Devil May Cry 5", type: "linear", hours: 13 },
-  { title: "Cyberpunk 2077", type: "giant", hours: 60, note: "+~20h ako imaš Phantom Liberty" },
-  { title: "Shadow of the Tomb Raider DE", type: "linear", hours: 22, note: "+~7h ako igraš DLC grobnice" },
-  { title: "Dying Light 2: Stay Human Reloaded", type: "open_world", hours: 45, note: "Uključuje Bloody Ties" },
-  { title: "GTA IV: Episodes from Liberty City", type: "open_world", hours: 21, note: "The Lost and Damned + The Ballad of Gay Tony" },
-  { title: "Skyrim", type: "giant", hours: 90, note: "Bez kraja, igraj koliko ti prija" },
+  { title: "Batman: Arkham Knight", type: "open_world", genre: "action_adventure", hours: 25 },
+  { title: "Resident Evil 4 Remake", type: "linear", genre: "horror", hours: 18 },
+  { title: "Assassin's Creed Shadows", type: "giant", genre: "action_adventure", hours: 55, note: "Glavna priča ~35–40h, ne čisti celu mapu" },
+  { title: "Detroit: Become Human", type: "linear", genre: "narrative", hours: 13 },
+  { title: "GTA Vice City", type: "open_world", genre: "action_adventure", hours: 18, note: "GTA serijal igraj redom: VC → SA → IV" },
+  { title: "The Forest", type: "open_world", genre: "survival", hours: 20, note: "Najbolja u co-opu sa ekipom" },
+  { title: "Ori and the Will of the Wisps", type: "linear", genre: "metroidvania", hours: 14 },
+  { title: "The Witcher 3", type: "giant", genre: "rpg", hours: 100, note: "+~40h ako imaš obe ekspanzije" },
+  { title: "Mafia: Definitive Edition", type: "linear", genre: "action_adventure", hours: 15, note: "Mafije igraj redom: 1 → 2 → 3" },
+  { title: "Dying Light Essentials", type: "open_world", genre: "survival", hours: 40, note: "Uključuje The Following" },
+  { title: "Dave the Diver", type: "relaxed", genre: "adventure", hours: 25, note: "Zgodna za kraće sesije radnim danima" },
+  { title: "Watch Dogs 2", type: "open_world", genre: "action_adventure", hours: 27 },
+  { title: "Control", type: "linear", genre: "action_adventure", hours: 17, note: "+~8h DLC ako imaš Ultimate" },
+  { title: "Red Dead Redemption 2", type: "giant", genre: "action_adventure", hours: 75, note: "Najbolja vikendom" },
+  { title: "Mafia II: Definitive Edition", type: "linear", genre: "action_adventure", hours: 15, note: "DLC-ovi su opcioni" },
+  { title: "GTA San Andreas", type: "open_world", genre: "action_adventure", hours: 40 },
+  { title: "Life is Strange", type: "linear", genre: "narrative", hours: 15, note: "5 epizoda, zgodno za radne dane" },
+  { title: "Far Cry 6", type: "open_world", genre: "shooter", hours: 33, note: "Ne čisti celu mapu" },
+  { title: "Mafia 3", type: "open_world", genre: "action_adventure", hours: 27, note: "Najrepetitivnija na spisku" },
+  { title: "Rise of the Tomb Raider", type: "linear", genre: "action_adventure", hours: 20 },
+  { title: "GTA IV", type: "open_world", genre: "action_adventure", hours: 38, note: "Osnovna igra, DLC-ovi su kasnije na listi" },
+  { title: "Devil May Cry 5", type: "linear", genre: "hack_and_slash", hours: 13 },
+  { title: "Cyberpunk 2077", type: "giant", genre: "rpg", hours: 60, note: "+~20h ako imaš Phantom Liberty" },
+  { title: "Shadow of the Tomb Raider DE", type: "linear", genre: "action_adventure", hours: 22, note: "+~7h ako igraš DLC grobnice" },
+  { title: "Dying Light 2: Stay Human Reloaded", type: "open_world", genre: "survival", hours: 45, note: "Uključuje Bloody Ties" },
+  { title: "GTA IV: Episodes from Liberty City", type: "open_world", genre: "action_adventure", hours: 21, note: "The Lost and Damned + The Ballad of Gay Tony" },
+  { title: "Skyrim", type: "giant", genre: "rpg", hours: 90, note: "Bez kraja, igraj koliko ti prija" },
 ];
 
 /**
@@ -58,16 +64,16 @@ export const SEED_PLAN: readonly SeedPlanEntry[] = [
  * hours are 0; both can be edited in the app.
  */
 export const SEED_COMPLETED: readonly SeedCompletedEntry[] = [
-  { title: "Marvel's Spider-Man", type: "open_world" },
-  { title: "Marvel's Spider-Man: Miles Morales", type: "open_world" },
-  { title: "Far Cry 4", type: "open_world" },
-  { title: "Far Cry 5", type: "open_world" },
-  { title: "Far Cry New Dawn", type: "open_world" },
-  { title: "Far Cry Primal", type: "open_world" },
-  { title: "Spider-Man 2", type: "open_world" },
-  { title: "GTA 3", type: "open_world", note: "priča gotova, oktobar 2026" },
-  { title: "God of War (2018)", type: "linear", completedAt: "2026-10-28" },
-  { title: "Ori and the Blind Forest DE", type: "linear", completedAt: "2026-11-01" },
+  { title: "Marvel's Spider-Man", type: "open_world", genre: "action_adventure" },
+  { title: "Marvel's Spider-Man: Miles Morales", type: "open_world", genre: "action_adventure" },
+  { title: "Far Cry 4", type: "open_world", genre: "shooter" },
+  { title: "Far Cry 5", type: "open_world", genre: "shooter" },
+  { title: "Far Cry New Dawn", type: "open_world", genre: "shooter" },
+  { title: "Far Cry Primal", type: "open_world", genre: "shooter" },
+  { title: "Spider-Man 2", type: "open_world", genre: "action_adventure" },
+  { title: "GTA 3", type: "open_world", genre: "action_adventure", note: "priča gotova, oktobar 2026" },
+  { title: "God of War (2018)", type: "linear", genre: "action_adventure", completedAt: "2026-10-28" },
+  { title: "Ori and the Blind Forest DE", type: "linear", genre: "metroidvania", completedAt: "2026-11-01" },
 ];
 
 /**
@@ -79,6 +85,7 @@ export function buildSeedGames(): Game[] {
     id: i + 1,
     title: entry.title,
     type: entry.type,
+    genre: entry.genre,
     platform: "pc",
     status: i === 0 ? "in_progress" : "pending",
     casualHours: entry.hours,
@@ -88,11 +95,13 @@ export function buildSeedGames(): Game[] {
     completedAt: null,
     rating: null,
     review: null,
+    ...NO_METADATA,
   }));
   const completed: Game[] = SEED_COMPLETED.map((entry, i) => ({
     id: planned.length + i + 1,
     title: entry.title,
     type: entry.type,
+    genre: entry.genre,
     platform: "pc",
     status: "completed",
     casualHours: 0,
@@ -102,6 +111,17 @@ export function buildSeedGames(): Game[] {
     completedAt: entry.completedAt ?? null,
     rating: null,
     review: null,
+    ...NO_METADATA,
   }));
   return [...planned, ...completed];
 }
+
+/** Metadata fields of a game that was not picked from the game database. */
+export const NO_METADATA = {
+  source: null,
+  externalId: null,
+  coverUrl: null,
+  releaseDate: null,
+  providerGenres: [] as string[],
+  providerTags: [] as string[],
+} as const;

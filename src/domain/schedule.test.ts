@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MS_PER_DAY, formatDate, parseIsoDate } from "./dates";
 import { completedGames, computeSchedule, plannedGames } from "./schedule";
-import { SEED_SETTINGS, buildSeedGames } from "./seed";
+import { NO_METADATA, SEED_SETTINGS, buildSeedGames } from "./seed";
 import type { Game } from "./types";
 
 const settings = { startDate: SEED_SETTINGS.startDate, hoursPerWeek: SEED_SETTINGS.hoursPerWeek };
@@ -10,6 +10,7 @@ function game(overrides: Partial<Game> & Pick<Game, "id" | "casualHours">): Game
   return {
     title: `Game ${overrides.id}`,
     type: "linear",
+    genre: null,
     platform: "pc",
     status: "pending",
     note: null,
@@ -18,6 +19,7 @@ function game(overrides: Partial<Game> & Pick<Game, "id" | "casualHours">): Game
     completedAt: null,
     rating: null,
     review: null,
+    ...NO_METADATA,
     ...overrides,
   };
 }

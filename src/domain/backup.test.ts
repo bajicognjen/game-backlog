@@ -95,6 +95,79 @@ describe("parseBackup normalisation", () => {
     });
   });
 
+  it("keeps IGDB metadata, never exports credentials, and tolerates old files", () => {
+    const games = buildSeedGames();
+    games[0] = {
+      ...games[0],
+      source: "igdb",
+      externalId: 1942,
+      coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg",
+      releaseDate: "2015-05-18",
+      providerGenres: ["Action", "Role-playing (RPG)"],
+      providerTags: ["Singleplayer", "Open World"],
+    };
+    const text = serializeBackup(createBackup(games, { ...SEED_SETTINGS, igdbClientSecret: "secret", igdbAccessToken: "tok" }));
+    expect(text).not.toContain("secret");
+    expect(text).not.toContain("tok");
+    const parsed = parseBackup(text);
+    expect(parsed.settings.igdbClientSecret).toBe("");
+    expect(parsed.games.find((g) => g.id === games[0].id)).toMatchObject({
+      source: "igdb",
+      externalId: 1942,
+      releaseDate: "2015-05-18",
+      providerGenres: ["Action", "Role-playing (RPG)"],
+      providerTags: ["Singleplayer", "Open World"],
+    });
+    expect(parsed.games[1]).toMatchObject({ source: null, externalId: null, coverUrl: null, providerGenres: [], providerTags: [] });
+
+    const bad = JSON.parse(text) as { games: Record<string, unknown>[] };
+    bad.games[0].providerTags = "Singleplayer";
+    expect(reasonOf(() => parseBackup(JSON.stringify(bad)))).toBe("games[0].providerTags: type");
+  });
+
+  it("imports old RAWG links as unlinked cached data", () => {
+    const v5 = {
+      version: 5,
+      settings: { startDate: "2026-11-02", hoursPerWeek: 13 },
+      games: [
+        { id: 1, title: "A", type: "linear", status: "pending", rawgId: 99, coverUrl: "https://x/a.jpg", rawgGenres: ["RPG"], rawgTags: ["Open World"] },
+      ],
+    };
+    expect(parseBackup(JSON.stringify(v5)).games[0]).toMatchObject({
+      source: null,
+      externalId: null,
+      coverUrl: "https://x/a.jpg",
+      providerGenres: ["RPG"],
+      providerTags: ["Open World"],
+    });
+    const v6 = {
+      version: 6,
+      settings: { startDate: "2026-11-02", hoursPerWeek: 13, gameSource: "rawg" },
+      games: [{ id: 1, title: "A", type: "linear", status: "pending", source: "rawg", externalId: 99, providerGenres: ["RPG"] }],
+    };
+    expect(parseBackup(JSON.stringify(v6)).games[0]).toMatchObject({ source: null, externalId: null, providerGenres: ["RPG"] });
+  });
+
+  it("keeps genres, defaults them to none and rejects unknown ones", () => {
+    const backup = createBackup(buildSeedGames(), SEED_SETTINGS);
+    const parsed = parseBackup(serializeBackup(backup));
+    expect(parsed.games.find((g) => g.title === "The Witcher 3")?.genre).toBe("rpg");
+    expect(parsed.games.find((g) => g.title === "Far Cry 4")?.genre).toBe("shooter");
+
+    const noGenre = parseBackup(
+      JSON.stringify({
+        version: 3,
+        settings: { startDate: "2026-11-02", hoursPerWeek: 13 },
+        games: [{ id: 1, title: "A", type: "linear", status: "pending", platform: "pc" }],
+      }),
+    );
+    expect(noGenre.games[0].genre).toBeNull();
+
+    const bad = JSON.parse(serializeBackup(backup)) as { games: Record<string, unknown>[] };
+    bad.games[0].genre = "mmo";
+    expect(reasonOf(() => parseBackup(JSON.stringify(bad)))).toBe("games[0].genre: enum");
+  });
+
   it("imports a version 1 file as PC games and keeps the PS5 queue separate", () => {
     const v1 = {
       version: 1,

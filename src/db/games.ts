@@ -1,4 +1,4 @@
-import { isGameStatus, isGameType, isPlatform, type Game, type Platform } from "../domain/types";
+import { isGameSource, isGameStatus, isGameType, isGenre, isPlatform, type Game, type Platform } from "../domain/types";
 import { getDb } from "./client";
 import { lit, type SqlValue } from "./sql";
 import type { CompletedDetails, GameInput, GamePatch } from "./repository";
@@ -7,6 +7,7 @@ interface GameRow {
   id: number;
   title: string;
   type: string;
+  genre: string | null;
   platform: string;
   status: string;
   casual_hours: number;
@@ -16,10 +17,17 @@ interface GameRow {
   completed_at: string | null;
   rating: number | null;
   review: string | null;
+  source: string | null;
+  external_id: number | null;
+  cover_url: string | null;
+  release_date: string | null;
+  provider_genres: string;
+  provider_tags: string;
 }
 
 const COLUMNS =
-  "id, title, type, platform, status, casual_hours, note, position, completed_order, completed_at, rating, review";
+  "id, title, type, genre, platform, status, casual_hours, note, position, completed_order, completed_at, rating, review, " +
+  "source, external_id, cover_url, release_date, provider_genres, provider_tags";
 
 /** Next free finish-order number, evaluated inside the statement. */
 const NEXT_COMPLETED_ORDER = "(SELECT COALESCE(MAX(completed_order), 0) + 1 FROM games)";
@@ -45,11 +53,24 @@ export function insertCompletedGameStatement(input: GameInput & CompletedDetails
   return insertValues(null, { ...input, status: "completed", position: null, completedOrder: null }, NEXT_COMPLETED_ORDER);
 }
 
+/** Move a planned game to the finished list as dropped (no rating required). */
+export function dropGameStatement(id: number, droppedAt: string): string {
+  return (
+    "UPDATE games SET status = 'dropped', position = NULL, " +
+    `completed_order = ${NEXT_COMPLETED_ORDER}, completed_at = ${lit(droppedAt)} ` +
+    `WHERE id = ${lit(id)}`
+  );
+}
+
 function insertValues(id: number | null, game: Omit<Game, "id">, completedOrderSql: string): string {
-  const columns = ["title", "type", "platform", "status", "casual_hours", "note", "position", "completed_order", "completed_at", "rating", "review"];
+  const columns = [
+    "title", "type", "genre", "platform", "status", "casual_hours", "note", "position", "completed_order",
+    "completed_at", "rating", "review", "source", "external_id", "cover_url", "release_date", "provider_genres", "provider_tags",
+  ];
   const values = [
     lit(game.title),
     lit(game.type),
+    lit(game.genre),
     lit(game.platform),
     lit(game.status),
     lit(game.casualHours),
@@ -59,6 +80,12 @@ function insertValues(id: number | null, game: Omit<Game, "id">, completedOrderS
     lit(game.completedAt),
     lit(game.rating),
     lit(game.review),
+    lit(game.source),
+    lit(game.externalId),
+    lit(game.coverUrl),
+    lit(game.releaseDate),
+    lit(JSON.stringify(game.providerGenres)),
+    lit(JSON.stringify(game.providerTags)),
   ];
   if (id !== null) {
     columns.unshift("id");
@@ -77,6 +104,7 @@ export function updateGameQuery(id: number, patch: GamePatch): { sql: string; va
   };
   if (patch.title !== undefined) add("title", patch.title);
   if (patch.type !== undefined) add("type", patch.type);
+  if (patch.genre !== undefined) add("genre", patch.genre);
   if (patch.platform !== undefined) add("platform", patch.platform);
   if (patch.status !== undefined) add("status", patch.status);
   if (patch.casualHours !== undefined) add("casual_hours", patch.casualHours);
@@ -84,6 +112,12 @@ export function updateGameQuery(id: number, patch: GamePatch): { sql: string; va
   if (patch.completedAt !== undefined) add("completed_at", patch.completedAt);
   if (patch.rating !== undefined) add("rating", patch.rating);
   if (patch.review !== undefined) add("review", patch.review);
+  if (patch.source !== undefined) add("source", patch.source);
+  if (patch.externalId !== undefined) add("external_id", patch.externalId);
+  if (patch.coverUrl !== undefined) add("cover_url", patch.coverUrl);
+  if (patch.releaseDate !== undefined) add("release_date", patch.releaseDate);
+  if (patch.providerGenres !== undefined) add("provider_genres", JSON.stringify(patch.providerGenres));
+  if (patch.providerTags !== undefined) add("provider_tags", JSON.stringify(patch.providerTags));
   if (sets.length === 0) return null;
   values.push(id);
   return { sql: `UPDATE games SET ${sets.join(", ")} WHERE id = ?`, values };
@@ -107,7 +141,7 @@ export function finishGameStatement(id: number, details: CompletedDetails): stri
 
 /** Put a planned game in progress (the user pressed start, or the next game after a finish). */
 export function startGameStatement(id: number): string {
-  return `UPDATE games SET status = 'in_progress' WHERE id = ${lit(id)} AND status != 'completed'`;
+  return `UPDATE games SET status = 'in_progress' WHERE id = ${lit(id)} AND status NOT IN ('completed', 'dropped')`;
 }
 
 /**
@@ -120,7 +154,7 @@ export function planOrderStatements(order: readonly number[], platform: Platform
 }
 
 export function resetPlanPositions(platform: Platform): string {
-  return `UPDATE games SET position = NULL WHERE status != 'completed' AND platform = ${lit(platform)}`;
+  return `UPDATE games SET position = NULL WHERE status NOT IN ('completed', 'dropped') AND platform = ${lit(platform)}`;
 }
 
 export function positionStatement(id: number, position: number): string {
@@ -130,7 +164,7 @@ export function positionStatement(id: number, position: number): string {
 /** Statements that renumber the finish order 1..n in the given order, inside a batch. */
 export function completedOrderStatements(order: readonly number[]): string[] {
   return [
-    "UPDATE games SET completed_order = NULL WHERE status = 'completed'",
+    "UPDATE games SET completed_order = NULL WHERE status IN ('completed', 'dropped')",
     ...order.map((id, index) => `UPDATE games SET completed_order = ${lit(index + 1)} WHERE id = ${lit(id)}`),
   ];
 }
@@ -143,6 +177,8 @@ function rowToGame(row: GameRow): Game {
     id: row.id,
     title: row.title,
     type: row.type,
+    // An unknown code (e.g. from a newer version) is shown as no genre rather than failing.
+    genre: row.genre !== null && isGenre(row.genre) ? row.genre : null,
     platform: row.platform,
     status: row.status,
     casualHours: row.casual_hours,
@@ -152,5 +188,22 @@ function rowToGame(row: GameRow): Game {
     completedAt: row.completed_at,
     rating: row.rating,
     review: row.review,
+    // A row linked to a source the app no longer knows (RAWG) keeps its cached data but loses the link.
+    source: row.source !== null && isGameSource(row.source) ? row.source : null,
+    externalId: row.source !== null && isGameSource(row.source) ? row.external_id : null,
+    coverUrl: row.cover_url,
+    releaseDate: row.release_date,
+    providerGenres: parseStringList(row.provider_genres),
+    providerTags: parseStringList(row.provider_tags),
   };
+}
+
+function parseStringList(json: string | null): string[] {
+  if (!json) return [];
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
 }

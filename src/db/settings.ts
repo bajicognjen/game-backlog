@@ -7,6 +7,10 @@ const KEYS: Record<keyof Settings, string> = {
   startDate: "start_date",
   hoursPerWeek: "hours_per_week",
   theme: "theme",
+  igdbClientId: "igdb_client_id",
+  igdbClientSecret: "igdb_client_secret",
+  igdbAccessToken: "igdb_access_token",
+  igdbTokenExpiresAt: "igdb_token_expires_at",
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -18,6 +22,10 @@ export async function loadSettings(): Promise<Settings> {
     startDate: map.get(KEYS.startDate) ?? SEED_SETTINGS.startDate,
     hoursPerWeek: Number.isFinite(hoursPerWeek) && hoursPerWeek > 0 ? hoursPerWeek : SEED_SETTINGS.hoursPerWeek,
     theme: (map.get(KEYS.theme) as Theme | undefined) ?? SEED_SETTINGS.theme,
+    igdbClientId: map.get(KEYS.igdbClientId) ?? "",
+    igdbClientSecret: map.get(KEYS.igdbClientSecret) ?? "",
+    igdbAccessToken: map.get(KEYS.igdbAccessToken) ?? "",
+    igdbTokenExpiresAt: Number(map.get(KEYS.igdbTokenExpiresAt) ?? 0) || 0,
   };
 }
 
@@ -28,7 +36,11 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   }
 }
 
-/** Statements that store every setting (used by the first-run seed and by import). */
+/**
+ * Statements that store the plan settings (used by the first-run seed and by
+ * import). Credentials and tokens are deliberately left out: a restore must
+ * not wipe them.
+ */
 export function settingsStatements(settings: Settings): string[] {
   return [
     upsertSetting(KEYS.startDate, settings.startDate),

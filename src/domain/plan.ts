@@ -1,5 +1,5 @@
 import { completedGames, plannedGames } from "./schedule";
-import type { Game, Platform } from "./types";
+import { isDone, type Game, type Platform } from "./types";
 
 /**
  * Plan-order rules shared by the UI, the store and the storage layer. Each
@@ -12,7 +12,7 @@ import type { Game, Platform } from "./types";
 export function withPlanOrder(games: readonly Game[], order: readonly number[], platform: Platform): Game[] {
   const indexById = new Map(order.map((id, index) => [id, index]));
   return games.map((game) => {
-    if (game.status === "completed" || game.platform !== platform) return game;
+    if (isDone(game) || game.platform !== platform) return game;
     const index = indexById.get(game.id);
     if (index === undefined) throw new Error(`Game ${game.id} is missing from the ${platform} plan order`);
     return { ...game, position: index + 1 };
@@ -28,7 +28,7 @@ export function completedIds(games: readonly Game[]): number[] {
 export function withCompletedOrder(games: readonly Game[], order: readonly number[]): Game[] {
   const indexById = new Map(order.map((id, index) => [id, index]));
   return games.map((game) => {
-    if (game.status !== "completed") return game;
+    if (!isDone(game)) return game;
     const index = indexById.get(game.id);
     if (index === undefined) throw new Error(`Game ${game.id} is missing from the completed order`);
     return { ...game, completedOrder: index + 1 };

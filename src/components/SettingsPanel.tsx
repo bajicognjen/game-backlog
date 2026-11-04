@@ -13,10 +13,21 @@ export function SettingsPanel() {
 
   const [startDate, setStartDate] = useState(settings.startDate);
   const [hours, setHours] = useState(String(settings.hoursPerWeek));
+  const [igdbClientId, setIgdbClientId] = useState(settings.igdbClientId);
+  const [igdbClientSecret, setIgdbClientSecret] = useState(settings.igdbClientSecret);
 
   // Keep drafts in sync when the store changes from elsewhere (e.g. finishing a game).
   useEffect(() => setStartDate(settings.startDate), [settings.startDate]);
   useEffect(() => setHours(String(settings.hoursPerWeek)), [settings.hoursPerWeek]);
+  useEffect(() => setIgdbClientId(settings.igdbClientId), [settings.igdbClientId]);
+  useEffect(() => setIgdbClientSecret(settings.igdbClientSecret), [settings.igdbClientSecret]);
+
+  /** Save a credential on blur; a changed credential also forgets the cached token. */
+  function commit(field: "igdbClientId" | "igdbClientSecret", value: string) {
+    const next = value.trim();
+    if (next === settings[field]) return;
+    void updateSettings({ [field]: next, igdbAccessToken: "", igdbTokenExpiresAt: 0 });
+  }
 
   const startDateValid = isValidIsoDate(startDate);
   const hoursNumber = Number(hours.replace(",", "."));
@@ -65,6 +76,31 @@ export function SettingsPanel() {
         </label>
       </div>
       <p className="hint">{t.settings.hint}</p>
+
+      <div className="settings-fields settings-fields-secondary">
+        <label className="field">
+          <span className="field-label">{t.search.igdbClientId}</span>
+          <input
+            type="text"
+            value={igdbClientId}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => setIgdbClientId(e.target.value)}
+            onBlur={() => commit("igdbClientId", igdbClientId)}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">{t.search.igdbClientSecret}</span>
+          <input
+            type="password"
+            value={igdbClientSecret}
+            autoComplete="off"
+            onChange={(e) => setIgdbClientSecret(e.target.value)}
+            onBlur={() => commit("igdbClientSecret", igdbClientSecret)}
+          />
+        </label>
+        <p className="field-hint settings-hint-wide">{t.search.igdbHint}</p>
+      </div>
     </section>
   );
 }

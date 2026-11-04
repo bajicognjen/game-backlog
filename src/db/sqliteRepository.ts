@@ -4,6 +4,7 @@ import {
   DELETE_ALL_GAMES,
   completedOrderStatements,
   deleteGameStatement,
+  dropGameStatement,
   finishGameStatement,
   insertCompletedGameStatement,
   insertGameStatement,
@@ -99,6 +100,11 @@ export const sqliteRepository: Repository = {
   async setCompletedOrder(ids) {
     const db = await initDb();
     await runBatch(db, completedOrderStatements(ids));
+  },
+
+  async dropGame(id, droppedAt, planOrder) {
+    const db = await initDb();
+    await runBatch(db, [dropGameStatement(id, droppedAt), ...planOrderStatements(planOrder.ids, planOrder.platform)]);
   },
 
   async replaceAll(backup) {

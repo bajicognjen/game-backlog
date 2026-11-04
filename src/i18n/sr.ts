@@ -1,4 +1,4 @@
-import type { GameStatus, GameType, Platform, Theme } from "../domain/types";
+import type { GameSource, GameStatus, GameType, Genre, Platform, Theme } from "../domain/types";
 
 export const typeLabels: Record<GameType, string> = {
   linear: "Linearna",
@@ -13,6 +13,36 @@ export const statusLabels: Record<GameStatus, string> = {
   pending: "Na čekanju",
   paused: "Pauzirano",
   completed: "Završeno",
+  dropped: "Napušteno",
+};
+
+/** Genre names stay in English on purpose; only the column and field labels are Serbian. */
+export const genreLabels: Record<Genre, string> = {
+  action: "Action",
+  action_adventure: "Action-Adventure",
+  adventure: "Adventure",
+  rpg: "RPG",
+  shooter: "Shooter",
+  platformer: "Platformer",
+  metroidvania: "Metroidvania",
+  puzzle: "Puzzle",
+  horror: "Horror",
+  survival: "Survival",
+  stealth: "Stealth",
+  hack_and_slash: "Hack and Slash",
+  soulslike: "Soulslike",
+  roguelike: "Roguelike",
+  narrative: "Narrative",
+  racing: "Racing",
+  sports: "Sports",
+  fighting: "Fighting",
+  strategy: "Strategy",
+  simulation: "Simulation",
+  other: "Other",
+};
+
+export const sourceLabels: Record<GameSource, string> = {
+  igdb: "IGDB",
 };
 
 export const platformLabels: Record<Platform, string> = {
@@ -42,6 +72,7 @@ export const t = {
     index: "#",
     title: "Naslov",
     type: "Tip",
+    genre: "Žanr",
     status: "Status",
     platform: "Platforma",
     hours: "Sati",
@@ -86,6 +117,8 @@ export const t = {
     start: "Počni",
     pause: "Pauziraj",
     resume: "Nastavi",
+    drop: "Napusti",
+    more: "Više",
     rate: "Oceni",
     changeRating: "Promeni ocenu",
     drag: "Prevuci da promeniš redosled",
@@ -152,12 +185,39 @@ export const t = {
     hours: "Sati (casual)",
     note: "Beleška",
     platform: "Platforma",
+    genre: "Žanr",
+    noGenre: "– bez žanra –",
     position: "Pozicija u planu",
     atEnd: "Na kraj plana",
     before: "Ispred:",
     invalidTitle: "Unesi naslov.",
     invalidHours: "Unesi broj sati (0 ili više).",
     invalidPosition: "Unesi poziciju između 1 i {max}.",
+  },
+  dropDialog: {
+    title: "Napuštanje igre",
+    question: "Napustiti igru „{title}”?",
+    warning: "Igra izlazi iz plana i prelazi u završene kao napuštena. Ocena nije potrebna.",
+  },
+  search: {
+    label: "Pretraži IGDB bazu",
+    placeholder: "Upiši bar 3 slova naslova…",
+    short: "Upiši bar 3 slova.",
+    loading: "Tražim…",
+    noResults: "Nema rezultata.",
+    inLibrary: "U biblioteci",
+    inLibraryNote: "Igra je već u biblioteci, podaci su učitani odatle.",
+    noCredentials: "Za pretragu unesi IGDB Client ID i Client Secret u podešavanjima.",
+    unauthorized: "IGDB je odbio pristupne podatke. Proveri Client ID i Secret u podešavanjima.",
+    network: "Nema veze sa IGDB servisom. Pretraga radi samo uz internet.",
+    error: "Pretraga nije uspela.",
+    loadingDetails: "Učitavam podatke o igri…",
+    linked: "Povezano:",
+    unlink: "Ukloni vezu",
+    filled: "Popunjeno iz {source} baze: naziv, žanr, sati i datum izlaska. Sve možeš promeniti.",
+    igdbClientId: "IGDB (Twitch) Client ID",
+    igdbClientSecret: "IGDB (Twitch) Client Secret",
+    igdbHint: "Napravi aplikaciju na dev.twitch.tv/console i prekopiraj Client ID i Client Secret. Token se traži automatski i čuva samo lokalno do isteka; ništa od toga ne ulazi u rezervnu kopiju.",
   },
   deleteDialog: {
     title: "Brisanje igre",
