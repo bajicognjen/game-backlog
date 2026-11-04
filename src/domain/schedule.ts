@@ -18,7 +18,10 @@ export interface ScheduleRow {
 
 export interface ScheduleTotals {
   games: number;
+  /** Remaining hours across the plan. */
   hours: number;
+  /** Logged hours on planned games. */
+  hoursPlayed: number;
   weeks: number;
   /** End of the last planned game, or null when the plan is empty. */
   endMs: number | null;
@@ -31,13 +34,9 @@ export interface Schedule {
 
 export type ScheduleSettings = Pick<Settings, "startDate" | "hoursPerWeek">;
 
-/**
- * Hours a game still needs in the plan. Today that is the full casual
- * estimate; once played hours are logged this becomes the remaining estimate,
- * and nothing else in the schedule has to change.
- */
-export function planHours(game: Pick<Game, "casualHours">): number {
-  return game.casualHours;
+/** Hours a game still needs in the plan: the estimate minus what was logged, never below zero. */
+export function planHours(game: Pick<Game, "casualHours" | "hoursPlayed">): number {
+  return Math.max(0, game.casualHours - game.hoursPlayed);
 }
 
 /** Games still in a plan (not completed), in plan order; one platform or all of them. */
@@ -72,11 +71,13 @@ export function computeSchedule(games: readonly Game[], settings: ScheduleSettin
 
   const rows: ScheduleRow[] = [];
   let cumulativeHours = 0;
+  let hoursPlayed = 0;
   let previousEndMs = startMs;
 
   for (const game of plannedGames(games, SCHEDULED_PLATFORM)) {
     const hours = planHours(game);
     cumulativeHours += hours;
+    hoursPlayed += game.hoursPlayed;
     const endMs = addDays(startMs, (cumulativeHours / hoursPerWeek) * 7);
     rows.push({
       game,
@@ -95,6 +96,7 @@ export function computeSchedule(games: readonly Game[], settings: ScheduleSettin
     totals: {
       games: rows.length,
       hours: cumulativeHours,
+      hoursPlayed,
       weeks: cumulativeHours / hoursPerWeek,
       endMs: rows.length > 0 ? previousEndMs : null,
     },

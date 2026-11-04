@@ -3,6 +3,7 @@
  * these (see `igdb.ts`); the rest of the app never sees a provider-specific
  * field, so another database could be added behind the same interface.
  */
+import type { GameDetails } from "./details";
 import type { Game, GameSource, GameType, Genre } from "./types";
 
 /** One row in the search dropdown. */
@@ -13,6 +14,10 @@ export interface SearchHit {
   releaseDate: string | null;
   coverUrl: string | null;
   platforms: string[];
+  /** Record kind ("main", "remake", "dlc", …) when the source says; null otherwise. */
+  kind: string | null;
+  /** Edition name for versions of a parent game, e.g. "Definitive Edition". */
+  edition: string | null;
 }
 
 /** What a picked game contributes to the add/edit form and the stored row. */
@@ -34,10 +39,13 @@ export interface GameMetadata {
   singleplayer: boolean;
   multiplayer: boolean;
   openWorld: boolean;
+  /** Series suggestion from the source's collection or franchise, if any. */
+  seriesHint: string | null;
+  details: GameDetails | null;
 }
 
 /** The metadata columns of a stored game. */
-export type Metadata = Pick<Game, "source" | "externalId" | "coverUrl" | "releaseDate" | "providerGenres" | "providerTags">;
+export type Metadata = Pick<Game, "source" | "externalId" | "coverUrl" | "releaseDate" | "providerGenres" | "providerTags" | "details">;
 
 export function metadataOf(game: Game): Metadata {
   return {
@@ -47,6 +55,7 @@ export function metadataOf(game: Game): Metadata {
     releaseDate: game.releaseDate,
     providerGenres: game.providerGenres,
     providerTags: game.providerTags,
+    details: game.details,
   };
 }
 
@@ -58,6 +67,7 @@ export function toMetadata(meta: GameMetadata): Metadata {
     releaseDate: meta.releaseDate,
     providerGenres: meta.providerGenres,
     providerTags: meta.providerTags,
+    details: meta.details,
   };
 }
 

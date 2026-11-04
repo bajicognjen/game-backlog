@@ -23,9 +23,11 @@ import {
   planOrderStatements,
   positionStatement,
   resetPlanPositions,
+  restoreGameStatement,
   startGameStatement,
   updateGameQuery,
 } from "./games";
+import { deleteSessionStatement, deleteSessionsOfGameStatement, insertSessionStatement, insertSessionWithIdStatement } from "./sessions";
 import { settingsStatements, upsertSetting } from "./settings";
 import { lit } from "./sql";
 
@@ -36,6 +38,9 @@ const MIGRATIONS = [
   "0004_genre.sql",
   "0005_rawg_and_dropped.sql",
   "0006_provider.sql",
+  "0007_play_sessions.sql",
+  "0008_series.sql",
+  "0009_details.sql",
 ].map((file) =>
   readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
 );
@@ -129,6 +134,8 @@ describe("plan order statements", () => {
         platform: "pc",
         status: "pending",
         casualHours: 12.5,
+        series: null,
+        seriesOrder: null,
         note: null,
         position: 2,
         completedOrder: null,
@@ -222,6 +229,8 @@ describe("finishing and rating", () => {
         genre: "puzzle",
         platform: "ps4",
         casualHours: 8,
+        series: "Portal",
+        seriesOrder: 2,
         note: null,
         completedAt: null,
         rating: 10,
@@ -299,6 +308,8 @@ describe("platforms", () => {
         platform: "ps5",
         status: position === 1 ? "in_progress" : "pending",
         casualHours: 0,
+        series: null,
+        seriesOrder: null,
         note: null,
         position,
         completedOrder: null,
@@ -436,6 +447,8 @@ describe("dropped status and RAWG metadata", () => {
       platform: "ps5",
       status: "pending",
       casualHours: 46,
+      series: "The Witcher",
+      seriesOrder: 3,
       note: null,
       position: 1,
       completedOrder: null,
@@ -448,11 +461,27 @@ describe("dropped status and RAWG metadata", () => {
       releaseDate: "2015-05-18",
       providerGenres: ["Action", "RPG"],
       providerTags: ["Singleplayer", "Open World"],
+      details: {
+        summary: "Geralt.",
+        platforms: ["PC (Microsoft Windows)"],
+        userRating: 93.4,
+        criticRating: 91,
+        developers: ["CD PROJEKT RED"],
+        publishers: [],
+        screenshots: [],
+        videos: [{ id: "c0i88t0Kacs", name: "Trailer" }],
+        similarGames: [],
+        franchises: ["The Witcher"],
+        collection: "The Witcher",
+        storeLinks: [{ store: "Steam", url: "https://store.steampowered.com/app/292030" }],
+        fetchedAt: "2026-11-04T12:00:00.000Z",
+      },
     });
     db.exec(stmt);
     const row = db
-      .prepare("SELECT source, external_id, cover_url, release_date, provider_genres, provider_tags FROM games WHERE external_id = 3328")
+      .prepare("SELECT source, external_id, cover_url, release_date, provider_genres, provider_tags, details FROM games WHERE external_id = 3328")
       .get() as unknown as Record<string, unknown>;
+    expect(JSON.parse(row.details as string)).toMatchObject({ collection: "The Witcher", userRating: 93.4, videos: [{ id: "c0i88t0Kacs" }] });
     expect(row).toMatchObject({
       source: "igdb",
       external_id: 3328,
@@ -461,12 +490,13 @@ describe("dropped status and RAWG metadata", () => {
       provider_tags: '["Singleplayer","Open World"]',
     });
     const id = (db.prepare("SELECT id FROM games WHERE external_id = 3328").get() as unknown as { id: number }).id;
-    const unlink = updateGameQuery(id, { source: null, externalId: null, coverUrl: null, releaseDate: null, providerGenres: [], providerTags: [] })!;
+    const unlink = updateGameQuery(id, { source: null, externalId: null, coverUrl: null, releaseDate: null, providerGenres: [], providerTags: [], details: null })!;
     db.prepare(unlink.sql).run(...(unlink.values as (string | number | null)[]));
-    expect(db.prepare("SELECT source, external_id, provider_tags FROM games WHERE id = ?").get(id)).toMatchObject({
+    expect(db.prepare("SELECT source, external_id, provider_tags, details FROM games WHERE id = ?").get(id)).toMatchObject({
       source: null,
       external_id: null,
       provider_tags: "[]",
+      details: null,
     });
   });
 
@@ -492,5 +522,114 @@ describe("provider migration", () => {
       { title: "Linked", source: "rawg", external_id: 42, provider_genres: '["RPG"]' },
       { title: "Plain", source: null, external_id: null, provider_genres: "[]" },
     ]);
+  });
+});
+
+describe("play sessions", () => {
+  const hoursPlayed = (id: number) =>
+    (
+      db
+        .prepare("SELECT COALESCE((SELECT SUM(hours) FROM play_sessions WHERE game_id = ?), 0) AS h")
+        .get(id) as unknown as { h: number }
+    ).h;
+
+  it("logs, sums and deletes sessions", () => {
+    const batman = plan()[0].id;
+    db.exec(insertSessionStatement({ gameId: batman, playedOn: "2026-11-03", hours: 2.5, note: null }));
+    db.exec(insertSessionStatement({ gameId: batman, playedOn: "2026-11-04", hours: 3, note: "boss" }));
+    expect(hoursPlayed(batman)).toBe(5.5);
+    const first = (db.prepare("SELECT id FROM play_sessions ORDER BY id").get() as unknown as { id: number }).id;
+    db.exec(deleteSessionStatement(first));
+    expect(hoursPlayed(batman)).toBe(3);
+    expect(() => db.exec(insertSessionStatement({ gameId: batman, playedOn: "2026-11-05", hours: 0, note: null }))).toThrow(/CHECK/);
+  });
+
+  it("removes a game's sessions with the game", () => {
+    const ids = plan().map((r) => r.id);
+    db.exec(insertSessionStatement({ gameId: ids[0], playedOn: "2026-11-03", hours: 1, note: null }));
+    batch([deleteSessionsOfGameStatement(ids[0]), deleteGameStatement(ids[0]), ...planOrderStatements(ids.slice(1), "pc")]);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM play_sessions").get()).toMatchObject({ n: 0 });
+  });
+
+  it("restores sessions with their ids", () => {
+    const batman = plan()[0].id;
+    db.exec(insertSessionWithIdStatement({ id: 42, gameId: batman, playedOn: "2026-11-03", hours: 1.5, note: null }));
+    expect(db.prepare("SELECT id, hours FROM play_sessions").get()).toMatchObject({ id: 42, hours: 1.5 });
+    expect(() => db.exec(insertSessionWithIdStatement({ id: 43, gameId: 9999, playedOn: "2026-11-03", hours: 1, note: null }))).toThrow(
+      /FOREIGN KEY/,
+    );
+  });
+});
+
+describe("series", () => {
+  it("stores series fields and the migration backfills known titles", () => {
+    const row = db.prepare("SELECT series, series_order FROM games WHERE title = 'GTA Vice City'").get() as unknown as Record<string, unknown>;
+    expect(row).toEqual({ series: "GTA", series_order: 2 });
+    const update = updateGameQuery(plan()[0].id, { series: "Arkham", seriesOrder: 4 })!;
+    db.prepare(update.sql).run(...(update.values as (string | number | null)[]));
+    expect(db.prepare("SELECT series, series_order FROM games WHERE id = ?").get(plan()[0].id)).toMatchObject({ series: "Arkham", series_order: 4 });
+
+    const old = new DatabaseSync(":memory:");
+    for (const migration of MIGRATIONS.slice(0, 7)) old.exec(migration);
+    old.exec("INSERT INTO games (title, type, platform, status, casual_hours) VALUES ('GTA V', 'open_world', 'pc', 'pending', 50)");
+    old.exec("INSERT INTO games (title, type, platform, status, casual_hours) VALUES ('Hades', 'linear', 'pc', 'pending', 20)");
+    old.exec(MIGRATIONS[7]);
+    expect(old.prepare("SELECT series, series_order FROM games WHERE title = 'GTA V'").get()).toMatchObject({ series: "GTA", series_order: 6 });
+    expect(old.prepare("SELECT series, series_order FROM games WHERE title = 'Hades'").get()).toMatchObject({ series: null, series_order: null });
+  });
+});
+
+describe("undo", () => {
+  it("reinserts a deleted game with its id and sessions and puts it back in place", () => {
+    const ids = plan().map((r) => r.id);
+    const target = ids[2];
+    const snapshot = db.prepare("SELECT * FROM games WHERE id = ?").get(target) as unknown as Record<string, unknown>;
+    db.exec(insertSessionWithIdStatement({ id: 7, gameId: target, playedOn: "2026-11-03", hours: 2, note: null }));
+    batch([deleteSessionsOfGameStatement(target), deleteGameStatement(target), ...planOrderStatements(ids.filter((id) => id !== target), "pc")]);
+    expect(plan()).toHaveLength(26);
+
+    batch([
+      insertGameWithIdStatement({
+        id: target,
+        title: snapshot.title as string,
+        type: "giant",
+        genre: "action_adventure",
+        platform: "pc",
+        status: "pending",
+        casualHours: 55,
+        hoursPlayed: 0,
+        series: null,
+        seriesOrder: null,
+        note: null,
+        position: null,
+        completedOrder: null,
+        completedAt: null,
+        rating: null,
+        review: null,
+        ...NO_METADATA,
+      }),
+      insertSessionWithIdStatement({ id: 7, gameId: target, playedOn: "2026-11-03", hours: 2, note: null }),
+      ...planOrderStatements(ids, "pc"),
+    ]);
+    const rows = plan();
+    expect(rows).toHaveLength(27);
+    expect(rows[2]).toMatchObject({ id: target, title: "Assassin's Creed Shadows", position: 3 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM play_sessions WHERE game_id = ?").get(target)).toMatchObject({ n: 1 });
+  });
+
+  it("restores a dropped game to its old status and slot", () => {
+    const ids = plan().map((r) => r.id);
+    const before = completed().map((r) => r.id);
+    batch([dropGameStatement(ids[0], "2026-11-05"), ...planOrderStatements(ids.slice(1), "pc")]);
+    expect(completed()).toHaveLength(11);
+
+    const snapshot = { ...buildSeedGames()[0], id: ids[0] };
+    batch([restoreGameStatement(snapshot), ...planOrderStatements(ids, "pc"), ...completedOrderStatements(before)]);
+    expect(plan()[0]).toMatchObject({ id: ids[0], status: "in_progress", position: 1 });
+    expect(completed()).toHaveLength(10);
+    expect(db.prepare("SELECT completed_at, completed_order FROM games WHERE id = ?").get(ids[0])).toMatchObject({
+      completed_at: null,
+      completed_order: null,
+    });
   });
 });

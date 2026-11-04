@@ -1,3 +1,5 @@
+import type { GameDetails } from "./details";
+
 export const GAME_TYPES = ["linear", "open_world", "giant", "relaxed", "medium"] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
@@ -52,6 +54,11 @@ export interface Game {
   status: GameStatus;
   /** Estimated casual playtime in hours. Only used for dates on the scheduled platform. */
   casualHours: number;
+  /** Sum of logged sessions; the plan projects from `casualHours - hoursPlayed`. */
+  hoursPlayed: number;
+  /** Series the game belongs to (e.g. "GTA") and its number in it, for the order warning. */
+  series: string | null;
+  seriesOrder: number | null;
   note: string | null;
   /** Order in the plan (1-based); null once the game is completed. */
   position: number | null;
@@ -73,6 +80,8 @@ export interface Game {
   providerGenres: string[];
   /** Descriptive tags normalised across sources (e.g. "Singleplayer", "Open World"). */
   providerTags: string[];
+  /** Media, ratings, companies, store links and recommendations cached from IGDB; null until fetched. */
+  details: GameDetails | null;
 }
 
 /** External game databases the app can search. One today; the provider layer allows more. */
@@ -81,6 +90,16 @@ export type GameSource = (typeof GAME_SOURCES)[number];
 
 export function isGameSource(value: string): value is GameSource {
   return (GAME_SOURCES as readonly string[]).includes(value);
+}
+
+/** One logged play session. */
+export interface PlaySession {
+  id: number;
+  gameId: number;
+  /** ISO date (YYYY-MM-DD). */
+  playedOn: string;
+  hours: number;
+  note: string | null;
 }
 
 /** Statuses of games that left the plan: they live in the "finished" list. */

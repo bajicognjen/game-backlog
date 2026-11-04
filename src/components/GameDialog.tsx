@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import type { GameInput } from "../db";
 import {
   GAME_TYPES,
@@ -11,6 +11,8 @@ import {
   type Platform,
 } from "../domain/types";
 import { NO_METADATA } from "../domain/seed";
+import { seriesNames } from "../domain/warnings";
+import { useStore } from "../state/store";
 import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/sr";
 import { metadataOf, toMetadata, type Metadata } from "../domain/provider";
 import { Modal } from "./Modal";
@@ -45,6 +47,10 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   const [platform, setPlatform] = useState<Platform>(game?.platform ?? defaultPlatform);
   const [hours, setHours] = useState(game && game.casualHours > 0 ? String(game.casualHours) : "");
   const [note, setNote] = useState(game?.note ?? "");
+  const [series, setSeries] = useState(game?.series ?? "");
+  const [seriesOrder, setSeriesOrder] = useState(game?.seriesOrder !== null && game?.seriesOrder !== undefined ? String(game.seriesOrder) : "");
+  const allGames = useStore((s) => s.games);
+  const knownSeries = useMemo(() => seriesNames(allGames), [allGames]);
   const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
   const [pickNote, setPickNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -67,6 +73,7 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
     if (m.genre) setGenre(m.genre);
     if (m.typeHint) setType(m.typeHint);
     if (m.playtimeHours && hours.trim() === "") setHours(String(m.playtimeHours));
+    if (m.seriesHint && series.trim() === "") setSeries(m.seriesHint);
     setMeta(toMetadata(m));
     setPickNote(t.search.filled.replace("{source}", sourceLabels[m.source]));
   }
@@ -114,6 +121,8 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
         genre: genre === "" ? null : genre,
         platform,
         casualHours: hoursNumber,
+        series: series.trim() === "" ? null : series.trim(),
+        seriesOrder: series.trim() !== "" && seriesOrder.trim() !== "" ? Math.trunc(Number(seriesOrder)) : null,
         note: note.trim() === "" ? null : note.trim(),
         ...meta,
       },
@@ -208,6 +217,23 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
             ) : (
               <span className="field-hint">{positionHint}</span>
             )}
+          </label>
+        </div>
+
+        <div className="form-row form-row-series">
+          <label className="field">
+            <span className="field-label">{t.gameDialog.series}</span>
+            <input type="text" list="series-names" value={series} onChange={(e) => setSeries(e.target.value)} />
+            <datalist id="series-names">
+              {knownSeries.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </label>
+          <label className="field">
+            <span className="field-label">{t.gameDialog.seriesOrder}</span>
+            <input type="number" inputMode="numeric" min={1} step={1} value={seriesOrder} onChange={(e) => setSeriesOrder(e.target.value)} />
+            <span className="field-hint">{t.gameDialog.seriesHint}</span>
           </label>
         </div>
 

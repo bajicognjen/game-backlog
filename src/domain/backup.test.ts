@@ -16,7 +16,7 @@ function reasonOf(fn: () => unknown): string {
 describe("createBackup / serializeBackup / parseBackup", () => {
   it("round-trips the seed data exactly", () => {
     const games = buildSeedGames();
-    const backup = createBackup(games, SEED_SETTINGS, new Date("2026-11-04T10:00:00Z"));
+    const backup = createBackup(games, SEED_SETTINGS, [], new Date("2026-11-04T10:00:00Z"));
     expect(backup.version).toBe(BACKUP_VERSION);
     expect(backup.exportedAt).toBe("2026-11-04T10:00:00.000Z");
 
@@ -123,6 +123,25 @@ describe("parseBackup normalisation", () => {
     const bad = JSON.parse(text) as { games: Record<string, unknown>[] };
     bad.games[0].providerTags = "Singleplayer";
     expect(reasonOf(() => parseBackup(JSON.stringify(bad)))).toBe("games[0].providerTags: type");
+  });
+
+  it("round-trips play sessions and recomputes hours played", () => {
+    const games = buildSeedGames();
+    const sessions = [
+      { id: 1, gameId: games[0].id, playedOn: "2026-11-03", hours: 4, note: null },
+      { id: 2, gameId: games[0].id, playedOn: "2026-11-04", hours: 2.5, note: "večeras" },
+    ];
+    const parsed = parseBackup(serializeBackup(createBackup(games, SEED_SETTINGS, sessions)));
+    expect(parsed.sessions).toEqual(sessions);
+    expect(parsed.games.find((g) => g.id === games[0].id)?.hoursPlayed).toBe(6.5);
+    expect(computeSchedule(parsed.games, parsed.settings).totals.hours).toBe(901 - 6.5);
+
+    const orphan = JSON.parse(serializeBackup(createBackup(games, SEED_SETTINGS, sessions))) as { sessions: Record<string, unknown>[] };
+    orphan.sessions[0].gameId = 9999;
+    expect(reasonOf(() => parseBackup(JSON.stringify(orphan)))).toBe("sessions[0].gameId: missing");
+    orphan.sessions[0].gameId = games[0].id;
+    orphan.sessions[0].hours = 0;
+    expect(reasonOf(() => parseBackup(JSON.stringify(orphan)))).toBe("sessions[0].hours: range");
   });
 
   it("imports old RAWG links as unlinked cached data", () => {

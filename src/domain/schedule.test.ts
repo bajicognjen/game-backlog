@@ -13,6 +13,9 @@ function game(overrides: Partial<Game> & Pick<Game, "id" | "casualHours">): Game
     genre: null,
     platform: "pc",
     status: "pending",
+    hoursPlayed: 0,
+    series: null,
+    seriesOrder: null,
     note: null,
     position: overrides.id,
     completedOrder: null,
@@ -116,6 +119,22 @@ describe("schedule rules", () => {
     expect(plannedGames(games).map((g) => g.id)).toEqual([1, 2, 3]);
   });
 
+  it("projects from the remaining hours once sessions are logged", () => {
+    const games = buildSeedGames();
+    games[0] = { ...games[0], hoursPlayed: 12 }; // Batman: 25 h estimate, 12 played
+    const { rows, totals } = computeSchedule(games, settings);
+    expect(rows[0].hours).toBe(13);
+    expect(formatDate(rows[0].endMs)).toBe("09.11.2026"); // 13 h / 13 h per week = 7 days
+    expect(formatDate(rows[1].startMs)).toBe("09.11.2026");
+    expect(totals.hours).toBe(889);
+    expect(totals.hoursPlayed).toBe(12);
+    expect(formatDate(totals.endMs!)).toBe("23.02.2028");
+
+    const overplayed = computeSchedule([{ ...games[0], hoursPlayed: 40 }], settings);
+    expect(overplayed.rows[0].hours).toBe(0);
+    expect(overplayed.rows[0].endMs).toBe(overplayed.rows[0].startMs);
+  });
+
   it("recalculates when the weekly budget changes", () => {
     const fast = computeSchedule(buildSeedGames(), { ...settings, hoursPerWeek: 25 });
     expect(formatDate(fast.rows[0].endMs)).toBe("09.11.2026"); // 25 h / 25 h per week = 7 days
@@ -125,7 +144,7 @@ describe("schedule rules", () => {
   it("handles an empty plan", () => {
     const { rows, totals } = computeSchedule([], settings);
     expect(rows).toEqual([]);
-    expect(totals).toEqual({ games: 0, hours: 0, weeks: 0, endMs: null });
+    expect(totals).toEqual({ games: 0, hours: 0, hoursPlayed: 0, weeks: 0, endMs: null });
   });
 
   it("rejects a non-positive weekly budget", () => {

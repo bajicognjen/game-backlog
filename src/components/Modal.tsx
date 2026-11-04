@@ -5,10 +5,12 @@ interface Props {
   title: string;
   onClose(): void;
   children: ReactNode;
+  /** Wider dialog for content-heavy views. */
+  wide?: boolean;
 }
 
 /** Native <dialog> shown modally; Escape, the backdrop and the ✕ button close it. */
-export function Modal({ title, onClose, children }: Props) {
+export function Modal({ title, onClose, children, wide = false }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function Modal({ title, onClose, children }: Props) {
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${wide ? "modal-wide" : ""}`}
       aria-labelledby="modal-title"
       onCancel={(event) => {
         event.preventDefault();

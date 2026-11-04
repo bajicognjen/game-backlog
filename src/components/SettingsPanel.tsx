@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { isValidIsoDate } from "../domain/dates";
+import { autoBackupFolder } from "../platform/autoBackup";
 import { useStore } from "../state/store";
 import { t } from "../i18n/sr";
 
@@ -14,6 +15,10 @@ export function SettingsPanel() {
   const [startDate, setStartDate] = useState(settings.startDate);
   const [hours, setHours] = useState(String(settings.hoursPerWeek));
   const [igdbClientId, setIgdbClientId] = useState(settings.igdbClientId);
+  const [backupFolder, setBackupFolder] = useState<string | null>(null);
+  useEffect(() => {
+    void autoBackupFolder().then(setBackupFolder);
+  }, []);
   const [igdbClientSecret, setIgdbClientSecret] = useState(settings.igdbClientSecret);
 
   // Keep drafts in sync when the store changes from elsewhere (e.g. finishing a game).
@@ -101,6 +106,15 @@ export function SettingsPanel() {
         </label>
         <p className="field-hint settings-hint-wide">{t.search.igdbHint}</p>
       </div>
+      {backupFolder && (
+        <div className="settings-fields settings-fields-secondary">
+          <div className="field field-wide">
+            <span className="field-label">{t.backup.autoTitle}</span>
+            <code className="path">{backupFolder}</code>
+            <span className="field-hint">{t.backup.autoHint}</span>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -13,11 +13,20 @@ import {
   planOrderStatements,
   positionStatement,
   resetPlanPositions,
+  restoreGameStatement,
   startGameStatement,
   updateGameQuery,
 } from "./games";
 import type { Repository, Snapshot } from "./repository";
 import { ensureSeeded } from "./seed";
+import {
+  DELETE_ALL_SESSIONS,
+  deleteSessionStatement,
+  deleteSessionsOfGameStatement,
+  insertSessionStatement,
+  insertSessionWithIdStatement,
+  listSessions,
+} from "./sessions";
 import { loadSettings, saveSettings, settingsStatements, upsertSetting } from "./settings";
 import { runBatch } from "./sql";
 
@@ -38,8 +47,8 @@ function initDb(): Promise<Database> {
 export const sqliteRepository: Repository = {
   async load(): Promise<Snapshot> {
     await initDb();
-    const [settings, games] = await Promise.all([loadSettings(), listGames()]);
-    return { settings, games };
+    const [settings, games, sessions] = await Promise.all([loadSettings(), listGames(), listSessions()]);
+    return { settings, games, sessions };
   },
 
   saveSettings,
@@ -78,7 +87,11 @@ export const sqliteRepository: Repository = {
 
   async deleteGame(id, planOrder) {
     const db = await initDb();
-    await runBatch(db, [deleteGameStatement(id), ...planOrderStatements(planOrder.ids, planOrder.platform)]);
+    await runBatch(db, [
+      deleteSessionsOfGameStatement(id),
+      deleteGameStatement(id),
+      ...planOrderStatements(planOrder.ids, planOrder.platform),
+    ]);
   },
 
   async setPlanOrder(planOrder) {
@@ -110,10 +123,41 @@ export const sqliteRepository: Repository = {
   async replaceAll(backup) {
     const db = await initDb();
     await runBatch(db, [
+      DELETE_ALL_SESSIONS,
       DELETE_ALL_GAMES,
       ...backup.games.map(insertGameWithIdStatement),
+      ...backup.sessions.map(insertSessionWithIdStatement),
       ...settingsStatements(backup.settings),
       upsertSetting("seeded", "1"),
     ]);
+  },
+
+  async addSession(input) {
+    const db = await initDb();
+    await db.execute(insertSessionStatement(input));
+  },
+
+  async reinsertGame(game, sessions, planOrder, completedOrder) {
+    const db = await initDb();
+    await runBatch(db, [
+      insertGameWithIdStatement({ ...game, position: null, completedOrder: null }),
+      ...sessions.map(insertSessionWithIdStatement),
+      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.platform) : []),
+      ...(completedOrder ? completedOrderStatements(completedOrder) : []),
+    ]);
+  },
+
+  async restoreGame(game, planOrder, completedOrder) {
+    const db = await initDb();
+    await runBatch(db, [
+      restoreGameStatement(game),
+      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.platform) : []),
+      ...(completedOrder ? completedOrderStatements(completedOrder) : []),
+    ]);
+  },
+
+  async deleteSession(id) {
+    const db = await initDb();
+    await db.execute(deleteSessionStatement(id));
   },
 };

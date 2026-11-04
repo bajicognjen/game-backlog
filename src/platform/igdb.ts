@@ -3,7 +3,7 @@
  * app access token obtained with the client-credentials grant from the
  * user's Twitch Client ID and Client Secret (Podešavanja).
  */
-import { gameByIdQuery, searchQuery, timeToBeatQuery, type IgdbGame, type IgdbTimeToBeat } from "../domain/igdb";
+import { gameByIdQuery, searchQuery, timeToBeatQuery, type IgdbGame, type IgdbTimeToBeat, type SearchFilterVariant } from "../domain/igdb";
 import { ProviderError, fetchWithTimeout, statusToFailure } from "./http";
 
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
@@ -60,8 +60,39 @@ export async function igdbQuery<T>(auth: IgdbAuth, endpoint: string, body: strin
   return Array.isArray(data) ? (data as T[]) : [];
 }
 
-export function searchIgdbGames(auth: IgdbAuth, query: string, signal?: AbortSignal): Promise<IgdbGame[]> {
-  return igdbQuery<IgdbGame>(auth, "games", searchQuery(query), signal);
+/** The filter variant IGDB accepted last time; a 400 on a field name moves to the next one. */
+let searchVariant: SearchFilterVariant = "game_type";
+const VARIANTS: SearchFilterVariant[] = ["game_type", "category", "none"];
+export const SEARCH_LIMIT = 25;
+
+export interface IgdbSearchOutcome {
+  games: IgdbGame[];
+  /** Which filter the results came through; "none" means unfiltered (field unsupported, or nothing matched the filter). */
+  variant: SearchFilterVariant;
+}
+
+export async function searchIgdbGames(auth: IgdbAuth, query: string, includeAddons = false, signal?: AbortSignal): Promise<IgdbSearchOutcome> {
+  for (let i = VARIANTS.indexOf(searchVariant); i < VARIANTS.length; i++) {
+    const variant = VARIANTS[i];
+    let games: IgdbGame[];
+    try {
+      games = await igdbQuery<IgdbGame>(auth, "games", searchQuery(query, SEARCH_LIMIT, variant, includeAddons), signal);
+    } catch (error) {
+      // 400 means IGDB rejected the query itself (an unknown field); anything else is a real failure.
+      if (error instanceof ProviderError && error.status === 400 && i < VARIANTS.length - 1) continue;
+      throw error;
+    }
+    searchVariant = variant;
+    if (games.length > 0 || variant === "none") {
+      if (import.meta.env.DEV) console.debug(`[igdb] search "${query}" via ${variant}${includeAddons ? "+addons" : ""}: ${games.length} rows`);
+      return { games, variant };
+    }
+    // Nothing passed the type filter: show whatever IGDB has rather than an empty list.
+    const unfiltered = await igdbQuery<IgdbGame>(auth, "games", searchQuery(query, SEARCH_LIMIT, "none"), signal);
+    if (import.meta.env.DEV) console.debug(`[igdb] search "${query}" via ${variant} empty, unfiltered: ${unfiltered.length} rows`);
+    return { games: unfiltered, variant: "none" };
+  }
+  return { games: [], variant: "none" };
 }
 
 export async function getIgdbGame(auth: IgdbAuth, id: number, signal?: AbortSignal): Promise<IgdbGame | null> {

@@ -3,18 +3,26 @@ import { Banner } from "./components/Banner";
 import { CompletedGameDialog } from "./components/CompletedGameDialog";
 import { CompletedTable } from "./components/CompletedTable";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { FilterBar } from "./components/FilterBar";
 import { FinishDialog } from "./components/FinishDialog";
+import { GameDetailsDialog } from "./components/GameDetailsDialog";
 import { GameDialog } from "./components/GameDialog";
 import { PlanTable, type PlanRowView } from "./components/PlanTable";
 import { PlatformTabs } from "./components/PlatformTabs";
 import { RatingDialog } from "./components/RatingDialog";
+import { SessionDialog } from "./components/SessionDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SortControl } from "./components/SortControl";
+import { StatsSection } from "./components/StatsSection";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
+import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
+import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type GameFilter } from "./domain/filters";
 import { computeSchedule, plannedGames } from "./domain/schedule";
+import { todayStatus } from "./domain/today";
+import { planWarnings } from "./domain/warnings";
 import { PLATFORMS, SCHEDULED_PLATFORM, type Game, type Platform } from "./domain/types";
 import { platformLabels, t } from "./i18n/sr";
 import { setStoreMessages, useStore } from "./state/store";
@@ -26,6 +34,10 @@ setStoreMessages({
   imported: t.backup.imported,
   invalidBackup: (path, reason) =>
     t.backup.invalid.replace("{path}", path).replace("{reason}", t.backup.reasons[reason] ?? reason),
+  autoBackupFailed: (detail) => t.backup.autoFailed.replace("{detail}", detail),
+  deleted: (title) => t.undoNotice.deleted.replace("{title}", title),
+  dropped: (title) => t.undoNotice.dropped.replace("{title}", title),
+  restored: (title) => t.undoNotice.restored.replace("{title}", title),
 });
 
 export default function App() {
@@ -38,6 +50,7 @@ export default function App() {
   const applyBackup = useStore((s) => s.applyBackup);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [platform, setPlatform] = useState<Platform>(SCHEDULED_PLATFORM);
+  const [detailsId, setDetailsId] = useState<number | null>(null);
   const [pendingImport, setPendingImport] = useState<{ name: string; backup: Backup } | null>(null);
 
   useEffect(() => {
@@ -74,9 +87,11 @@ export default function App() {
       <main>
         <Banner />
         {settingsOpen && <SettingsPanel />}
-        <PlanSection platform={platform} onPlatformChange={setPlatform} />
-        <CompletedSection defaultPlatform={platform} />
+        <PlanSection platform={platform} onPlatformChange={setPlatform} onOpen={(game) => setDetailsId(game.id)} />
+        <CompletedSection defaultPlatform={platform} onOpen={(game) => setDetailsId(game.id)} />
+        <StatsSection />
       </main>
+      {detailsId !== null && <GameDetailsDialog gameId={detailsId} onClose={() => setDetailsId(null)} />}
       {pendingImport && (
         <ConfirmDialog
           title={t.backup.confirmTitle}
@@ -100,14 +115,16 @@ type PlanDialog =
   | { kind: "delete"; game: Game }
   | { kind: "finish"; game: Game }
   | { kind: "drop"; game: Game }
+  | { kind: "log"; game: Game }
   | null;
 
 interface PlanSectionProps {
   platform: Platform;
   onPlatformChange(platform: Platform): void;
+  onOpen(game: Game): void;
 }
 
-function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
+function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   const addGame = useStore((s) => s.addGame);
@@ -118,9 +135,12 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
   const setGameStatus = useStore((s) => s.setGameStatus);
   const dropGame = useStore((s) => s.dropGame);
   const [dialog, setDialog] = useState<PlanDialog>(null);
+  const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
+  const platforms = useMemo(() => availablePlatforms(games), [games]);
 
   // Recomputed on every change to games or settings: this is the "live" part.
   const schedule = useMemo(() => computeSchedule(games, settings), [games, settings]);
+  const today = useMemo(() => todayStatus(schedule, Date.now()), [schedule]);
   const scheduled = platform === SCHEDULED_PLATFORM;
 
   const rows = useMemo<PlanRowView[]>(
@@ -130,6 +150,25 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
         : plannedGames(games, platform).map((game, i) => ({ game, index: i + 1, schedule: null })),
     [scheduled, schedule, games, platform],
   );
+  const filtering = isFilterActive(filter);
+  const visibleRows = useMemo(() => (filtering ? rows.filter((row) => matchesFilter(row.game, filter)) : rows), [rows, filter, filtering]);
+
+  const warnings = useMemo(() => {
+    const planned = rows.map((row) => row.game);
+    const byGame = new Map<number, string>();
+    const messages: string[] = [];
+    for (const warning of planWarnings(planned)) {
+      const game = planned.find((g) => g.id === warning.gameId);
+      if (!game) continue;
+      const message =
+        warning.kind === "adjacent_giant"
+          ? t.warnings.adjacentGiant.replace("{title}", game.title).replace("{previous}", warning.previousTitle)
+          : t.warnings.seriesOrder.replace("{series}", warning.series).replace("{title}", game.title).replace("{after}", warning.afterTitle);
+      messages.push(message);
+      byGame.set(game.id, byGame.has(game.id) ? `${byGame.get(game.id)} ${message}` : message);
+    }
+    return { byGame, messages };
+  }, [rows]);
 
   const planTitles = useMemo(
     () =>
@@ -154,16 +193,23 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
             + {t.actions.add}
           </button>
         </div>
-        {scheduled ? <TotalsBar totals={schedule.totals} /> : <p className="hint section-hint">{t.queueHint}</p>}
+        {scheduled ? <TotalsBar totals={schedule.totals} today={today} /> : <p className="hint section-hint">{t.queueHint}</p>}
       </div>
+      <WarningsBar messages={warnings.messages} />
+      <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
       <PlanTable
-        rows={rows}
+        rows={visibleRows}
         showSchedule={scheduled}
+        todayGameId={scheduled ? (today.expected?.game.id ?? null) : null}
+        warnings={warnings.byGame}
+        canReorder={!filtering}
         emptyText={scheduled ? t.emptyPlan : t.emptyQueue}
         onEdit={(game) => setDialog({ kind: "edit", game })}
         onDelete={(game) => setDialog({ kind: "delete", game })}
         onFinish={(game) => setDialog({ kind: "finish", game })}
         onDrop={(game) => setDialog({ kind: "drop", game })}
+        onLog={(game) => setDialog({ kind: "log", game })}
+        onOpen={onOpen}
         onStatus={(game, status) => void setGameStatus(game.id, status)}
         onMove={(activeId, overId) => void moveGame(activeId, overId)}
       />
@@ -198,6 +244,7 @@ function PlanSection({ platform, onPlatformChange }: PlanSectionProps) {
           onClose={close}
         />
       )}
+      {dialog?.kind === "log" && <SessionDialog game={dialog.game} onClose={close} />}
       {dialog?.kind === "drop" && (
         <ConfirmDialog
           title={t.dropDialog.title}
@@ -227,7 +274,7 @@ type CompletedDialog =
   | { kind: "delete"; game: Game }
   | null;
 
-function CompletedSection({ defaultPlatform }: { defaultPlatform: Platform }) {
+function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platform; onOpen(game: Game): void }) {
   const games = useStore((s) => s.games);
   const addCompletedGame = useStore((s) => s.addCompletedGame);
   const editGame = useStore((s) => s.editGame);
@@ -237,13 +284,16 @@ function CompletedSection({ defaultPlatform }: { defaultPlatform: Platform }) {
   const [sortKey, setSortKey] = useState<CompletedSortKey>("order");
   const [direction, setDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION.order);
   const [filter, setFilter] = useState<Platform | "all">("all");
+  const [modeFilter, setModeFilter] = useState<GameFilter>(NO_FILTER);
   const [dialog, setDialog] = useState<CompletedDialog>(null);
+  const platforms = useMemo(() => availablePlatforms(games), [games]);
 
+  const allCompleted = useMemo(() => sortCompleted(games, sortKey, direction), [games, sortKey, direction]);
   const completed = useMemo(
-    () => sortCompleted(games, sortKey, direction).filter((game) => filter === "all" || game.platform === filter),
-    [games, sortKey, direction, filter],
+    () => allCompleted.filter((game) => (filter === "all" || game.platform === filter) && matchesFilter(game, modeFilter)),
+    [allCompleted, filter, modeFilter],
   );
-  const canReorder = sortKey === "order" && filter === "all";
+  const canReorder = sortKey === "order" && filter === "all" && !isFilterActive(modeFilter);
   const close = () => setDialog(null);
 
   return (
@@ -276,12 +326,14 @@ function CompletedSection({ defaultPlatform }: { defaultPlatform: Platform }) {
           />
         </div>
       </div>
+      <FilterBar filter={modeFilter} platforms={platforms} shown={completed.length} total={allCompleted.length} onChange={setModeFilter} />
       <CompletedTable
         games={completed}
         canReorder={canReorder}
         onRate={(game) => setDialog({ kind: "rate", game })}
         onEdit={(game) => setDialog({ kind: "edit", game })}
         onDelete={(game) => setDialog({ kind: "delete", game })}
+        onOpen={onOpen}
         onMove={(activeId, overId) => void moveCompleted(activeId, overId)}
       />
 

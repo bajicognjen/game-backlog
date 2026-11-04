@@ -6,12 +6,16 @@ import {
   type GameInput,
   type GamePatch,
   type PlanOrder,
+  type SessionInput,
 } from "../db";
 import { backupFileName, createBackup, parseBackup, serializeBackup, type Backup } from "../domain/backup";
 import { completedIds, insertAt, moveItem, plannedIds, withCompletedOrder, withPlanOrder } from "../domain/plan";
+import { isDone } from "../domain/types";
+import { sessionsOf } from "../domain/sessions";
 import { SEED_SETTINGS } from "../domain/seed";
-import type { Game, Platform, Settings } from "../domain/types";
+import type { Game, Platform, PlaySession, Settings } from "../domain/types";
 import { todayIso } from "../domain/dates";
+import { writeAutoBackup } from "../platform/autoBackup";
 import { openTextFile, saveTextFile } from "../platform/files";
 
 export type LoadStatus = "loading" | "ready" | "error";
@@ -20,10 +24,14 @@ export interface AppState {
   status: LoadStatus;
   /** Last failed operation, shown in a banner until dismissed. */
   error: string | null;
-  /** Last success message worth showing (export, import), until dismissed. */
+  /** Last success message worth showing (export, import, delete), until dismissed. */
   notice: string | null;
+  /** When set, the notice offers to undo the last delete or drop. */
+  undo: (() => Promise<void>) | null;
   games: Game[];
   settings: Settings;
+  /** All logged sessions; each game's `hoursPlayed` is their sum. */
+  sessions: PlaySession[];
 
   load(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
@@ -45,6 +53,9 @@ export interface AppState {
   setGameStatus(id: number, status: "in_progress" | "pending" | "paused"): Promise<boolean>;
   /** Give up on a planned game: it moves to the finished list as dropped, dated today. */
   dropGame(id: number): Promise<boolean>;
+  /** Log hours played on a game. */
+  logSession(input: SessionInput): Promise<boolean>;
+  removeSession(id: number): Promise<boolean>;
   /** Drag-and-drop within one platform: put `activeId` where `overId` currently is. */
   moveGame(activeId: number, overId: number): Promise<void>;
   /** Drag-and-drop in the completed list: put `activeId` where `overId` currently is (finish order). */
@@ -55,22 +66,38 @@ export interface AppState {
   pickBackup(): Promise<{ name: string; backup: Backup } | null>;
   /** Replace everything with a validated backup. */
   applyBackup(backup: Backup): Promise<boolean>;
+  /** Run the pending undo, if any. */
+  undoLast(): Promise<void>;
   dismissError(): void;
   dismissNotice(): void;
 }
+
+/** How long the undo offer stays on screen. */
+export const UNDO_WINDOW_MS = 8000;
 
 /** Messages the store needs; injected so the store stays free of UI strings. */
 export interface StoreMessages {
   exported: string;
   imported: string;
   invalidBackup(path: string, reason: string): string;
+  autoBackupFailed(detail: string): string;
+  deleted(title: string): string;
+  dropped(title: string): string;
+  restored(title: string): string;
 }
 
 let messages: StoreMessages = {
   exported: "Backup saved.",
   imported: "Backup imported.",
   invalidBackup: (path, reason) => `Invalid backup (${path}: ${reason}).`,
+  autoBackupFailed: (detail) => `Automatic backup failed: ${detail}`,
+  deleted: (title) => `Deleted "${title}".`,
+  dropped: (title) => `Dropped "${title}".`,
+  restored: (title) => `Restored "${title}".`,
 };
+
+/** How long after the last change the automatic backup is written. */
+export const AUTO_BACKUP_DELAY_MS = 2000;
 
 export function setStoreMessages(next: StoreMessages): void {
   messages = next;
@@ -79,8 +106,8 @@ export function setStoreMessages(next: StoreMessages): void {
 export const useStore = create<AppState>((set, get) => {
   /** Re-read everything from storage after a write. */
   async function reload(): Promise<void> {
-    const { games, settings } = await repository.load();
-    set({ games, settings });
+    const { games, settings, sessions } = await repository.load();
+    set({ games, settings, sessions });
   }
 
   /** Run a write, then reload; report failures in the banner. */
@@ -88,11 +115,43 @@ export const useStore = create<AppState>((set, get) => {
     try {
       await write();
       await reload();
+      scheduleAutoBackup();
       return true;
     } catch (error) {
       set({ error: describeError(error) });
       return false;
     }
+  }
+
+  let undoTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Show a notice with an undo button for a few seconds. */
+  function offerUndo(notice: string, undo: () => Promise<void>): void {
+    if (undoTimer) clearTimeout(undoTimer);
+    set({ notice, undo, error: null });
+    undoTimer = setTimeout(() => {
+      undoTimer = null;
+      if (get().undo === undo) set({ notice: null, undo: null });
+    }, UNDO_WINDOW_MS);
+  }
+
+  let autoBackupTimer: ReturnType<typeof setTimeout> | null = null;
+  let autoBackupWarned = false;
+
+  /** Write the automatic backup a moment after the last change, so bursts of edits produce one file. */
+  function scheduleAutoBackup(): void {
+    if (autoBackupTimer) clearTimeout(autoBackupTimer);
+    autoBackupTimer = setTimeout(async () => {
+      autoBackupTimer = null;
+      const { games, settings, sessions } = get();
+      try {
+        await writeAutoBackup(serializeBackup(createBackup(games, settings, sessions)));
+      } catch (error) {
+        if (autoBackupWarned) return; // one warning per session is enough
+        autoBackupWarned = true;
+        set({ error: messages.autoBackupFailed(describeError(error)) });
+      }
+    }, AUTO_BACKUP_DELAY_MS);
   }
 
   /** The current plan order of one platform, minus `exceptId`. */
@@ -104,13 +163,15 @@ export const useStore = create<AppState>((set, get) => {
     status: "loading",
     error: null,
     notice: null,
+    undo: null,
     games: [],
     settings: SEED_SETTINGS,
+    sessions: [],
 
     async load() {
       try {
-        const { games, settings } = await repository.load();
-        set({ status: "ready", games, settings, error: null });
+        const { games, settings, sessions } = await repository.load();
+        set({ status: "ready", games, settings, sessions, error: null });
       } catch (error) {
         set({ status: "error", error: describeError(error) });
       }
@@ -122,6 +183,7 @@ export const useStore = create<AppState>((set, get) => {
       set({ settings: { ...previous, ...patch } });
       try {
         await repository.saveSettings(patch);
+        scheduleAutoBackup();
       } catch (error) {
         set({ settings: previous, error: describeError(error) });
       }
@@ -155,10 +217,23 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
-    removeGame(id) {
-      const game = get().games.find((g) => g.id === id);
-      if (!game) return Promise.resolve(false);
-      return persist(() => repository.deleteGame(id, orderWithout(game.platform, id)));
+    async removeGame(id) {
+      const { games, sessions } = get();
+      const game = games.find((g) => g.id === id);
+      if (!game) return false;
+      // Remember enough to put it back exactly where it was.
+      const planOrder = isDone(game) ? null : { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const completedOrder = isDone(game) ? completedIds(games) : null;
+      const ownSessions = sessionsOf(sessions, id);
+      const ok = await persist(() => repository.deleteGame(id, orderWithout(game.platform, id)));
+      if (ok) {
+        offerUndo(messages.deleted(game.title), async () => {
+          if (await persist(() => repository.reinsertGame(game, ownSessions, planOrder, completedOrder))) {
+            set({ notice: messages.restored(game.title), undo: null });
+          }
+        });
+      }
+      return ok;
     },
 
     finishGame(id, input) {
@@ -171,6 +246,14 @@ export const useStore = create<AppState>((set, get) => {
       return persist(() => repository.addCompletedGame(input));
     },
 
+    logSession(input) {
+      return persist(() => repository.addSession(input));
+    },
+
+    removeSession(id) {
+      return persist(() => repository.deleteSession(id));
+    },
+
     rateGame(id, rating, review) {
       return persist(() => repository.updateGame(id, { rating, review }));
     },
@@ -179,10 +262,21 @@ export const useStore = create<AppState>((set, get) => {
       return persist(() => repository.updateGame(id, { status }));
     },
 
-    dropGame(id) {
-      const game = get().games.find((g) => g.id === id);
-      if (!game) return Promise.resolve(false);
-      return persist(() => repository.dropGame(id, todayIso(), orderWithout(game.platform, id)));
+    async dropGame(id) {
+      const { games } = get();
+      const game = games.find((g) => g.id === id);
+      if (!game) return false;
+      const planOrder = { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const completedOrder = completedIds(games);
+      const ok = await persist(() => repository.dropGame(id, todayIso(), orderWithout(game.platform, id)));
+      if (ok) {
+        offerUndo(messages.dropped(game.title), async () => {
+          if (await persist(() => repository.restoreGame(game, planOrder, completedOrder))) {
+            set({ notice: messages.restored(game.title), undo: null });
+          }
+        });
+      }
+      return ok;
     },
 
     async moveGame(activeId, overId) {
@@ -219,9 +313,9 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     async exportBackup() {
-      const { games, settings } = get();
+      const { games, settings, sessions } = get();
       try {
-        const saved = await saveTextFile(backupFileName(), serializeBackup(createBackup(games, settings)));
+        const saved = await saveTextFile(backupFileName(), serializeBackup(createBackup(games, settings, sessions)));
         if (saved) set({ notice: messages.exported, error: null });
       } catch (error) {
         set({ error: describeError(error) });
@@ -245,12 +339,21 @@ export const useStore = create<AppState>((set, get) => {
       return ok;
     },
 
+    async undoLast() {
+      const undo = get().undo;
+      if (!undo) return;
+      if (undoTimer) clearTimeout(undoTimer);
+      undoTimer = null;
+      set({ undo: null });
+      await undo();
+    },
+
     dismissError() {
       set({ error: null });
     },
 
     dismissNotice() {
-      set({ notice: null });
+      set({ notice: null, undo: null });
     },
   };
 });

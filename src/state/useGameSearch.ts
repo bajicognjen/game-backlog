@@ -21,7 +21,7 @@ export type GameSearchState =
  * asks for queries of `MIN_QUERY_LENGTH`+ characters, cancels a request a
  * newer query makes stale, and remembers results per query for the session.
  */
-export function useGameSearch(query: string): GameSearchState {
+export function useGameSearch(query: string, includeAddons = false): GameSearchState {
   const settings = useStore((s) => s.settings);
   const [state, setState] = useState<GameSearchState>({ status: "idle" });
   const cache = useRef(new Map<string, { hits: SearchHit[]; source: GameSource }>());
@@ -29,7 +29,7 @@ export function useGameSearch(query: string): GameSearchState {
 
   const provider = primaryProvider(providers);
   const configured = provider.configured(settings);
-  const cacheKey = query.trim().toLowerCase();
+  const cacheKey = `${includeAddons ? "all" : "main"}:${query.trim().toLowerCase()}`;
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -56,7 +56,7 @@ export function useGameSearch(query: string): GameSearchState {
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const hits = await provider.search(trimmed, controller.signal);
+        const hits = await provider.search(trimmed, { includeAddons }, controller.signal);
         const outcome = { hits, source: provider.source };
         cache.current.set(cacheKey, outcome);
         last.current = outcome;
@@ -72,7 +72,7 @@ export function useGameSearch(query: string): GameSearchState {
       controller.abort();
     };
     // Credentials are read from the store when the request fires.
-  }, [query, configured, cacheKey, provider]);
+  }, [query, configured, cacheKey, provider, includeAddons]);
 
   return state;
 }

@@ -28,10 +28,11 @@ interface Props {
   onRate(game: Game): void;
   onEdit(game: Game): void;
   onDelete(game: Game): void;
+  onOpen(game: Game): void;
   onMove(activeId: number, overId: number): void;
 }
 
-export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, onMove }: Props) {
+export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, onOpen, onMove }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -74,6 +75,7 @@ export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, on
                   onRate={onRate}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onOpen={onOpen}
                 />
               ))}
             </tbody>
@@ -90,9 +92,10 @@ interface RowProps {
   onRate(game: Game): void;
   onEdit(game: Game): void;
   onDelete(game: Game): void;
+  onOpen(game: Game): void;
 }
 
-function CompletedRow({ game, canReorder, onRate, onEdit, onDelete }: RowProps) {
+function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: RowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: game.id,
     disabled: !canReorder,
@@ -122,7 +125,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete }: RowProps) 
       </td>
       <td className="num muted">{game.completedOrder ?? t.none}</td>
       <td className="title">
-        <TitleCell game={game} />
+        <TitleCell game={game} onOpen={onOpen} />
       </td>
       <td>
         <TypeChip type={game.type} />
@@ -157,7 +160,12 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete }: RowProps) 
       <td className="actions-col">
         <div className="row-actions">
           <IconButton label={t.actions.edit} icon={"\u270E\uFE0E"} onClick={() => onEdit(game)} />
-          <RowMenu items={[{ label: t.actions.delete, danger: true, onSelect: () => onDelete(game) }]} />
+          <RowMenu
+            items={[
+              { label: t.actions.details, onSelect: () => onOpen(game) },
+              { label: t.actions.delete, danger: true, onSelect: () => onDelete(game) },
+            ]}
+          />
         </div>
       </td>
     </tr>

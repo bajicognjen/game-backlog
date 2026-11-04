@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { FinishInput } from "../db";
 import { isValidIsoDate, todayIso } from "../domain/dates";
+import { formatHours } from "../domain/format";
 import { SCHEDULED_PLATFORM, type Game } from "../domain/types";
 import { t } from "../i18n/sr";
 import { Modal } from "./Modal";
@@ -48,6 +49,12 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose }: Props) {
   return (
     <Modal title={`${t.finishDialog.title}: ${game.title}`} onClose={onClose}>
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
+        {game.hoursPlayed > 0 && (
+          <p className="modal-text muted">
+            {t.sessions.summaryNoEstimate.replace("{played}", formatHours(game.hoursPlayed))}
+            {game.casualHours > 0 ? ` (${t.columns.hours.toLowerCase()}: ${formatHours(game.casualHours)})` : ""}
+          </p>
+        )}
         <div className={scheduled ? "form-row form-row-2" : "form-row form-row-1"}>
           <label className="field">
             <span className="field-label">{t.finishDialog.completedAt}</span>

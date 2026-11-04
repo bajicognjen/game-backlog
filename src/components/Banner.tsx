@@ -5,6 +5,8 @@ import { t } from "../i18n/sr";
 export function Banner() {
   const error = useStore((s) => s.error);
   const notice = useStore((s) => s.notice);
+  const undo = useStore((s) => s.undo);
+  const undoLast = useStore((s) => s.undoLast);
   const dismissError = useStore((s) => s.dismissError);
   const dismissNotice = useStore((s) => s.dismissNotice);
 
@@ -21,9 +23,16 @@ export function Banner() {
       {notice && (
         <div className="banner banner-info" role="status">
           <span>{notice}</span>
-          <button type="button" className="button button-ghost" onClick={dismissNotice}>
-            {t.dismiss}
-          </button>
+          <span className="banner-actions">
+            {undo && (
+              <button type="button" className="button button-primary button-small" onClick={() => void undoLast()}>
+                {t.undo}
+              </button>
+            )}
+            <button type="button" className="button button-ghost" onClick={dismissNotice}>
+              {t.dismiss}
+            </button>
+          </span>
         </div>
       )}
     </>

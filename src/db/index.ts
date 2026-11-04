@@ -6,6 +6,7 @@ import { sqliteRepository } from "./sqliteRepository";
 /** SQLite inside the Tauri app; an in-memory copy of the seed in a plain browser. */
 export const repository: Repository = isTauri() ? sqliteRepository : createMemoryRepository();
 
+export type { SessionInput } from "./sessions";
 export type {
   CompletedDetails,
   FinishInput,

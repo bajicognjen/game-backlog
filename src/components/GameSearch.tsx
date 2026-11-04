@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { releaseYear, thumbnailUrl, type GameMetadata, type SearchHit } from "../domain/provider";
 import type { Game } from "../domain/types";
-import { platformLabels, sourceLabels, t } from "../i18n/sr";
+import { kindLabels, platformLabels, sourceLabels, t } from "../i18n/sr";
 import { ProviderError } from "../platform/http";
 import { providers } from "../state/providers";
 import { useStore } from "../state/store";
@@ -24,7 +24,8 @@ export function GameSearch({ onPick }: Props) {
   const [open, setOpen] = useState(false);
   const [fetching, setFetching] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const search = useGameSearch(query);
+  const [includeAddons, setIncludeAddons] = useState(false);
+  const search = useGameSearch(query, includeAddons);
 
   const needle = query.trim().toLowerCase();
   const local = useMemo(
@@ -78,9 +79,23 @@ export function GameSearch({ onPick }: Props) {
 
   return (
     <div className="search-search">
-      <label className="field">
-        <span className="field-label">{t.search.label}</span>
+      <div className="field">
+        <span className="field-label search-label">
+          <label htmlFor="game-search-input">{t.search.label}</label>
+          <label className="checkbox search-addons" onMouseDown={(e) => e.preventDefault()}>
+            <input
+              type="checkbox"
+              checked={includeAddons}
+              onChange={(e) => {
+                setIncludeAddons(e.target.checked);
+                setOpen(true);
+              }}
+            />
+            <span>{t.search.includeAddons}</span>
+          </label>
+        </span>
         <input
+          id="game-search-input"
           type="search"
           value={query}
           placeholder={t.search.placeholder}
@@ -96,7 +111,7 @@ export function GameSearch({ onPick }: Props) {
             if (e.key === "Escape") close();
           }}
         />
-      </label>
+      </div>
 
       {open && query.trim() !== "" && (
         <div className="search-dropdown" onMouseDown={(e) => e.preventDefault()}>
@@ -125,7 +140,11 @@ export function GameSearch({ onPick }: Props) {
               ))}
             </>
           )}
-          {hits.length > 0 && source && <div className="search-section">{sourceLabels[source]}</div>}
+          {hits.length > 0 && source && (
+            <div className="search-section">
+              {sourceLabels[source]} · {hits.length} {includeAddons ? t.search.withAddons : t.search.mainOnly}
+            </div>
+          )}
           {hits.map((hit) => {
             const key = `${hit.source}:${hit.externalId}`;
             return (
@@ -134,7 +153,9 @@ export function GameSearch({ onPick }: Props) {
                 <span className="search-item-text">
                   <span className="search-item-title">
                     {hit.title}
+                    {hit.edition ? <span className="muted"> · {hit.edition}</span> : null}
                     {hit.releaseDate ? <span className="muted"> ({releaseYear(hit.releaseDate)})</span> : null}
+                    {hit.kind && hit.kind !== "main" && <span className="chip chip-kind">{kindLabels[hit.kind] ?? hit.kind}</span>}
                   </span>
                   <span className="muted">{hit.platforms.slice(0, 4).join(", ")}</span>
                 </span>

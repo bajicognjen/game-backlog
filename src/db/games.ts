@@ -1,3 +1,4 @@
+import { parseDetails } from "../domain/details";
 import { isGameSource, isGameStatus, isGameType, isGenre, isPlatform, type Game, type Platform } from "../domain/types";
 import { getDb } from "./client";
 import { lit, type SqlValue } from "./sql";
@@ -11,6 +12,9 @@ interface GameRow {
   platform: string;
   status: string;
   casual_hours: number;
+  hours_played: number;
+  series: string | null;
+  series_order: number | null;
   note: string | null;
   position: number | null;
   completed_order: number | null;
@@ -23,23 +27,32 @@ interface GameRow {
   release_date: string | null;
   provider_genres: string;
   provider_tags: string;
+  details: string | null;
 }
 
 const COLUMNS =
-  "id, title, type, genre, platform, status, casual_hours, note, position, completed_order, completed_at, rating, review, " +
-  "source, external_id, cover_url, release_date, provider_genres, provider_tags";
+  "id, title, type, genre, platform, status, casual_hours, series, series_order, note, position, completed_order, completed_at, rating, review, " +
+  "source, external_id, cover_url, release_date, provider_genres, provider_tags, details";
 
 /** Next free finish-order number, evaluated inside the statement. */
 const NEXT_COMPLETED_ORDER = "(SELECT COALESCE(MAX(completed_order), 0) + 1 FROM games)";
 
+/** Logged hours per game, computed on read so the games table stays the single source of truth. */
+const HOURS_PLAYED = "COALESCE((SELECT SUM(hours) FROM play_sessions WHERE play_sessions.game_id = games.id), 0) AS hours_played";
+
 export async function listGames(): Promise<Game[]> {
   const db = await getDb();
-  const rows = await db.select<GameRow[]>(`SELECT ${COLUMNS} FROM games ORDER BY platform, position, completed_order, id`);
+  const rows = await db.select<GameRow[]>(
+    `SELECT ${COLUMNS}, ${HOURS_PLAYED} FROM games ORDER BY platform, position, completed_order, id`,
+  );
   return rows.map(rowToGame);
 }
 
+/** A game to insert: everything but the id and the derived hours played. */
+export type NewGame = Omit<Game, "id" | "hoursPlayed">;
+
 /** SQL for inserting one game (without id). Used by the seed and add. */
-export function insertGameStatement(game: Omit<Game, "id">): string {
+export function insertGameStatement(game: NewGame): string {
   return insertValues(null, game, lit(game.completedOrder));
 }
 
@@ -62,10 +75,10 @@ export function dropGameStatement(id: number, droppedAt: string): string {
   );
 }
 
-function insertValues(id: number | null, game: Omit<Game, "id">, completedOrderSql: string): string {
+function insertValues(id: number | null, game: NewGame, completedOrderSql: string): string {
   const columns = [
-    "title", "type", "genre", "platform", "status", "casual_hours", "note", "position", "completed_order",
-    "completed_at", "rating", "review", "source", "external_id", "cover_url", "release_date", "provider_genres", "provider_tags",
+    "title", "type", "genre", "platform", "status", "casual_hours", "series", "series_order", "note", "position", "completed_order",
+    "completed_at", "rating", "review", "source", "external_id", "cover_url", "release_date", "provider_genres", "provider_tags", "details",
   ];
   const values = [
     lit(game.title),
@@ -74,6 +87,8 @@ function insertValues(id: number | null, game: Omit<Game, "id">, completedOrderS
     lit(game.platform),
     lit(game.status),
     lit(game.casualHours),
+    lit(game.series),
+    lit(game.seriesOrder),
     lit(game.note),
     lit(game.position),
     completedOrderSql,
@@ -86,6 +101,7 @@ function insertValues(id: number | null, game: Omit<Game, "id">, completedOrderS
     lit(game.releaseDate),
     lit(JSON.stringify(game.providerGenres)),
     lit(JSON.stringify(game.providerTags)),
+    lit(game.details ? JSON.stringify(game.details) : null),
   ];
   if (id !== null) {
     columns.unshift("id");
@@ -108,6 +124,8 @@ export function updateGameQuery(id: number, patch: GamePatch): { sql: string; va
   if (patch.platform !== undefined) add("platform", patch.platform);
   if (patch.status !== undefined) add("status", patch.status);
   if (patch.casualHours !== undefined) add("casual_hours", patch.casualHours);
+  if (patch.series !== undefined) add("series", patch.series);
+  if (patch.seriesOrder !== undefined) add("series_order", patch.seriesOrder);
   if (patch.note !== undefined) add("note", patch.note);
   if (patch.completedAt !== undefined) add("completed_at", patch.completedAt);
   if (patch.rating !== undefined) add("rating", patch.rating);
@@ -118,6 +136,7 @@ export function updateGameQuery(id: number, patch: GamePatch): { sql: string; va
   if (patch.releaseDate !== undefined) add("release_date", patch.releaseDate);
   if (patch.providerGenres !== undefined) add("provider_genres", JSON.stringify(patch.providerGenres));
   if (patch.providerTags !== undefined) add("provider_tags", JSON.stringify(patch.providerTags));
+  if (patch.details !== undefined) add("details", patch.details ? JSON.stringify(patch.details) : null);
   if (sets.length === 0) return null;
   values.push(id);
   return { sql: `UPDATE games SET ${sets.join(", ")} WHERE id = ?`, values };
@@ -128,6 +147,15 @@ export function deleteGameStatement(id: number): string {
 }
 
 export const DELETE_ALL_GAMES = "DELETE FROM games";
+
+/** Put a game's status and finish fields back to a snapshot (undo of drop); orders are rewritten separately. */
+export function restoreGameStatement(game: Game): string {
+  return (
+    `UPDATE games SET status = ${lit(game.status)}, position = NULL, completed_order = NULL, ` +
+    `completed_at = ${lit(game.completedAt)}, rating = ${lit(game.rating)}, review = ${lit(game.review)} ` +
+    `WHERE id = ${lit(game.id)}`
+  );
+}
 
 /** Move a planned game to the end of the completed list. */
 export function finishGameStatement(id: number, details: CompletedDetails): string {
@@ -182,6 +210,9 @@ function rowToGame(row: GameRow): Game {
     platform: row.platform,
     status: row.status,
     casualHours: row.casual_hours,
+    hoursPlayed: row.hours_played ?? 0,
+    series: row.series,
+    seriesOrder: row.series_order,
     note: row.note,
     position: row.position,
     completedOrder: row.completed_order,
@@ -195,6 +226,7 @@ function rowToGame(row: GameRow): Game {
     releaseDate: row.release_date,
     providerGenres: parseStringList(row.provider_genres),
     providerTags: parseStringList(row.provider_tags),
+    details: parseDetails(row.details),
   };
 }
 

@@ -1,9 +1,12 @@
 import type { Backup } from "../domain/backup";
-import type { Game, GameSource, GameStatus, GameType, Genre, Platform, Settings } from "../domain/types";
+import type { GameDetails } from "../domain/details";
+import type { Game, GameSource, GameStatus, GameType, Genre, Platform, PlaySession, Settings } from "../domain/types";
+import type { SessionInput } from "./sessions";
 
 export interface Snapshot {
   games: Game[];
   settings: Settings;
+  sessions: PlaySession[];
 }
 
 /** The editable fields every game has. */
@@ -13,6 +16,8 @@ export interface GameInput {
   genre: Genre | null;
   platform: Platform;
   casualHours: number;
+  series: string | null;
+  seriesOrder: number | null;
   note: string | null;
   source: GameSource | null;
   externalId: number | null;
@@ -20,6 +25,7 @@ export interface GameInput {
   releaseDate: string | null;
   providerGenres: string[];
   providerTags: string[];
+  details: GameDetails | null;
 }
 
 /** The fields only completed games carry. */
@@ -77,6 +83,13 @@ export interface Repository {
   setCompletedOrder(ids: readonly number[]): Promise<void>;
   /** Give up on a planned game: it leaves the plan and joins the finished list as dropped. */
   dropGame(id: number, droppedAt: string, planOrder: PlanOrder): Promise<void>;
+  /** Log hours on a game. */
+  addSession(input: SessionInput): Promise<void>;
+  deleteSession(id: number): Promise<void>;
+  /** Undo of delete: put the game and its sessions back with their ids, then rewrite the orders. */
+  reinsertGame(game: Game, sessions: readonly PlaySession[], planOrder: PlanOrder | null, completedOrder: readonly number[] | null): Promise<void>;
+  /** Undo of drop: the game exists; reset its status and finish fields, then rewrite the orders. */
+  restoreGame(game: Game, planOrder: PlanOrder | null, completedOrder: readonly number[] | null): Promise<void>;
   /** Replace every game and setting with the contents of a backup, atomically. */
   replaceAll(backup: Backup): Promise<void>;
 }

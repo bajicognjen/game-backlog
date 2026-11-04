@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import type { CompletedDetails, GameInput } from "../db";
 import { isValidIsoDate } from "../domain/dates";
 import { GAME_TYPES, GENRES, PLATFORMS, type Game, type GameType, type Genre, type Platform } from "../domain/types";
 import { NO_METADATA } from "../domain/seed";
+import { seriesNames } from "../domain/warnings";
+import { useStore } from "../state/store";
 import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/sr";
 import { metadataOf, toMetadata, type Metadata } from "../domain/provider";
 import { Modal } from "./Modal";
@@ -35,6 +37,10 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
   const [completedAt, setCompletedAt] = useState(game?.completedAt ?? "");
   const [rating, setRating] = useState<number | null>(game?.rating ?? null);
   const [review, setReview] = useState(game?.review ?? "");
+  const [series, setSeries] = useState(game?.series ?? "");
+  const [seriesOrder, setSeriesOrder] = useState(game?.seriesOrder !== null && game?.seriesOrder !== undefined ? String(game.seriesOrder) : "");
+  const allGames = useStore((s) => s.games);
+  const knownSeries = useMemo(() => seriesNames(allGames), [allGames]);
   const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
   const [pickNote, setPickNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -57,6 +63,7 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
     if (m.genre) setGenre(m.genre);
     if (m.typeHint) setType(m.typeHint);
     if (m.playtimeHours && hours.trim() === "") setHours(String(m.playtimeHours));
+    if (m.seriesHint && series.trim() === "") setSeries(m.seriesHint);
     setMeta(toMetadata(m));
     setPickNote(t.search.filled.replace("{source}", sourceLabels[m.source]));
   }
@@ -78,6 +85,8 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
       genre: genre === "" ? null : genre,
       platform,
       casualHours: hoursNumber,
+      series: series.trim() === "" ? null : series.trim(),
+      seriesOrder: series.trim() !== "" && seriesOrder.trim() !== "" ? Math.trunc(Number(seriesOrder)) : null,
       note: note.trim() === "" ? null : note.trim(),
       completedAt: completedAt === "" ? null : completedAt,
       rating,
@@ -173,6 +182,22 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
           <span className="field-label">{t.rating.review}</span>
           <textarea rows={2} value={review} onChange={(e) => setReview(e.target.value)} />
         </label>
+
+        <div className="form-row form-row-series">
+          <label className="field">
+            <span className="field-label">{t.gameDialog.series}</span>
+            <input type="text" list="series-names-done" value={series} onChange={(e) => setSeries(e.target.value)} />
+            <datalist id="series-names-done">
+              {knownSeries.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </label>
+          <label className="field">
+            <span className="field-label">{t.gameDialog.seriesOrder}</span>
+            <input type="number" inputMode="numeric" min={1} step={1} value={seriesOrder} onChange={(e) => setSeriesOrder(e.target.value)} />
+          </label>
+        </div>
 
         <label className="field">
           <span className="field-label">{t.gameDialog.note}</span>

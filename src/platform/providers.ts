@@ -2,7 +2,7 @@
  * Game databases behind one interface. IGDB is the only one today; a new
  * source only needs a mapping module, a client and an entry in `createProviders`.
  */
-import { mapIgdbGame, mapIgdbSearchResult } from "../domain/igdb";
+import { mapIgdbGame, mapIgdbSearchResult, rankSearchHits } from "../domain/igdb";
 import type { GameMetadata, SearchHit } from "../domain/provider";
 import type { GameSource, Settings } from "../domain/types";
 import { ProviderError } from "./http";
@@ -12,8 +12,13 @@ export interface GameProvider {
   source: GameSource;
   /** True when the settings hold what this provider needs. */
   configured(settings: Settings): boolean;
-  search(query: string, signal?: AbortSignal): Promise<SearchHit[]>;
+  search(query: string, options?: SearchOptions, signal?: AbortSignal): Promise<SearchHit[]>;
   details(externalId: number, signal?: AbortSignal): Promise<GameMetadata>;
+}
+
+export interface SearchOptions {
+  /** Also list DLC, expansions, episodes and packs. */
+  includeAddons?: boolean;
 }
 
 export interface ProviderDeps {
@@ -50,8 +55,9 @@ export function createIgdbProvider(deps: ProviderDeps): GameProvider {
   return {
     source: "igdb",
     configured: (settings) => settings.igdbClientId.trim() !== "" && settings.igdbClientSecret.trim() !== "",
-    async search(query, signal) {
-      return (await searchIgdbGames(await auth(signal), query, signal)).map(mapIgdbSearchResult);
+    async search(query, options, signal) {
+      const { games } = await searchIgdbGames(await auth(signal), query, options?.includeAddons ?? false, signal);
+      return rankSearchHits(games.map(mapIgdbSearchResult), query);
     },
     async details(externalId, signal) {
       const a = await auth(signal);

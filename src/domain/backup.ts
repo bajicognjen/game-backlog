@@ -1,7 +1,9 @@
 import { isValidIsoDate } from "./dates";
 import { withPlanOrder } from "./plan";
 import { completedGames, plannedGames } from "./schedule";
-import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, type Settings, type Theme } from "./types";
+import { parseDetails } from "./details";
+import { withHoursPlayed } from "./sessions";
+import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
 
 /**
  * Bump when the file format changes. Older versions still import:
@@ -12,8 +14,11 @@ import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, 
  *  5 — "dropped" status and RAWG metadata (rawgId, coverUrl, releaseDate, rawgGenres, rawgTags).
  *  6 — provider-neutral metadata (source, externalId, providerGenres, providerTags), gameSource setting.
  *  7 — IGDB is the only source; RAWG links from older files import as unlinked cached data.
+ *  8 — play sessions (hours played per game).
+ *  9 — series tag and order per game.
+ * 10 — cached IGDB details per game.
  */
-export const BACKUP_VERSION = 7;
+export const BACKUP_VERSION = 10;
 
 export interface Backup {
   app: "game-backlog";
@@ -21,6 +26,7 @@ export interface Backup {
   exportedAt: string;
   settings: Settings;
   games: Game[];
+  sessions: PlaySession[];
 }
 
 export type BackupReason = "json" | "version" | "missing" | "type" | "enum" | "range" | "date" | "duplicate";
@@ -36,7 +42,12 @@ export class BackupError extends Error {
   }
 }
 
-export function createBackup(games: readonly Game[], settings: Settings, now: Date = new Date()): Backup {
+export function createBackup(
+  games: readonly Game[],
+  settings: Settings,
+  sessions: readonly PlaySession[] = [],
+  now: Date = new Date(),
+): Backup {
   return {
     app: "game-backlog",
     version: BACKUP_VERSION,
@@ -46,6 +57,7 @@ export function createBackup(games: readonly Game[], settings: Settings, now: Da
     games: [...PLATFORMS.flatMap((platform) => plannedGames(games, platform)), ...completedGames(games)].map((game) => ({
       ...game,
     })),
+    sessions: sessions.map((session) => ({ ...session })),
   };
 }
 
@@ -89,13 +101,33 @@ export function parseBackup(text: string): Backup {
     seen.add(game.id);
   });
 
+  const sessionsRaw = root.sessions ?? [];
+  if (!Array.isArray(sessionsRaw)) throw new BackupError("sessions", "type");
+  const sessions = sessionsRaw.map((item, i) => parseSession(expectObject(item, `sessions[${i}]`), `sessions[${i}]`, seen));
+
   return {
     app: "game-backlog",
     version: BACKUP_VERSION,
     exportedAt: typeof root.exportedAt === "string" ? root.exportedAt : new Date(0).toISOString(),
     settings,
-    games: normaliseGames(games),
+    games: withHoursPlayed(normaliseGames(games), sessions),
+    sessions,
   };
+}
+
+function parseSession(obj: Record<string, unknown>, path: string, gameIds: Set<number>): PlaySession {
+  const id = obj.id;
+  if (typeof id !== "number" || !Number.isInteger(id) || id < 1) throw new BackupError(`${path}.id`, "type");
+  const gameId = obj.gameId;
+  if (typeof gameId !== "number" || !Number.isInteger(gameId)) throw new BackupError(`${path}.gameId`, "type");
+  if (!gameIds.has(gameId)) throw new BackupError(`${path}.gameId`, "missing");
+  const playedOn = obj.playedOn;
+  if (typeof playedOn !== "string") throw new BackupError(`${path}.playedOn`, "type");
+  if (!isValidIsoDate(playedOn)) throw new BackupError(`${path}.playedOn`, "date");
+  const hours = obj.hours;
+  if (typeof hours !== "number" || !Number.isFinite(hours)) throw new BackupError(`${path}.hours`, "type");
+  if (hours <= 0) throw new BackupError(`${path}.hours`, "range");
+  return { id, gameId, playedOn, hours, note: optionalString(obj.note, `${path}.note`) };
 }
 
 function normaliseGames(games: Game[]): Game[] {
@@ -182,6 +214,9 @@ function parseGame(obj: Record<string, unknown>, path: string): Game {
     platform: platform as Game["platform"],
     status: status as Game["status"],
     casualHours,
+    hoursPlayed: 0,
+    series: optionalString(obj.series, `${path}.series`),
+    seriesOrder: optionalInteger(obj.seriesOrder, `${path}.seriesOrder`),
     note: optionalString(obj.note, `${path}.note`),
     position: optionalInteger(obj.position, `${path}.position`),
     completedOrder: optionalInteger(obj.completedOrder, `${path}.completedOrder`),
@@ -210,6 +245,7 @@ function parseMetadata(obj: Record<string, unknown>, path: string, releaseDate: 
     releaseDate,
     providerGenres: stringList(legacy ? obj.rawgGenres : obj.providerGenres, `${path}.providerGenres`),
     providerTags: stringList(legacy ? obj.rawgTags : obj.providerTags, `${path}.providerTags`),
+    details: obj.details === undefined || obj.details === null ? null : parseDetails(JSON.stringify(obj.details)),
   };
 }
 
