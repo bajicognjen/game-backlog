@@ -1,0 +1,85 @@
+# Game Backlog
+
+Personal desktop app for planning and tracking a singleplayer video game
+backlog. Single user, offline, local SQLite database. UI in Serbian (Latin),
+code in English.
+
+Stack: Tauri 2, React, TypeScript, Vite, tauri-plugin-sql (SQLite).
+
+## Development
+
+Prerequisites: Node 20+, Rust (rustup), and on Linux the Tauri system
+libraries (webkit2gtk 4.1 and friends).
+
+```bash
+npm install
+npm test            # unit tests for the date and schedule calculations
+npm run typecheck   # TypeScript
+npm run tauri dev   # run the desktop app
+```
+
+The database is created on first start in the app's config folder
+(`%APPDATA%\com.ognjen.gamebacklog\backlog.db` on Windows,
+`~/.config/com.ognjen.gamebacklog/backlog.db` on Linux) and filled with the
+seed plan.
+
+## Browser preview
+
+`npm run dev` serves the UI at http://localhost:1420 in a normal browser with
+an in-memory copy of the seed data. Handy for quick UI checks; nothing is
+saved.
+
+## Backup
+
+Izvezi / Uvezi in the top bar write and read a JSON file with all settings
+and games (`src/domain/backup.ts` documents the format). Import validates the
+file and replaces everything in one transaction.
+
+## Windows installer
+
+Releases are built by GitHub Actions on a Windows runner
+(`.github/workflows/release.yml`), because Tauri cannot cross-build Windows
+installers from Linux.
+
+1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
+2. Commit, then tag and push:
+
+   ```bash
+   git tag v0.1.0 && git push origin main --tags
+   ```
+
+3. The workflow runs tests, builds the NSIS installer and creates a **draft**
+   GitHub release with `Game Backlog_0.1.0_x64-setup.exe` attached. Publish
+   the draft when you are happy with it. The same `.exe` is also kept as a
+   workflow artifact.
+
+The installer is unsigned, so Windows SmartScreen shows a warning on first
+run ("More info" → "Run anyway"). It installs per user, no admin rights
+needed, and the data lives in `%APPDATA%\com.ognjen.gamebacklog\backlog.db`.
+
+To build on a Windows PC instead: install Rust (rustup), Visual Studio Build
+Tools with the "Desktop development with C++" workload, and Node 22, then
+
+```bash
+npm ci && npm run tauri build -- --bundles nsis
+```
+
+The installer lands in `src-tauri/target/release/bundle/nsis/`.
+
+To replace the default icon, put a 1024×1024 PNG somewhere and run
+`npm run tauri icon path/to/icon.png`; it regenerates every file in
+`src-tauri/icons/`.
+
+## Layout
+
+- `src/domain` — pure TypeScript: types, date maths, schedule calculation,
+  seed data. No Tauri imports; this is what the unit tests cover.
+- `src/db` — storage: SQLite through tauri-plugin-sql in the app, an
+  in-memory repository in the browser preview. `sql.test.ts` runs the
+  generated SQL against real SQLite (Node's built-in driver).
+- `src/state` — zustand store and theme handling.
+- `src/components` — React UI.
+- `src/platform` — file dialogs (Tauri plugins, with a browser fallback).
+- `src/i18n/sr.ts` — every UI string.
+- `src-tauri` — Rust side: plugin registration, capabilities and SQL migrations.
+- `.github/workflows` — CI on every push, Windows installer on tags.

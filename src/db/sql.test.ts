@@ -1,0 +1,369 @@
+/// <reference types="node" />
+/**
+ * Runs the SQL the app generates against a real SQLite database (node:sqlite)
+ * using the same migration file the Rust side applies. This covers what the
+ * in-memory repository cannot: the unique position index, the CHECK
+ * constraints and the batched reorder statements.
+ */
+import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { beforeEach, describe, expect, it } from "vitest";
+import { buildSeedGames } from "../domain/seed";
+import { createBackup, parseBackup, serializeBackup } from "../domain/backup";
+import { SEED_SETTINGS } from "../domain/seed";
+import {
+  DELETE_ALL_GAMES,
+  completedOrderStatements,
+  deleteGameStatement,
+  finishGameStatement,
+  insertCompletedGameStatement,
+  insertGameStatement,
+  insertGameWithIdStatement,
+  planOrderStatements,
+  positionStatement,
+  resetPlanPositions,
+  startGameStatement,
+  updateGameQuery,
+} from "./games";
+import { settingsStatements, upsertSetting } from "./settings";
+import { lit } from "./sql";
+
+const MIGRATIONS = ["0001_initial.sql", "0002_platform.sql", "0003_paused_status.sql"].map((file) =>
+  readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
+);
+
+interface Row {
+  id: number;
+  title: string;
+  status: string;
+  platform: string;
+  position: number | null;
+  casual_hours: number;
+  note: string | null;
+}
+
+interface CompletedRow {
+  id: number;
+  title: string;
+  completed_order: number | null;
+  completed_at: string | null;
+  rating: number | null;
+  review: string | null;
+}
+
+let db: DatabaseSync;
+
+function batch(statements: readonly string[]): void {
+  db.exec(["BEGIN;", ...statements.map((s) => (s.trim().endsWith(";") ? s : `${s};`)), "COMMIT;"].join("\n"));
+}
+
+function completed(): CompletedRow[] {
+  return db
+    .prepare(
+      "SELECT id, title, completed_order, completed_at, rating, review FROM games WHERE status = 'completed' ORDER BY completed_order",
+    )
+    .all() as unknown as CompletedRow[];
+}
+
+function plan(platform = "pc"): Row[] {
+  return db
+    .prepare(
+      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status != 'completed' AND platform = ? ORDER BY position",
+    )
+    .all(platform) as unknown as Row[];
+}
+
+beforeEach(() => {
+  db = new DatabaseSync(":memory:");
+  for (const migration of MIGRATIONS) db.exec(migration);
+  batch(buildSeedGames().map(insertGameStatement));
+});
+
+describe("seed through the real schema", () => {
+  it("inserts 27 planned and 10 completed games with contiguous positions", () => {
+    const rows = plan();
+    expect(rows).toHaveLength(27);
+    expect(rows.map((r) => r.position)).toEqual(rows.map((_, i) => i + 1));
+    expect(rows[0]).toMatchObject({ title: "Batman: Arkham Knight", status: "in_progress" });
+    const completed = db.prepare("SELECT COUNT(*) AS n FROM games WHERE status = 'completed'").get() as { n: number };
+    expect(completed.n).toBe(10);
+  });
+
+  it("escapes quotes and keeps unicode", () => {
+    const row = db.prepare("SELECT title, note FROM games WHERE title LIKE 'Assassin%'").get() as unknown as Row;
+    expect(row.title).toBe("Assassin's Creed Shadows");
+    expect(row.note).toBe("Glavna priča ~35–40h, ne čisti celu mapu");
+    expect(lit("it's")).toBe("'it''s'");
+  });
+});
+
+describe("plan order statements", () => {
+  it("reorders without tripping the unique position index", () => {
+    const ids = plan().map((r) => r.id);
+    const moved = [ids[2], ...ids.slice(0, 2), ...ids.slice(3)]; // third game to the top
+    batch(planOrderStatements(moved, "pc"));
+    const rows = plan();
+    expect(rows.map((r) => r.id)).toEqual(moved);
+    expect(rows.map((r) => r.position)).toEqual(moved.map((_, i) => i + 1));
+    expect(rows[0]).toMatchObject({ title: "Assassin's Creed Shadows", status: "pending" });
+    expect(rows[1]).toMatchObject({ title: "Batman: Arkham Knight", status: "in_progress" });
+  });
+
+  it("inserts a new game at a chosen slot", () => {
+    const ids = plan().map((r) => r.id);
+    const order: (number | "new")[] = [ids[0], "new", ...ids.slice(1)];
+    batch([
+      resetPlanPositions("pc"),
+      insertGameStatement({
+        title: "Hades",
+        type: "medium",
+        platform: "pc",
+        status: "pending",
+        casualHours: 12.5,
+        note: null,
+        position: 2,
+        completedOrder: null,
+        completedAt: null,
+        rating: null,
+        review: null,
+      }),
+      ...order.flatMap((id, i) => (id === "new" ? [] : [positionStatement(id, i + 1)])),
+    ]);
+    const rows = plan();
+    expect(rows).toHaveLength(28);
+    expect(rows[1]).toMatchObject({ title: "Hades", position: 2, status: "pending", casual_hours: 12.5 });
+    expect(rows[2]).toMatchObject({ title: "Resident Evil 4 Remake", position: 3 });
+  });
+
+  it("deletes a game and closes the gap", () => {
+    const ids = plan().map((r) => r.id);
+    batch([deleteGameStatement(ids[0]), ...planOrderStatements(ids.slice(1), "pc")]);
+    const rows = plan();
+    expect(rows).toHaveLength(26);
+    expect(rows[0]).toMatchObject({ title: "Resident Evil 4 Remake", position: 1, status: "pending" });
+    expect(rows.map((r) => r.position)).toEqual(rows.map((_, i) => i + 1));
+  });
+
+  it("rolls the whole batch back when one statement fails", () => {
+    const ids = plan().map((r) => r.id);
+    const before = JSON.stringify(plan());
+    expect(() =>
+      batch([...planOrderStatements(ids.slice().reverse(), "pc"), "INSERT INTO games (title, type, status) VALUES ('x', 'bogus', 'pending')"]),
+    ).toThrow(/CHECK/);
+    db.exec("ROLLBACK;");
+    expect(JSON.stringify(plan())).toBe(before);
+  });
+});
+
+describe("updateGameQuery", () => {
+  it("updates only the given fields with positional parameters", () => {
+    const first = plan()[0];
+    const query = updateGameQuery(first.id, { casualHours: 30, note: "nova beleška" });
+    expect(query).not.toBeNull();
+    db.prepare(query!.sql).run(...(query!.values as (string | number | null)[]));
+    const row = db.prepare("SELECT title, casual_hours, note FROM games WHERE id = ?").get(first.id) as unknown as Row;
+    expect(row).toMatchObject({ title: "Batman: Arkham Knight", casual_hours: 30, note: "nova beleška" });
+  });
+
+  it("returns null for an empty patch", () => {
+    expect(updateGameQuery(1, {})).toBeNull();
+  });
+
+  it("bumps updated_at through the trigger", () => {
+    const first = plan()[0];
+    db.exec(`UPDATE games SET updated_at = '2000-01-01 00:00:00' WHERE id = ${first.id}`);
+    const query = updateGameQuery(first.id, { title: "Batman" })!;
+    db.prepare(query.sql).run(...(query.values as (string | number | null)[]));
+    const row = db.prepare("SELECT updated_at FROM games WHERE id = ?").get(first.id) as { updated_at: string };
+    expect(row.updated_at).not.toBe("2000-01-01 00:00:00");
+  });
+});
+
+describe("finishing and rating", () => {
+  it("moves the current game to the end of the completed list and advances the plan", () => {
+    const ids = plan().map((r) => r.id);
+    batch([
+      finishGameStatement(ids[0], { completedAt: "2026-11-15", rating: 8, review: "Odlična" }),
+      ...planOrderStatements(ids.slice(1), "pc"),
+      upsertSetting("start_date", "2026-11-16"),
+      startGameStatement(ids[1]),
+    ]);
+    const done = completed();
+    expect(done).toHaveLength(11);
+    expect(done[10]).toMatchObject({
+      title: "Batman: Arkham Knight",
+      completed_order: 11,
+      completed_at: "2026-11-15",
+      rating: 8,
+      review: "Odlična",
+    });
+    const rows = plan();
+    expect(rows).toHaveLength(26);
+    expect(rows[0]).toMatchObject({ title: "Resident Evil 4 Remake", position: 1, status: "in_progress" });
+    const setting = db.prepare("SELECT value FROM settings WHERE key = 'start_date'").get() as unknown as { value: string };
+    expect(setting.value).toBe("2026-11-16");
+  });
+
+  it("adds a previously finished game at the end of the completed list", () => {
+    db.exec(
+      insertCompletedGameStatement({
+        title: "Portal 2",
+        type: "linear",
+        platform: "ps4",
+        casualHours: 8,
+        note: null,
+        completedAt: null,
+        rating: 10,
+        review: null,
+      }),
+    );
+    const done = completed();
+    expect(done[done.length - 1]).toMatchObject({ title: "Portal 2", completed_order: 11, completed_at: null, rating: 10 });
+    const row = db.prepare("SELECT platform FROM games WHERE title = 'Portal 2'").get() as unknown as { platform: string };
+    expect(row.platform).toBe("ps4");
+    expect(plan()).toHaveLength(27);
+  });
+
+  it("rates and un-rates a completed game", () => {
+    const target = completed()[0];
+    const rate = updateGameQuery(target.id, { rating: 9, review: "Super" })!;
+    db.prepare(rate.sql).run(...(rate.values as (string | number | null)[]));
+    expect(completed()[0]).toMatchObject({ rating: 9, review: "Super" });
+
+    const clear = updateGameQuery(target.id, { rating: null, review: null })!;
+    db.prepare(clear.sql).run(...(clear.values as (string | number | null)[]));
+    expect(completed()[0]).toMatchObject({ rating: null, review: null });
+  });
+
+  it("rejects ratings outside 1–10", () => {
+    const target = completed()[0];
+    const bad = updateGameQuery(target.id, { rating: 11 })!;
+    expect(() => db.prepare(bad.sql).run(...(bad.values as (string | number | null)[]))).toThrow(/CHECK/);
+  });
+});
+
+describe("backup restore", () => {
+  it("replaces all games and settings in one batch, keeping ids", () => {
+    const before = buildSeedGames();
+    const backup = parseBackup(serializeBackup(createBackup(before, { ...SEED_SETTINGS, hoursPerWeek: 20 })));
+    // Make the restored data distinguishable: drop one game, rate another.
+    backup.games = backup.games.filter((g) => g.title !== "Skyrim").map((g) => (g.title === "GTA 3" ? { ...g, rating: 6 } : g));
+
+    batch([
+      DELETE_ALL_GAMES,
+      ...backup.games.map(insertGameWithIdStatement),
+      ...settingsStatements(backup.settings),
+      upsertSetting("seeded", "1"),
+    ]);
+
+    const rows = plan();
+    expect(rows).toHaveLength(26);
+    expect(rows.map((r) => r.position)).toEqual(rows.map((_, i) => i + 1));
+    expect(rows[0]).toMatchObject({ id: 1, title: "Batman: Arkham Knight", status: "in_progress" });
+    expect(completed().find((r) => r.title === "GTA 3")).toMatchObject({ rating: 6 });
+    const hours = db.prepare("SELECT value FROM settings WHERE key = 'hours_per_week'").get() as unknown as { value: string };
+    expect(hours.value).toBe("20");
+    const seeded = db.prepare("SELECT value FROM settings WHERE key = 'seeded'").get() as unknown as { value: string };
+    expect(seeded.value).toBe("1");
+  });
+
+  it("keeps the old data when the restore batch fails", () => {
+    const before = JSON.stringify(plan());
+    expect(() =>
+      batch([DELETE_ALL_GAMES, "INSERT INTO games (id, title, type, status) VALUES (1, 'x', 'bogus', 'pending')"]),
+    ).toThrow(/CHECK/);
+    db.exec("ROLLBACK;");
+    expect(JSON.stringify(plan())).toBe(before);
+  });
+});
+
+describe("platforms", () => {
+  function addPs5(title: string, position: number): void {
+    db.exec(
+      insertGameStatement({
+        title,
+        type: "linear",
+        platform: "ps5",
+        status: position === 1 ? "in_progress" : "pending",
+        casualHours: 0,
+        note: null,
+        position,
+        completedOrder: null,
+        completedAt: null,
+        rating: null,
+        review: null,
+      }),
+    );
+  }
+
+  it("defaults existing rows to PC and allows the same position on another platform", () => {
+    expect(plan().every((r) => r.platform === "pc")).toBe(true);
+    addPs5("Astro Bot", 1); // PC already has position 1
+    addPs5("Spider-Man 2", 2);
+    expect(plan("ps5").map((r) => r.title)).toEqual(["Astro Bot", "Spider-Man 2"]);
+    expect(() => addPs5("Duplicate", 1)).toThrow(/UNIQUE/);
+    expect(() => db.exec("UPDATE games SET platform = 'xbox' WHERE title = 'Astro Bot'")).toThrow(/CHECK/);
+  });
+
+  it("reorders one platform without touching the other", () => {
+    addPs5("Astro Bot", 1);
+    addPs5("Spider-Man 2", 2);
+    const ps5 = plan("ps5").map((r) => r.id);
+    batch(planOrderStatements([ps5[1], ps5[0]], "ps5"));
+    expect(plan("ps5").map((r) => [r.title, r.position, r.status])).toEqual([
+      ["Spider-Man 2", 1, "pending"],
+      ["Astro Bot", 2, "in_progress"],
+    ]);
+    expect(plan()[0]).toMatchObject({ title: "Batman: Arkham Knight", position: 1, status: "in_progress" });
+    expect(plan()).toHaveLength(27);
+  });
+
+  it("finishing a PS5 game leaves the PC plan and start date alone", () => {
+    addPs5("Astro Bot", 1);
+    addPs5("Spider-Man 2", 2);
+    const ps5 = plan("ps5").map((r) => r.id);
+    batch([finishGameStatement(ps5[0], { completedAt: "2026-11-20", rating: 9, review: null }), ...planOrderStatements(ps5.slice(1), "ps5")]);
+    expect(plan("ps5").map((r) => [r.title, r.status])).toEqual([["Spider-Man 2", "pending"]]);
+    expect(plan()).toHaveLength(27);
+    const done = completed();
+    expect(done[done.length - 1]).toMatchObject({ title: "Astro Bot", completed_order: 11 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'start_date'").get()).toMatchObject({ n: 0 });
+  });
+});
+
+describe("statuses and finish order", () => {
+  it("accepts the paused status after the rebuild migration and keeps data and ids", () => {
+    const first = plan()[0];
+    expect(first).toMatchObject({ id: 1, title: "Batman: Arkham Knight", status: "in_progress" });
+    const pause = updateGameQuery(first.id, { status: "paused" })!;
+    db.prepare(pause.sql).run(...(pause.values as (string | number | null)[]));
+    expect(plan()[0]).toMatchObject({ id: 1, status: "paused", position: 1 });
+    expect(() => db.exec("UPDATE games SET status = 'bogus' WHERE id = 1")).toThrow(/CHECK/);
+    const seq = db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'games'").get() as unknown as { seq: number };
+    expect(seq.seq).toBe(37);
+    expect(completed()).toHaveLength(10);
+  });
+
+  it("keeps the trigger after the rebuild", () => {
+    db.exec("UPDATE games SET updated_at = '2000-01-01 00:00:00' WHERE id = 2");
+    db.exec("UPDATE games SET note = 'x' WHERE id = 2");
+    const row = db.prepare("SELECT updated_at FROM games WHERE id = 2").get() as unknown as { updated_at: string };
+    expect(row.updated_at).not.toBe("2000-01-01 00:00:00");
+  });
+
+  it("start only touches planned games", () => {
+    db.exec(startGameStatement(completed()[0].id));
+    expect(completed()[0]).toMatchObject({ title: "Marvel's Spider-Man" });
+    expect(db.prepare("SELECT status FROM games WHERE id = ?").get(completed()[0].id)).toMatchObject({ status: "completed" });
+  });
+
+  it("renumbers the finish order on drag and drop", () => {
+    const ids = completed().map((r) => r.id);
+    batch(completedOrderStatements([ids[9], ...ids.slice(0, 9)]));
+    const done = completed();
+    expect(done[0]).toMatchObject({ title: "Ori and the Blind Forest DE", completed_order: 1 });
+    expect(done[1]).toMatchObject({ title: "Marvel's Spider-Man", completed_order: 2 });
+    expect(done.map((r) => r.completed_order)).toEqual(done.map((_, i) => i + 1));
+    expect(plan()).toHaveLength(27);
+  });
+});
