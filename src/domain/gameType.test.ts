@@ -25,6 +25,12 @@ describe("gameTypeFrom", () => {
     expect(gameTypeFrom(meta(["Singleplayer", "Semi-open"]))).toBe("semi_open");
   });
 
+  it("calls an open world told in chapters semi-open, and chapters alone linear", () => {
+    // Mafia: Definitive Edition: open world theme and a "game with chapters" keyword.
+    expect(gameTypeFrom(meta(["Singleplayer", "Drama", "Open World", "Chapters"]))).toBe("semi_open");
+    expect(gameTypeFrom(meta(["Singleplayer", "Chapters"]))).toBe("linear");
+  });
+
   it("falls back to open world by tag, then linear", () => {
     expect(gameTypeFrom(meta(["Singleplayer", "Stealth", "Open World"]))).toBe("open_world");
     expect(gameTypeFrom(meta(["Singleplayer", "Horror"]))).toBe("linear");

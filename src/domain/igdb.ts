@@ -8,6 +8,7 @@ import { storeLinksFrom, type GameDetails } from "./details";
 import { gameTypeFrom } from "./gameType";
 import {
   TAG_BASE_BUILDING,
+  TAG_CHAPTERS,
   TAG_COOP,
   TAG_METROIDVANIA,
   TAG_MULTIPLAYER,
@@ -239,28 +240,33 @@ const TAG_BY_THEME: Record<string, string> = {
 };
 
 /**
- * IGDB keywords (free-form community tags, compared lower-case) that say
- * something about a game's design. Everything else stays in the cached
- * keyword list only.
+ * IGDB keywords (free-form community tags) that say something about a game's
+ * design, keyed by their `keywordKey` form: lower-case, with hyphens and
+ * underscores read as spaces ("interconnected-world" = "interconnected world").
+ * Everything else stays in the cached keyword list only.
  */
 const TAG_BY_KEYWORD: Record<string, string> = {
   "open world": TAG_OPEN_WORLD,
-  "semi-open world": TAG_SEMI_OPEN,
   "semi open world": TAG_SEMI_OPEN,
   "hub world": TAG_SEMI_OPEN,
   "hub worlds": TAG_SEMI_OPEN,
   "interconnected world": TAG_SEMI_OPEN,
+  "game with chapters": TAG_CHAPTERS,
   sandbox: TAG_SANDBOX,
   "base building": TAG_BASE_BUILDING,
-  "base-building": TAG_BASE_BUILDING,
   metroidvania: TAG_METROIDVANIA,
   roguelike: TAG_ROGUELIKE,
-  "rogue-like": TAG_ROGUELIKE,
+  "rogue like": TAG_ROGUELIKE,
   roguelite: TAG_ROGUELIKE,
-  "rogue-lite": TAG_ROGUELIKE,
-  "souls-like": "Souls-like",
+  "rogue lite": TAG_ROGUELIKE,
+  "souls like": "Souls-like",
   soulslike: "Souls-like",
 };
+
+/** How a keyword is looked up in `TAG_BY_KEYWORD`. */
+export function keywordKey(keyword: string): string {
+  return keyword.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+}
 
 const TAG_BY_GAME_MODE: Record<string, string> = {
   "Single player": TAG_SINGLEPLAYER,
@@ -292,7 +298,7 @@ export function mapIgdbGame(game: IgdbGameDetails, normallySeconds: number | nul
   const providerTags = unique([
     ...(game.game_modes ?? []).map((m) => TAG_BY_GAME_MODE[m.name]).filter((t): t is string => t !== undefined),
     ...themeNames.map((t) => TAG_BY_THEME[t]).filter((t): t is string => t !== undefined),
-    ...keywordsOf(game).map((k) => TAG_BY_KEYWORD[k]).filter((t): t is string => t !== undefined),
+    ...keywordsOf(game).map((k) => TAG_BY_KEYWORD[keywordKey(k)]).filter((t): t is string => t !== undefined),
   ]);
   const has = (tag: string) => providerTags.includes(tag);
   const openWorld = has(TAG_OPEN_WORLD);

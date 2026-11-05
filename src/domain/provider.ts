@@ -77,6 +77,8 @@ export const TAG_MULTIPLAYER = "Multiplayer";
 export const TAG_COOP = "Co-op";
 export const TAG_OPEN_WORLD = "Open World";
 export const TAG_SEMI_OPEN = "Semi-open";
+/** IGDB's "game with chapters" keyword: a story told in set chapters, even when the map is open. */
+export const TAG_CHAPTERS = "Chapters";
 export const TAG_SANDBOX = "Sandbox";
 export const TAG_SURVIVAL = "Survival";
 export const TAG_BASE_BUILDING = "Base Building";

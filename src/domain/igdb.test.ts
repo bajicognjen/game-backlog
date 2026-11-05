@@ -5,6 +5,7 @@ import {
   normaliseTitle,
   rankSearchHits,
   igdbImageUrl,
+  keywordKey,
   mapIgdbDetails,
   mapIgdbGame,
   mapIgdbSearchResult,
@@ -106,8 +107,19 @@ describe("mapIgdbGame", () => {
     expect(mafia).toMatchObject({ providerTags: ["Open World", "Semi-open"], typeHint: "semi_open" });
     const forest = mapIgdbGame({ id: 7, name: "Forest", themes: [{ name: "Survival" }, { name: "Open world" }], keywords: [{ name: "base building" }] });
     expect(forest.typeHint).toBe("sandbox");
+    // Control spells it with a hyphen; Mafia: Definitive Edition is an open world told in chapters.
+    const control = mapIgdbGame({ id: 9, name: "Control", themes: [{ name: "Horror" }], keywords: [{ name: "interconnected-world" }] });
+    expect(control).toMatchObject({ providerTags: ["Horror", "Semi-open"], typeHint: "semi_open" });
+    expect(control.details?.keywords).toEqual(["interconnected-world"]);
+    const mafiaDe = mapIgdbGame({ id: 10, name: "Mafia DE", themes: [{ name: "Open world" }], keywords: [{ name: "game with chapters" }] });
+    expect(mafiaDe).toMatchObject({ providerTags: ["Open World", "Chapters"], typeHint: "semi_open" });
     const story = mapIgdbGame({ id: 8, name: "Story", genres: [{ name: "Adventure" }], game_modes: [{ name: "Single player" }] });
     expect(story.typeHint).toBe("linear");
+  });
+
+  it("reads keyword hyphens and underscores as spaces when matching", () => {
+    expect(keywordKey("Interconnected-World")).toBe("interconnected world");
+    expect(keywordKey(" semi_open--world ")).toBe("semi open world");
   });
 
   it("tolerates missing fields", () => {
