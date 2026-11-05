@@ -38,6 +38,7 @@ describe("parseDetails", () => {
     franchises: ["The Witcher"],
     collection: "The Witcher",
     storeLinks: [{ store: "Steam", url: "https://store.steampowered.com/app/292030" }],
+    keywords: ["open world", "monster hunting"],
     fetchedAt: "2026-11-04T12:00:00.000Z",
   };
 

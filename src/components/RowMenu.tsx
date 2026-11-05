@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 export interface RowMenuItem {
   label: string;

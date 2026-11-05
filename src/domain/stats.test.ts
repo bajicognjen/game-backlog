@@ -39,7 +39,8 @@ describe("computeStats", () => {
     expect(stats.ratedCount).toBe(3);
     expect(stats.avgRating).toBe(7.3);
     expect(stats.byType[0]).toEqual({ key: "open_world", count: 7, avgRating: 6.5 });
-    expect(stats.byType[1]).toEqual({ key: "linear", count: 2, avgRating: 9 });
+    expect(stats.byType[1]).toEqual({ key: "metroidvania", count: 1, avgRating: null });
+    expect(stats.byType[2]).toEqual({ key: "semi_open", count: 1, avgRating: 9 });
     expect(stats.byGenre.find((g) => g.key === "shooter")).toEqual({ key: "shooter", count: 4, avgRating: 6.5 });
     expect(stats.byGenre.find((g) => g.key === "metroidvania")).toEqual({ key: "metroidvania", count: 1, avgRating: null });
   });

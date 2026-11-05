@@ -20,6 +20,7 @@ function withDetails(game: Game, platforms: string[], tags: string[]): Game {
       franchises: [],
       collection: null,
       storeLinks: [],
+      keywords: [],
       fetchedAt: "2026-11-04T00:00:00.000Z",
     },
   };

@@ -15,7 +15,7 @@ import { formatHours, formatWeeks } from "../domain/format";
 import { progressOf } from "../domain/sessions";
 import type { ScheduleRow } from "../domain/schedule";
 import type { Game, GameStatus } from "../domain/types";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
 import { IconButton } from "./IconButton";
 import { RowMenu } from "./RowMenu";
@@ -212,10 +212,10 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
         <>
           <td className="num">
             {game.hoursPlayed > 0 ? (
-              <span className="hours-cell" title={`${formatHours(game.hoursPlayed)} / ${formatHours(game.casualHours)} h`}>
+              <span className="hours-cell" title={hoursTitle(game, schedule.hours)}>
                 <span>
-                  {formatHours(schedule.hours)}
-                  <span className="muted hours-of"> / {formatHours(game.casualHours)}</span>
+                  {formatHours(game.hoursPlayed)}
+                  {progress !== null && <span className="muted hours-of"> / {formatHours(game.casualHours)}</span>}
                 </span>
                 {progress !== null && (
                   <span className="progress" aria-hidden="true">
@@ -264,4 +264,13 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
       </td>
     </tr>
   );
+}
+
+/** Tooltip for the hours cell: played, estimate and what the plan still counts. */
+function hoursTitle(game: Game, remaining: number): string {
+  if (game.casualHours <= 0) return t.sessions.summaryNoEstimate.replace("{played}", formatHours(game.hoursPlayed));
+  return t.sessions.summary
+    .replace("{played}", formatHours(game.hoursPlayed))
+    .replace("{estimate}", formatHours(game.casualHours))
+    .replace("{remaining}", formatHours(remaining));
 }

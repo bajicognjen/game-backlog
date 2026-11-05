@@ -5,7 +5,21 @@
  */
 import { toIsoDate } from "./dates";
 import { storeLinksFrom, type GameDetails } from "./details";
-import { TAG_COOP, TAG_MULTIPLAYER, TAG_OPEN_WORLD, TAG_SINGLEPLAYER, pickGenre, type GameMetadata, type SearchHit } from "./provider";
+import { gameTypeFrom } from "./gameType";
+import {
+  TAG_BASE_BUILDING,
+  TAG_COOP,
+  TAG_METROIDVANIA,
+  TAG_MULTIPLAYER,
+  TAG_OPEN_WORLD,
+  TAG_ROGUELIKE,
+  TAG_SANDBOX,
+  TAG_SEMI_OPEN,
+  TAG_SINGLEPLAYER,
+  pickGenre,
+  type GameMetadata,
+  type SearchHit,
+} from "./provider";
 import type { Genre } from "./types";
 
 /** A game from `POST /v4/games` with the fields `SEARCH_FIELDS` asks for. */
@@ -39,6 +53,7 @@ export interface IgdbGameDetails extends IgdbGame {
   franchises?: { name: string }[] | null;
   collection?: { name: string } | null;
   external_games?: { name?: string | null; uid?: string | null; url?: string | null }[] | null;
+  keywords?: { name?: string | null }[] | null;
 }
 
 /** A row from `POST /v4/game_time_to_beats`; durations are seconds. */
@@ -99,6 +114,7 @@ export const DETAIL_FIELDS = [
   "external_games.name",
   "external_games.uid",
   "external_games.url",
+  "keywords.name",
 ].join(",");
 
 /**
@@ -222,6 +238,30 @@ const TAG_BY_THEME: Record<string, string> = {
   Kids: "Kids",
 };
 
+/**
+ * IGDB keywords (free-form community tags, compared lower-case) that say
+ * something about a game's design. Everything else stays in the cached
+ * keyword list only.
+ */
+const TAG_BY_KEYWORD: Record<string, string> = {
+  "open world": TAG_OPEN_WORLD,
+  "semi-open world": TAG_SEMI_OPEN,
+  "semi open world": TAG_SEMI_OPEN,
+  "hub world": TAG_SEMI_OPEN,
+  "hub worlds": TAG_SEMI_OPEN,
+  "interconnected world": TAG_SEMI_OPEN,
+  sandbox: TAG_SANDBOX,
+  "base building": TAG_BASE_BUILDING,
+  "base-building": TAG_BASE_BUILDING,
+  metroidvania: TAG_METROIDVANIA,
+  roguelike: TAG_ROGUELIKE,
+  "rogue-like": TAG_ROGUELIKE,
+  roguelite: TAG_ROGUELIKE,
+  "rogue-lite": TAG_ROGUELIKE,
+  "souls-like": "Souls-like",
+  soulslike: "Souls-like",
+};
+
 const TAG_BY_GAME_MODE: Record<string, string> = {
   "Single player": TAG_SINGLEPLAYER,
   Multiplayer: TAG_MULTIPLAYER,
@@ -252,9 +292,11 @@ export function mapIgdbGame(game: IgdbGameDetails, normallySeconds: number | nul
   const providerTags = unique([
     ...(game.game_modes ?? []).map((m) => TAG_BY_GAME_MODE[m.name]).filter((t): t is string => t !== undefined),
     ...themeNames.map((t) => TAG_BY_THEME[t]).filter((t): t is string => t !== undefined),
+    ...keywordsOf(game).map((k) => TAG_BY_KEYWORD[k]).filter((t): t is string => t !== undefined),
   ]);
   const has = (tag: string) => providerTags.includes(tag);
   const openWorld = has(TAG_OPEN_WORLD);
+  const playtimeHours = normallySeconds && normallySeconds > 0 ? Math.round(normallySeconds / 3600) : null;
 
   return {
     source: "igdb",
@@ -264,9 +306,9 @@ export function mapIgdbGame(game: IgdbGameDetails, normallySeconds: number | nul
     releaseDate: unixToIsoDate(game.first_release_date),
     providerGenres,
     providerTags,
-    playtimeHours: normallySeconds && normallySeconds > 0 ? Math.round(normallySeconds / 3600) : null,
+    playtimeHours,
     genre: deriveGenre(genreNames, themeNames, providerTags),
-    typeHint: openWorld ? "open_world" : null,
+    typeHint: gameTypeFrom({ providerGenres, providerTags }),
     singleplayer: has(TAG_SINGLEPLAYER),
     multiplayer: has(TAG_MULTIPLAYER) || has(TAG_COOP),
     openWorld,
@@ -299,8 +341,14 @@ export function mapIgdbDetails(game: IgdbGameDetails, now: Date = new Date()): G
     franchises: (game.franchises ?? []).map((f) => f.name),
     collection: game.collection?.name ?? null,
     storeLinks: storeLinksFrom(game.external_games ?? []),
+    keywords: keywordsOf(game),
     fetchedAt: now.toISOString(),
   };
+}
+
+/** Keyword names, trimmed, lower-case and without repeats. */
+function keywordsOf(game: IgdbGameDetails): string[] {
+  return unique((game.keywords ?? []).map((k) => k.name?.trim().toLowerCase() ?? "").filter(Boolean));
 }
 
 function round1(value: number | null | undefined): number | null {

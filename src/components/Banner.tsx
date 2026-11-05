@@ -1,5 +1,5 @@
 import { useStore } from "../state/store";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 /** Error and success messages from the store, each dismissible. */
 export function Banner() {

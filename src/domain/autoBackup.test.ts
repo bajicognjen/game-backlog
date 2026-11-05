@@ -5,7 +5,7 @@ describe("automatic backups", () => {
   it("names one file per local day", () => {
     expect(autoBackupFileName(new Date(2026, 10, 4, 23, 59))).toBe("auto-2026-11-04.json");
     expect(isAutoBackupFile("auto-2026-11-04.json")).toBe(true);
-    expect(isAutoBackupFile("plan-igara-2026-11-04.json")).toBe(false);
+    expect(isAutoBackupFile("game-backlog-2026-11-04.json")).toBe(false);
   });
 
   it("keeps the newest seven and ignores other files", () => {

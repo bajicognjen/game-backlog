@@ -40,6 +40,8 @@ export interface GameDetails {
   franchises: string[];
   collection: string | null;
   storeLinks: StoreLink[];
+  /** IGDB keywords, lower-case; the design rules read the ones they know through the tags. */
+  keywords: string[];
   /** ISO timestamp of the fetch, so stale caches can be refreshed later. */
   fetchedAt: string;
 }
@@ -120,6 +122,7 @@ export function parseDetails(json: string | null): GameDetails | null {
       storeLinks: Array.isArray(d.storeLinks)
         ? d.storeLinks.filter((l): l is StoreLink => typeof l === "object" && l !== null && typeof (l as StoreLink).url === "string")
         : [],
+      keywords: strings(d.keywords),
       fetchedAt: typeof d.fetchedAt === "string" ? d.fetchedAt : new Date(0).toISOString(),
     };
   } catch {

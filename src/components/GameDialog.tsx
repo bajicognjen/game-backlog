@@ -13,7 +13,7 @@ import {
 import { NO_METADATA } from "../domain/seed";
 import { seriesNames } from "../domain/warnings";
 import { useStore } from "../state/store";
-import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/sr";
+import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/en";
 import { metadataOf, toMetadata, type Metadata } from "../domain/provider";
 import { Modal } from "./Modal";
 import { ProviderLinked } from "./ProviderLinked";

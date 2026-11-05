@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 interface Props {
   title: string;

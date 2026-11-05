@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { Game } from "../domain/types";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 import { Modal } from "./Modal";
 import { RatingPicker } from "./RatingPicker";
 

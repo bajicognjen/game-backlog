@@ -1,4 +1,4 @@
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 /** Short list of plan problems above the table; hidden when there are none. */
 export function WarningsBar({ messages }: { messages: string[] }) {

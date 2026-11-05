@@ -1,4 +1,4 @@
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 interface Props {
   value: number | null;

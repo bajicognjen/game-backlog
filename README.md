@@ -1,8 +1,7 @@
 # Game Backlog
 
 Personal desktop app for planning and tracking a singleplayer video game
-backlog. Single user, offline, local SQLite database. UI in Serbian (Latin),
-code in English.
+backlog. Single user, offline, local SQLite database. UI and code in English.
 
 Stack: Tauri 2, React, TypeScript, Vite, tauri-plugin-sql (SQLite).
 
@@ -31,7 +30,7 @@ saved.
 
 ## Backup
 
-Izvezi / Uvezi in the top bar write and read a JSON file with all settings
+Export / Import in the top bar write and read a JSON file with all settings
 and games (`src/domain/backup.ts` documents the format). Import validates the
 file and replaces everything in one transaction.
 
@@ -80,6 +79,6 @@ To replace the default icon, put a 1024×1024 PNG somewhere and run
 - `src/state` — zustand store and theme handling.
 - `src/components` — React UI.
 - `src/platform` — file dialogs (Tauri plugins, with a browser fallback).
-- `src/i18n/sr.ts` — every UI string.
+- `src/i18n/en.ts` — every UI string.
 - `src-tauri` — Rust side: plugin registration, capabilities and SQL migrations.
 - `.github/workflows` — CI on every push, Windows installer on tags.

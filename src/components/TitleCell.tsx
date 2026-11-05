@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { releaseYear, thumbnailUrl } from "../domain/provider";
 import type { Game } from "../domain/types";
-import { statusLabels } from "../i18n/sr";
+import { statusLabels } from "../i18n/en";
 
 /** Title with the cover (when there is one and it loads) and the release year; clicking opens the details. */
 export function TitleCell({ game, onOpen }: { game: Game; onOpen?(game: Game): void }) {

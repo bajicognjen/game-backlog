@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 interface State {
   error: Error | null;

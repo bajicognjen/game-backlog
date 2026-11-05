@@ -38,7 +38,7 @@ describe("createBackup / serializeBackup / parseBackup", () => {
   });
 
   it("names the file after the day", () => {
-    expect(backupFileName(new Date(2026, 10, 4))).toBe("plan-igara-2026-11-04.json");
+    expect(backupFileName(new Date(2026, 10, 4))).toBe("game-backlog-2026-11-04.json");
   });
 });
 
@@ -129,7 +129,7 @@ describe("parseBackup normalisation", () => {
     const games = buildSeedGames();
     const sessions = [
       { id: 1, gameId: games[0].id, playedOn: "2026-11-03", hours: 4, note: null },
-      { id: 2, gameId: games[0].id, playedOn: "2026-11-04", hours: 2.5, note: "večeras" },
+      { id: 2, gameId: games[0].id, playedOn: "2026-11-04", hours: 2.5, note: "tonight" },
     ];
     const parsed = parseBackup(serializeBackup(createBackup(games, SEED_SETTINGS, sessions)));
     expect(parsed.sessions).toEqual(sessions);
@@ -215,6 +215,21 @@ describe("parseBackup normalisation", () => {
       "games[0].platform: enum",
     );
   });
+
+  it("maps the size and mood types of version 10 files to designs, and rejects them in version 11", () => {
+    const v10 = {
+      version: 10,
+      settings: { startDate: "2026-11-02", hoursPerWeek: 13 },
+      games: [
+        { id: 1, title: "A", type: "giant", status: "in_progress", position: 1 },
+        { id: 2, title: "B", type: "medium", status: "pending", position: 2 },
+        { id: 3, title: "C", type: "relaxed", status: "pending", position: 3 },
+        { id: 4, title: "D", type: "open_world", status: "pending", position: 4 },
+      ],
+    };
+    expect(parseBackup(JSON.stringify(v10)).games.map((g) => g.type)).toEqual(["open_world", "semi_open", "linear", "open_world"]);
+    expect(reasonOf(() => parseBackup(JSON.stringify({ ...v10, version: 11 })))).toBe("games[0].type: enum");
+  });
 });
 
 describe("parseBackup rejections", () => {
@@ -247,7 +262,7 @@ describe("parseBackup rejections", () => {
     const data = valid();
     data.games[3].type = "rpg";
     expect(reasonOf(() => parseBackup(JSON.stringify(data)))).toBe("games[3].type: enum");
-    data.games[3].type = "giant";
+    data.games[3].type = "open_world";
     data.games[3].rating = 11;
     expect(reasonOf(() => parseBackup(JSON.stringify(data)))).toBe("games[3].rating: range");
     data.games[3].rating = null;

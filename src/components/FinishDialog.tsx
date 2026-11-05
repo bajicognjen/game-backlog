@@ -3,7 +3,7 @@ import type { FinishInput } from "../db";
 import { isValidIsoDate, todayIso } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { SCHEDULED_PLATFORM, type Game } from "../domain/types";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 import { Modal } from "./Modal";
 import { RatingPicker } from "./RatingPicker";
 

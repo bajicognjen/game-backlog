@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { releaseYear, thumbnailUrl, type Metadata } from "../domain/provider";
-import { sourceLabels, t } from "../i18n/sr";
+import { sourceLabels, t } from "../i18n/en";
 
 interface Props {
   meta: Metadata;

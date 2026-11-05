@@ -1,5 +1,5 @@
 import { PLAN_PLATFORMS, type Platform } from "../domain/types";
-import { platformLabels } from "../i18n/sr";
+import { platformLabels } from "../i18n/en";
 
 interface Props {
   active: Platform;

@@ -34,7 +34,7 @@ export interface GameMetadata {
   playtimeHours: number | null;
   /** Our genre, derived from tags first and genres second. */
   genre: Genre | null;
-  /** Our type suggestion: "open_world" when the source says so, else null (keep the user's choice). */
+  /** Our type from the source's tags, genres and playtime (see `gameType.ts`); null when the source gave nothing to go on. */
   typeHint: GameType | null;
   singleplayer: boolean;
   multiplayer: boolean;
@@ -76,6 +76,12 @@ export const TAG_SINGLEPLAYER = "Singleplayer";
 export const TAG_MULTIPLAYER = "Multiplayer";
 export const TAG_COOP = "Co-op";
 export const TAG_OPEN_WORLD = "Open World";
+export const TAG_SEMI_OPEN = "Semi-open";
+export const TAG_SANDBOX = "Sandbox";
+export const TAG_SURVIVAL = "Survival";
+export const TAG_BASE_BUILDING = "Base Building";
+export const TAG_METROIDVANIA = "Metroidvania";
+export const TAG_ROGUELIKE = "Roguelike";
 
 /** Tag-derived genres win over broad genres, most specific first. */
 export const GENRE_BY_TAG: ReadonlyArray<[string, Genre]> = [

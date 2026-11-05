@@ -6,7 +6,7 @@ import { igdbImageUrl } from "../domain/igdb";
 import { releaseYear, thumbnailUrl, toMetadata } from "../domain/provider";
 import { plannedIds } from "../domain/plan";
 import type { Game } from "../domain/types";
-import { genreLabels, platformLabels, statusLabels, t } from "../i18n/sr";
+import { genreLabels, platformLabels, statusLabels, t } from "../i18n/en";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
 import { providers } from "../state/providers";
@@ -47,7 +47,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
     setError(null);
     try {
       const meta = await providers.igdb.details(game.externalId as number);
-      await editGame(game.id, { ...toMetadata(meta), releaseDate: meta.releaseDate, coverUrl: meta.coverUrl });
+      await editGame(game.id, { ...toMetadata(meta), type: meta.typeHint ?? game.type });
     } catch (err) {
       setError(failure(err));
     } finally {
@@ -115,12 +115,12 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
               <p className="details-line">
                 {d.userRating !== null && (
                   <span className="rating-pill" title={t.details.userRating}>
-                    {t.details.users} {Math.round(d.userRating)}
+                    {t.details.users} {Math.round(d.userRating)}/100
                   </span>
                 )}
                 {d.criticRating !== null && (
                   <span className="rating-pill" title={t.details.criticRating}>
-                    {t.details.critics} {Math.round(d.criticRating)}
+                    {t.details.critics} {Math.round(d.criticRating)}/100
                   </span>
                 )}
                 {game.rating !== null && (

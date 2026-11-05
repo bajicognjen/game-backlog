@@ -61,6 +61,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0009_details.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "design types",
+            sql: include_str!("../migrations/0010_design.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -71,6 +77,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations())
