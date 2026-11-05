@@ -583,6 +583,14 @@ describe("series", () => {
   });
 });
 
+describe("migration files", () => {
+  it("use CRLF line endings, the text installed databases checksummed (see .gitattributes)", () => {
+    for (const [i, sql] of MIGRATIONS.entries()) {
+      expect(sql.replace(/\r\n/g, ""), `migration ${i + 1}`).not.toContain("\n");
+    }
+  });
+});
+
 describe("design migration", () => {
   it("maps the old types in place and keeps every game, id and session", () => {
     const old = new DatabaseSync(":memory:");
