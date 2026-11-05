@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
 import { formatHours } from "../domain/format";
 import { computeStats, type GroupStat, type MonthBucket } from "../domain/stats";
-import { genreLabels, t, typeLabels } from "../i18n/sr";
+import { genreLabels, monthLabels, t, typeLabels } from "../i18n/en";
 import { useStore } from "../state/store";
-
-const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "avg", "sep", "okt", "nov", "dec"];
 
 /** Finished games and logged hours per month, plus ratings by type and genre. Collapsed by default. */
 export function StatsSection() {
@@ -62,11 +60,11 @@ function Bars({ months, value, format }: { months: MonthBucket[]; value(m: Month
         const v = value(m);
         const [year, month] = m.month.split("-");
         return (
-          <div key={m.month} className="bar-col" title={`${MONTHS[Number(month) - 1]} ${year}: ${format(v)}`}>
+          <div key={m.month} className="bar-col" title={`${monthLabels[Number(month) - 1]} ${year}: ${format(v)}`}>
             <span className="bar-value">{v > 0 ? format(v) : ""}</span>
             <span className="bar" style={{ height: `${Math.round((v / max) * 100)}%` }} />
             <span className="bar-label">
-              {MONTHS[Number(month) - 1]}
+              {monthLabels[Number(month) - 1]}
               {month === "01" || m === months[0] ? <span className="muted"> {year.slice(2)}</span> : null}
             </span>
           </div>

@@ -9,7 +9,7 @@ describe("planWarnings", () => {
     expect(planWarnings(plannedGames(buildSeedGames(), "pc"))).toEqual([]);
   });
 
-  it("flags two Gigant games back to back, on the second one", () => {
+  it("flags two long games (50 h+) back to back, on the second one", () => {
     const planned = plannedGames(buildSeedGames(), "pc");
     const witcher = planned.findIndex((g) => g.title === "The Witcher 3");
     const rdr = planned.findIndex((g) => g.title === "Red Dead Redemption 2");
@@ -17,7 +17,7 @@ describe("planWarnings", () => {
     const [moved] = reordered.splice(rdr, 1);
     reordered.splice(witcher + 1, 0, moved);
     const warnings = planWarnings(reordered);
-    expect(warnings).toEqual([{ kind: "adjacent_giant", gameId: moved.id, previousTitle: "The Witcher 3" }]);
+    expect(warnings).toEqual([{ kind: "adjacent_long", gameId: moved.id, previousTitle: "The Witcher 3" }]);
   });
 
   it("flags a series entry placed after a later one", () => {

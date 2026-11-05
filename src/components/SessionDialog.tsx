@@ -4,7 +4,7 @@ import { formatHours } from "../domain/format";
 import { planHours } from "../domain/schedule";
 import { sessionsOf } from "../domain/sessions";
 import type { Game } from "../domain/types";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 import { useStore } from "../state/store";
 import { Modal } from "./Modal";
 

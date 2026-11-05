@@ -53,6 +53,7 @@ describe("Apicalypse queries", () => {
       "collection.name",
       "external_games.url",
       "platforms.name",
+      "keywords.name",
     ]) {
       expect(DETAIL_FIELDS).toContain(field);
     }
@@ -96,9 +97,22 @@ describe("mapIgdbGame", () => {
     expect(coop).toMatchObject({ multiplayer: true, singleplayer: false, providerTags: ["Co-op", "Multiplayer"] });
   });
 
+  it("turns known keywords into tags and derives the design from themes and keywords", () => {
+    expect(mapIgdbGame(witcher, 100 * 3600).typeHint).toBe("open_world");
+    const ori = mapIgdbGame({ id: 5, name: "Ori", genres: [{ name: "Platform" }], keywords: [{ name: " Metroidvania " }, { name: "2d" }] });
+    expect(ori).toMatchObject({ providerTags: ["Metroidvania"], typeHint: "metroidvania", genre: "metroidvania" });
+    expect(ori.details?.keywords).toEqual(["metroidvania", "2d"]);
+    const mafia = mapIgdbGame({ id: 6, name: "Mafia", themes: [{ name: "Open world" }], keywords: [{ name: "semi-open world" }] });
+    expect(mafia).toMatchObject({ providerTags: ["Open World", "Semi-open"], typeHint: "semi_open" });
+    const forest = mapIgdbGame({ id: 7, name: "Forest", themes: [{ name: "Survival" }, { name: "Open world" }], keywords: [{ name: "base building" }] });
+    expect(forest.typeHint).toBe("sandbox");
+    const story = mapIgdbGame({ id: 8, name: "Story", genres: [{ name: "Adventure" }], game_modes: [{ name: "Single player" }] });
+    expect(story.typeHint).toBe("linear");
+  });
+
   it("tolerates missing fields", () => {
     const meta = mapIgdbGame({ id: 9, name: " Bare " });
-    expect(meta).toMatchObject({ title: "Bare", coverUrl: null, releaseDate: null, providerGenres: [], providerTags: [], playtimeHours: null, genre: null });
+    expect(meta).toMatchObject({ title: "Bare", coverUrl: null, releaseDate: null, providerGenres: [], providerTags: [], playtimeHours: null, genre: null, typeHint: null });
   });
 });
 
@@ -174,6 +188,7 @@ describe("mapIgdbDetails", () => {
       franchises: ["The Witcher"],
       collection: "The Witcher",
       storeLinks: [{ store: "Steam", url: "https://store.steampowered.com/app/292030" }],
+      keywords: [],
       fetchedAt: "2026-11-04T12:00:00.000Z",
     });
     const meta = mapIgdbGame(full, null, new Date("2026-11-04T12:00:00Z"));

@@ -16,6 +16,7 @@ import { SortControl } from "./components/SortControl";
 import { StatsSection } from "./components/StatsSection";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
@@ -24,9 +25,10 @@ import { computeSchedule, plannedGames } from "./domain/schedule";
 import { todayStatus } from "./domain/today";
 import { planWarnings } from "./domain/warnings";
 import { PLATFORMS, SCHEDULED_PLATFORM, type Game, type Platform } from "./domain/types";
-import { platformLabels, t } from "./i18n/sr";
+import { platformLabels, t } from "./i18n/en";
 import { setStoreMessages, useStore } from "./state/store";
 import { applyTheme } from "./state/theme";
+import { useUpdates } from "./state/updates";
 import "./styles/app.css";
 
 setStoreMessages({
@@ -57,6 +59,11 @@ export default function App() {
     void load();
   }, [load]);
 
+  // Look for a newer release once per start; nothing shows unless there is one.
+  useEffect(() => {
+    void useUpdates.getState().check(true);
+  }, []);
+
   useEffect(() => applyTheme(theme), [theme]);
 
   async function startImport() {
@@ -85,6 +92,7 @@ export default function App() {
         onImport={() => void startImport()}
       />
       <main>
+        <UpdateBanner />
         <Banner />
         {settingsOpen && <SettingsPanel />}
         <PlanSection platform={platform} onPlatformChange={setPlatform} onOpen={(game) => setDetailsId(game.id)} />
@@ -161,8 +169,8 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
       const game = planned.find((g) => g.id === warning.gameId);
       if (!game) continue;
       const message =
-        warning.kind === "adjacent_giant"
-          ? t.warnings.adjacentGiant.replace("{title}", game.title).replace("{previous}", warning.previousTitle)
+        warning.kind === "adjacent_long"
+          ? t.warnings.adjacentLong.replace("{title}", game.title).replace("{previous}", warning.previousTitle)
           : t.warnings.seriesOrder.replace("{series}", warning.series).replace("{title}", game.title).replace("{after}", warning.afterTitle);
       messages.push(message);
       byGame.set(game.id, byGame.has(game.id) ? `${byGame.get(game.id)} ${message}` : message);

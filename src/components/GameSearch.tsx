@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { releaseYear, thumbnailUrl, type GameMetadata, type SearchHit } from "../domain/provider";
 import type { Game } from "../domain/types";
-import { kindLabels, platformLabels, sourceLabels, t } from "../i18n/sr";
+import { kindLabels, platformLabels, sourceLabels, t } from "../i18n/en";
 import { ProviderError } from "../platform/http";
 import { providers } from "../state/providers";
 import { useStore } from "../state/store";

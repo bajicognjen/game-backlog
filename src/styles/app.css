@@ -24,12 +24,14 @@
   --chip-linear-fg: #1d4ed8;
   --chip-open_world-bg: #dcfce7;
   --chip-open_world-fg: #15803d;
-  --chip-giant-bg: #fee2e2;
-  --chip-giant-fg: #b91c1c;
-  --chip-relaxed-bg: #ccfbf1;
-  --chip-relaxed-fg: #0f766e;
-  --chip-medium-bg: #fef3c7;
-  --chip-medium-fg: #b45309;
+  --chip-roguelike-bg: #fee2e2;
+  --chip-roguelike-fg: #b91c1c;
+  --chip-sandbox-bg: #ccfbf1;
+  --chip-sandbox-fg: #0f766e;
+  --chip-semi_open-bg: #fef3c7;
+  --chip-semi_open-fg: #b45309;
+  --chip-metroidvania-bg: #ede9fe;
+  --chip-metroidvania-fg: #6d28d9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,12 +58,14 @@
     --chip-linear-fg: #bfdbfe;
     --chip-open_world-bg: #14532d;
     --chip-open_world-fg: #bbf7d0;
-    --chip-giant-bg: #7f1d1d;
-    --chip-giant-fg: #fecaca;
-    --chip-relaxed-bg: #134e4a;
-    --chip-relaxed-fg: #99f6e4;
-    --chip-medium-bg: #78350f;
-    --chip-medium-fg: #fde68a;
+    --chip-roguelike-bg: #7f1d1d;
+    --chip-roguelike-fg: #fecaca;
+    --chip-sandbox-bg: #134e4a;
+    --chip-sandbox-fg: #99f6e4;
+    --chip-semi_open-bg: #78350f;
+    --chip-semi_open-fg: #fde68a;
+    --chip-metroidvania-bg: #4c1d95;
+    --chip-metroidvania-fg: #ddd6fe;
   }
 }
 
@@ -88,12 +92,14 @@
   --chip-linear-fg: #bfdbfe;
   --chip-open_world-bg: #14532d;
   --chip-open_world-fg: #bbf7d0;
-  --chip-giant-bg: #7f1d1d;
-  --chip-giant-fg: #fecaca;
-  --chip-relaxed-bg: #134e4a;
-  --chip-relaxed-fg: #99f6e4;
-  --chip-medium-bg: #78350f;
-  --chip-medium-fg: #fde68a;
+  --chip-roguelike-bg: #7f1d1d;
+  --chip-roguelike-fg: #fecaca;
+  --chip-sandbox-bg: #134e4a;
+  --chip-sandbox-fg: #99f6e4;
+  --chip-semi_open-bg: #78350f;
+  --chip-semi_open-fg: #fde68a;
+  --chip-metroidvania-bg: #4c1d95;
+  --chip-metroidvania-fg: #ddd6fe;
 }
 
 /* ---------- Base ---------- */
@@ -172,6 +178,19 @@ input {
 .topbar-actions {
   display: flex;
   gap: 8px;
+}
+
+.version-tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 main {
@@ -480,19 +499,24 @@ input[aria-invalid="true"] {
   color: var(--chip-open_world-fg);
 }
 
-.chip-giant {
-  background: var(--chip-giant-bg);
-  color: var(--chip-giant-fg);
+.chip-roguelike {
+  background: var(--chip-roguelike-bg);
+  color: var(--chip-roguelike-fg);
 }
 
-.chip-relaxed {
-  background: var(--chip-relaxed-bg);
-  color: var(--chip-relaxed-fg);
+.chip-sandbox {
+  background: var(--chip-sandbox-bg);
+  color: var(--chip-sandbox-fg);
 }
 
-.chip-medium {
-  background: var(--chip-medium-bg);
-  color: var(--chip-medium-fg);
+.chip-semi_open {
+  background: var(--chip-semi_open-bg);
+  color: var(--chip-semi_open-fg);
+}
+
+.chip-metroidvania {
+  background: var(--chip-metroidvania-bg);
+  color: var(--chip-metroidvania-fg);
 }
 
 .status {

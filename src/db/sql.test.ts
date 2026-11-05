@@ -41,6 +41,7 @@ const MIGRATIONS = [
   "0007_play_sessions.sql",
   "0008_series.sql",
   "0009_details.sql",
+  "0010_design.sql",
 ].map((file) =>
   readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
 );
@@ -105,7 +106,7 @@ describe("seed through the real schema", () => {
   it("escapes quotes and keeps unicode", () => {
     const row = db.prepare("SELECT title, note FROM games WHERE title LIKE 'Assassin%'").get() as unknown as Row;
     expect(row.title).toBe("Assassin's Creed Shadows");
-    expect(row.note).toBe("Glavna priča ~35–40h, ne čisti celu mapu");
+    expect(row.note).toBe("Main story ~35–40h, don't clear the whole map");
     expect(lit("it's")).toBe("'it''s'");
   });
 });
@@ -129,7 +130,7 @@ describe("plan order statements", () => {
       resetPlanPositions("pc"),
       insertGameStatement({
         title: "Hades",
-        type: "medium",
+        type: "roguelike",
         genre: "roguelike",
         platform: "pc",
         status: "pending",
@@ -175,11 +176,11 @@ describe("plan order statements", () => {
 describe("updateGameQuery", () => {
   it("updates only the given fields with positional parameters", () => {
     const first = plan()[0];
-    const query = updateGameQuery(first.id, { casualHours: 30, note: "nova beleška" });
+    const query = updateGameQuery(first.id, { casualHours: 30, note: "new note" });
     expect(query).not.toBeNull();
     db.prepare(query!.sql).run(...(query!.values as (string | number | null)[]));
     const row = db.prepare("SELECT title, casual_hours, note FROM games WHERE id = ?").get(first.id) as unknown as Row;
-    expect(row).toMatchObject({ title: "Batman: Arkham Knight", casual_hours: 30, note: "nova beleška" });
+    expect(row).toMatchObject({ title: "Batman: Arkham Knight", casual_hours: 30, note: "new note" });
   });
 
   it("returns null for an empty patch", () => {
@@ -200,7 +201,7 @@ describe("finishing and rating", () => {
   it("moves the current game to the end of the completed list and advances the plan", () => {
     const ids = plan().map((r) => r.id);
     batch([
-      finishGameStatement(ids[0], { completedAt: "2026-11-15", rating: 8, review: "Odlična" }),
+      finishGameStatement(ids[0], { completedAt: "2026-11-15", rating: 8, review: "Great" }),
       ...planOrderStatements(ids.slice(1), "pc"),
       upsertSetting("start_date", "2026-11-16"),
       startGameStatement(ids[1]),
@@ -212,7 +213,7 @@ describe("finishing and rating", () => {
       completed_order: 11,
       completed_at: "2026-11-15",
       rating: 8,
-      review: "Odlična",
+      review: "Great",
     });
     const rows = plan();
     expect(rows).toHaveLength(26);
@@ -413,7 +414,9 @@ describe("genre", () => {
       "INSERT INTO games (title, type, platform, status, casual_hours, position, completed_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     for (const game of buildSeedGames()) {
-      insert.run(game.title, game.type, game.platform, game.status, game.casualHours, game.position, game.completedOrder);
+      // Designs came with migration 10; the old schema only knows these two of them.
+      const type = game.type === "open_world" ? "open_world" : "linear";
+      insert.run(game.title, type, game.platform, game.status, game.casualHours, game.position, game.completedOrder);
     }
     expect(old.prepare("SELECT COUNT(*) AS n FROM games").get()).toMatchObject({ n: 37 });
     old.exec(MIGRATIONS[3]);
@@ -442,7 +445,7 @@ describe("dropped status and RAWG metadata", () => {
   it("stores and reads RAWG metadata as JSON lists", () => {
     const stmt = insertGameStatement({
       title: "The Witcher 3: Wild Hunt",
-      type: "giant",
+      type: "open_world",
       genre: "rpg",
       platform: "ps5",
       status: "pending",
@@ -474,6 +477,7 @@ describe("dropped status and RAWG metadata", () => {
         franchises: ["The Witcher"],
         collection: "The Witcher",
         storeLinks: [{ store: "Steam", url: "https://store.steampowered.com/app/292030" }],
+        keywords: ["open world"],
         fetchedAt: "2026-11-04T12:00:00.000Z",
       },
     });
@@ -579,6 +583,33 @@ describe("series", () => {
   });
 });
 
+describe("design migration", () => {
+  it("maps the old types in place and keeps every game, id and session", () => {
+    const old = new DatabaseSync(":memory:");
+    for (const migration of MIGRATIONS.slice(0, 9)) old.exec(migration);
+    const insert = old.prepare("INSERT INTO games (title, type, platform, status, casual_hours, position) VALUES (?, ?, 'pc', 'pending', ?, ?)");
+    const types = ["linear", "open_world", "giant", "relaxed", "medium"];
+    types.forEach((type, i) => insert.run(`Game ${i + 1}`, type, 10 * (i + 1), i + 1));
+    old.exec(insertSessionStatement({ gameId: 3, playedOn: "2026-11-03", hours: 2, note: "kept" }));
+    // sqlx runs each migration inside a transaction with foreign keys on; do the same.
+    old.exec(`BEGIN;\n${MIGRATIONS[9]}\nCOMMIT;`);
+
+    expect(old.prepare("SELECT id, type FROM games ORDER BY id").all()).toEqual([
+      { id: 1, type: "linear" },
+      { id: 2, type: "open_world" },
+      { id: 3, type: "open_world" },
+      { id: 4, type: "linear" },
+      { id: 5, type: "semi_open" },
+    ]);
+    expect(old.prepare("SELECT game_id, hours, note FROM play_sessions").all()).toEqual([{ game_id: 3, hours: 2, note: "kept" }]);
+    expect(() => old.exec("UPDATE games SET type = 'giant' WHERE id = 1")).toThrow(/CHECK/);
+    expect(() => old.exec("UPDATE games SET position = 2 WHERE id = 1")).toThrow(/UNIQUE/);
+    old.exec("UPDATE games SET updated_at = '2000-01-01 00:00:00' WHERE id = 1");
+    old.exec("UPDATE games SET title = 'Renamed' WHERE id = 1");
+    expect(old.prepare("SELECT updated_at FROM games WHERE id = 1").get()).not.toMatchObject({ updated_at: "2000-01-01 00:00:00" });
+  });
+});
+
 describe("undo", () => {
   it("reinserts a deleted game with its id and sessions and puts it back in place", () => {
     const ids = plan().map((r) => r.id);
@@ -592,7 +623,7 @@ describe("undo", () => {
       insertGameWithIdStatement({
         id: target,
         title: snapshot.title as string,
-        type: "giant",
+        type: "open_world",
         genre: "action_adventure",
         platform: "pc",
         status: "pending",

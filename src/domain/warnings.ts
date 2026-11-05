@@ -1,13 +1,16 @@
 import type { Game } from "./types";
 
+/** Estimated hours from which a game counts as long; two in a row get flagged. */
+export const LONG_GAME_HOURS = 50;
+
 /** Problems in a plan order worth flagging; each points at the row it belongs to. */
 export type PlanWarning =
-  | { kind: "adjacent_giant"; gameId: number; previousTitle: string }
+  | { kind: "adjacent_long"; gameId: number; previousTitle: string }
   | { kind: "series_order"; gameId: number; series: string; afterTitle: string };
 
 /**
  * Check one platform's planned games in plan order:
- *  - two Gigant games back to back (flagged on the second);
+ *  - two long games (50 h or more) back to back (flagged on the second);
  *  - a series entry placed after a later entry of the same series (flagged on the earlier entry).
  * Finished games are not part of the order, so they never trigger anything.
  */
@@ -17,8 +20,8 @@ export function planWarnings(planned: readonly Game[]): PlanWarning[] {
 
   planned.forEach((game, index) => {
     const previous = planned[index - 1];
-    if (previous && game.type === "giant" && previous.type === "giant") {
-      warnings.push({ kind: "adjacent_giant", gameId: game.id, previousTitle: previous.title });
+    if (previous && game.casualHours >= LONG_GAME_HOURS && previous.casualHours >= LONG_GAME_HOURS) {
+      warnings.push({ kind: "adjacent_long", gameId: game.id, previousTitle: previous.title });
     }
 
     if (game.series && game.seriesOrder !== null) {

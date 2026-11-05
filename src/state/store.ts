@@ -43,6 +43,8 @@ export interface AppState {
    */
   editGame(id: number, patch: GamePatch, index?: number): Promise<boolean>;
   removeGame(id: number): Promise<boolean>;
+  /** Write several game patches (e.g. refreshed IGDB metadata) with one reload, then show `notice`. */
+  updateGames(updates: readonly GameUpdate[], notice: string): Promise<boolean>;
   /** Finish a planned game: completed today (or the given date), next game on that platform starts. */
   finishGame(id: number, input: FinishInput): Promise<boolean>;
   /** Add a game that was finished before the app existed. */
@@ -84,6 +86,11 @@ export interface StoreMessages {
   deleted(title: string): string;
   dropped(title: string): string;
   restored(title: string): string;
+}
+
+export interface GameUpdate {
+  id: number;
+  patch: GamePatch;
 }
 
 let messages: StoreMessages = {
@@ -233,6 +240,14 @@ export const useStore = create<AppState>((set, get) => {
           }
         });
       }
+      return ok;
+    },
+
+    async updateGames(updates, notice) {
+      const ok = await persist(async () => {
+        for (const { id, patch } of updates) await repository.updateGame(id, patch);
+      });
+      if (ok) set({ notice, undo: null, error: null });
       return ok;
     },
 

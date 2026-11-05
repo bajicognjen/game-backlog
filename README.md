@@ -1,8 +1,7 @@
 # Game Backlog
 
 Personal desktop app for planning and tracking a singleplayer video game
-backlog. Single user, offline, local SQLite database. UI in Serbian (Latin),
-code in English.
+backlog. Single user, offline, local SQLite database. UI and code in English.
 
 Stack: Tauri 2, React, TypeScript, Vite, tauri-plugin-sql (SQLite).
 
@@ -31,7 +30,7 @@ saved.
 
 ## Backup
 
-Izvezi / Uvezi in the top bar write and read a JSON file with all settings
+Export / Import in the top bar write and read a JSON file with all settings
 and games (`src/domain/backup.ts` documents the format). Import validates the
 file and replaces everything in one transaction.
 
@@ -41,17 +40,28 @@ Releases are built by GitHub Actions on a Windows runner
 (`.github/workflows/release.yml`), because Tauri cannot cross-build Windows
 installers from Linux.
 
-1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
-2. Commit, then tag and push:
+1. Bump `version` in `package.json` (`npm version 0.5.0 --no-git-tag-version`),
+   `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`. A unit test fails
+   when the three disagree.
+2. Commit on `main`, then tag and push:
 
    ```bash
-   git tag v0.1.0 && git push origin main --tags
+   git tag v0.5.0 && git push origin main --tags
    ```
 
 3. The workflow runs tests, builds the NSIS installer and creates a **draft**
-   GitHub release with `Game Backlog_0.1.0_x64-setup.exe` attached. Publish
+   GitHub release with `Game Backlog_0.5.0_x64-setup.exe` attached. Publish
    the draft when you are happy with it. The same `.exe` is also kept as a
    workflow artifact.
+
+## Updates
+
+At every start, and from Settings → Check for updates, the app asks GitHub
+for the latest **published** release (`src/platform/updates.ts`). When its tag
+is newer than the installed version it offers to download that release's
+`-setup.exe` and runs it; the installer replaces the program and keeps the
+data folder. Drafts and pre-releases are never offered. Version 0.3.0 and
+older have no update check, so going from those to 0.4.0 is a manual install.
 
 The installer is unsigned, so Windows SmartScreen shows a warning on first
 run ("More info" → "Run anyway"). It installs per user, no admin rights
@@ -80,6 +90,6 @@ To replace the default icon, put a 1024×1024 PNG somewhere and run
 - `src/state` — zustand store and theme handling.
 - `src/components` — React UI.
 - `src/platform` — file dialogs (Tauri plugins, with a browser fallback).
-- `src/i18n/sr.ts` — every UI string.
+- `src/i18n/en.ts` — every UI string.
 - `src-tauri` — Rust side: plugin registration, capabilities and SQL migrations.
 - `.github/workflows` — CI on every push, Windows installer on tags.

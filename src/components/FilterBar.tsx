@@ -1,5 +1,5 @@
 import { MODE_FILTERS, isFilterActive, toggleMode, type GameFilter } from "../domain/filters";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 interface Props {
   filter: GameFilter;

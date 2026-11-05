@@ -12,7 +12,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { CSSProperties } from "react";
 import { formatDate } from "../domain/dates";
 import type { Game } from "../domain/types";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
 import { IconButton } from "./IconButton";
 import { PlatformChip } from "./PlatformChip";

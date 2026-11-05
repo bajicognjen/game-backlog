@@ -1,7 +1,7 @@
 /**
  * IGDB API client (https://api-docs.igdb.com). IGDB is reached with a Twitch
  * app access token obtained with the client-credentials grant from the
- * user's Twitch Client ID and Client Secret (Podešavanja).
+ * user's Twitch Client ID and Client Secret (Settings).
  */
 import { gameByIdQuery, searchQuery, timeToBeatQuery, type IgdbGame, type IgdbTimeToBeat, type SearchFilterVariant } from "../domain/igdb";
 import { ProviderError, fetchWithTimeout, statusToFailure } from "./http";

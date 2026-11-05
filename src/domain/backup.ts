@@ -3,7 +3,7 @@ import { withPlanOrder } from "./plan";
 import { completedGames, plannedGames } from "./schedule";
 import { parseDetails } from "./details";
 import { withHoursPlayed } from "./sessions";
-import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
+import { GAME_STATUSES, GAME_TYPES, GENRES, LEGACY_GAME_TYPES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
 
 /**
  * Bump when the file format changes. Older versions still import:
@@ -17,8 +17,9 @@ import { GAME_STATUSES, GAME_TYPES, GENRES, PLATFORMS, isGameSource, type Game, 
  *  8 — play sessions (hours played per game).
  *  9 — series tag and order per game.
  * 10 — cached IGDB details per game.
+ * 11 — `type` is the game's design; the old giant / medium / relaxed map to open world / semi-open / linear.
  */
-export const BACKUP_VERSION = 10;
+export const BACKUP_VERSION = 11;
 
 export interface Backup {
   app: "game-backlog";
@@ -65,10 +66,10 @@ export function serializeBackup(backup: Backup): string {
   return JSON.stringify(backup, null, 2) + "\n";
 }
 
-/** File name for an export, e.g. `plan-igara-2026-11-04.json`. */
+/** File name for an export, e.g. `game-backlog-2026-11-04.json`. */
 export function backupFileName(now: Date = new Date()): string {
   const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return `plan-igara-${iso}.json`;
+  return `game-backlog-${iso}.json`;
 }
 
 /**
@@ -93,7 +94,7 @@ export function parseBackup(text: string): Backup {
   const settings = parseSettings(expectObject(root.settings, "settings"));
   const gamesRaw = root.games;
   if (!Array.isArray(gamesRaw)) throw new BackupError("games", "type");
-  const games = gamesRaw.map((item, i) => parseGame(expectObject(item, `games[${i}]`), `games[${i}]`));
+  const games = gamesRaw.map((item, i) => parseGame(expectObject(item, `games[${i}]`), `games[${i}]`, version));
 
   const seen = new Set<number>();
   games.forEach((game, i) => {
@@ -164,7 +165,7 @@ function parseSettings(obj: Record<string, unknown>): Settings {
   };
 }
 
-function parseGame(obj: Record<string, unknown>, path: string): Game {
+function parseGame(obj: Record<string, unknown>, path: string, version: number): Game {
   const id = obj.id;
   if (typeof id !== "number" || !Number.isInteger(id)) throw new BackupError(`${path}.id`, "type");
   if (id < 1) throw new BackupError(`${path}.id`, "range");
@@ -173,8 +174,9 @@ function parseGame(obj: Record<string, unknown>, path: string): Game {
   if (typeof title !== "string") throw new BackupError(`${path}.title`, "type");
   if (title.trim() === "") throw new BackupError(`${path}.title`, "missing");
 
-  const type = obj.type;
-  if (typeof type !== "string") throw new BackupError(`${path}.type`, "type");
+  const rawType = obj.type;
+  if (typeof rawType !== "string") throw new BackupError(`${path}.type`, "type");
+  const type = version <= 10 ? (LEGACY_GAME_TYPES[rawType] ?? rawType) : rawType;
   if (!(GAME_TYPES as readonly string[]).includes(type)) throw new BackupError(`${path}.type`, "enum");
 
   const status = obj.status;

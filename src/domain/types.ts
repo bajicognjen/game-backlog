@@ -1,12 +1,16 @@
 import type { GameDetails } from "./details";
 
-export const GAME_TYPES = ["linear", "open_world", "giant", "relaxed", "medium"] as const;
+/** A game's design: how its world and progression are structured. */
+export const GAME_TYPES = ["linear", "semi_open", "open_world", "sandbox", "metroidvania", "roguelike"] as const;
 export type GameType = (typeof GAME_TYPES)[number];
+
+/** Size and mood labels used before designs (backups up to version 10), mapped like migration 0010. */
+export const LEGACY_GAME_TYPES: Readonly<Record<string, GameType>> = { giant: "open_world", medium: "semi_open", relaxed: "linear" };
 
 export const GAME_STATUSES = ["in_progress", "pending", "paused", "completed", "dropped"] as const;
 export type GameStatus = (typeof GAME_STATUSES)[number];
 
-/** Predefined genres; stored as codes, labelled in `i18n/sr.ts`. Extend here, no migration needed. */
+/** Predefined genres; stored as codes, labelled in `i18n/en.ts`. Extend here, no migration needed. */
 export const GENRES = [
   "action",
   "action_adventure",

@@ -1,5 +1,5 @@
 import type { GameStatus } from "../domain/types";
-import { statusLabels } from "../i18n/sr";
+import { statusLabels } from "../i18n/en";
 
 export function StatusBadge({ status }: { status: GameStatus }) {
   return <span className={`status status-${status}`}>{statusLabels[status]}</span>;

@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { isValidIsoDate } from "../domain/dates";
 import { autoBackupFolder } from "../platform/autoBackup";
+import { ProviderError } from "../platform/http";
+import { appVersion } from "../platform/updates";
+import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
-import { t } from "../i18n/sr";
+import { useUpdates } from "../state/updates";
+import { t } from "../i18n/en";
+import { failureMessage } from "./GameSearch";
 
 /**
  * Start date and weekly hours. Each field keeps its own draft so the user can
@@ -11,6 +16,26 @@ import { t } from "../i18n/sr";
 export function SettingsPanel() {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
+  const updateGames = useStore((s) => s.updateGames);
+  /** Progress of the design refresh while it runs; null when idle. */
+  const [refresh, setRefresh] = useState<{ done: number; total: number } | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  async function refreshDesigns() {
+    setRefreshError(null);
+    setRefresh({ done: 0, total: 0 });
+    try {
+      const result = await fetchDesignRefresh(useStore.getState().games, (done, total) => setRefresh({ done, total }));
+      const notice =
+        t.settings.designsRefreshed.replace("{refreshed}", String(result.updates.length)).replace("{changed}", String(result.changed)) +
+        (result.failed > 0 ? ` ${t.settings.designsFailed.replace("{failed}", String(result.failed))}` : "");
+      await updateGames(result.updates, notice);
+    } catch (error) {
+      setRefreshError(failureMessage(error instanceof ProviderError ? error.reason : "other"));
+    } finally {
+      setRefresh(null);
+    }
+  }
 
   const [startDate, setStartDate] = useState(settings.startDate);
   const [hours, setHours] = useState(String(settings.hoursPerWeek));
@@ -19,6 +44,13 @@ export function SettingsPanel() {
   useEffect(() => {
     void autoBackupFolder().then(setBackupFolder);
   }, []);
+  /** Installed app version; null in the browser preview, which hides the update row. */
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    void appVersion().then(setVersion);
+  }, []);
+  const updateStatus = useUpdates((s) => s.status);
+  const checkUpdates = useUpdates((s) => s.check);
   const [igdbClientSecret, setIgdbClientSecret] = useState(settings.igdbClientSecret);
 
   // Keep drafts in sync when the store changes from elsewhere (e.g. finishing a game).
@@ -106,12 +138,42 @@ export function SettingsPanel() {
         </label>
         <p className="field-hint settings-hint-wide">{t.search.igdbHint}</p>
       </div>
+      <div className="settings-fields settings-fields-secondary">
+        <div className="field field-wide">
+          <span className="field-label">{t.settings.designsTitle}</span>
+          <div>
+            <button type="button" className="button" onClick={() => void refreshDesigns()} disabled={refresh !== null}>
+              {refresh === null
+                ? t.settings.designsRefresh
+                : t.settings.designsProgress.replace("{done}", String(refresh.done)).replace("{total}", String(refresh.total))}
+            </button>
+          </div>
+          {refreshError && <span className="field-error">{refreshError}</span>}
+          <span className="field-hint">{t.settings.designsHint}</span>
+        </div>
+      </div>
       {backupFolder && (
         <div className="settings-fields settings-fields-secondary">
           <div className="field field-wide">
             <span className="field-label">{t.backup.autoTitle}</span>
             <code className="path">{backupFolder}</code>
             <span className="field-hint">{t.backup.autoHint}</span>
+          </div>
+        </div>
+      )}
+      {version && (
+        <div className="settings-fields settings-fields-secondary">
+          <div className="field field-wide">
+            <span className="field-label">{t.updates.title}</span>
+            <div>
+              {t.updates.version.replace("{version}", version)}{" "}
+              <button type="button" className="button" onClick={() => void checkUpdates()} disabled={updateStatus === "checking" || updateStatus === "installing"}>
+                {updateStatus === "checking" ? t.updates.checking : t.updates.check}
+              </button>
+            </div>
+            {updateStatus === "upToDate" && <span className="field-hint">{t.updates.upToDate}</span>}
+            {updateStatus === "checkFailed" && <span className="field-error">{t.updates.checkFailed}</span>}
+            <span className="field-hint">{t.updates.hint}</span>
           </div>
         </div>
       )}

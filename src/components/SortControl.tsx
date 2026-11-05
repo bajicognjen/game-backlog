@@ -1,5 +1,5 @@
 import { DEFAULT_SORT_DIRECTION, type CompletedSortKey, type SortDirection } from "../domain/completed";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 interface Props {
   sortKey: CompletedSortKey;

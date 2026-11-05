@@ -2,7 +2,7 @@ import { formatDate } from "../domain/dates";
 import { formatHours, formatWeeks } from "../domain/format";
 import type { ScheduleTotals } from "../domain/schedule";
 import type { TodayStatus } from "../domain/today";
-import { t } from "../i18n/sr";
+import { t } from "../i18n/en";
 
 export function TotalsBar({ totals, today }: { totals: ScheduleTotals; today: TodayStatus }) {
   return (

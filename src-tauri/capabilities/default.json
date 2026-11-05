@@ -11,6 +11,23 @@
     "sql:allow-execute",
     "dialog:allow-open",
     "dialog:allow-save",
+    "process:allow-exit",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        {
+          "path": "$TEMP/*-setup.exe"
+        }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$TEMP/*-setup.exe"
+        }
+      ]
+    },
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [
@@ -71,6 +88,18 @@
         },
         {
           "url": "https://api.igdb.com/*"
+        },
+        {
+          "url": "https://api.github.com/repos/bajicognjen/game-backlog/*"
+        },
+        {
+          "url": "https://github.com/bajicognjen/game-backlog/releases/download/*"
+        },
+        {
+          "url": "https://release-assets.githubusercontent.com/*"
+        },
+        {
+          "url": "https://objects.githubusercontent.com/*"
         }
       ]
     },

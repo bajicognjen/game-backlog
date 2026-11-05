@@ -1,4 +1,6 @@
 # Builds the Windows installer and attaches it to a draft GitHub release.
+# Installed apps offer the update once the draft is published: they look for
+# the `-setup.exe` asset of the latest release (src/platform/updates.ts).
 # Trigger: push a tag like v0.1.0, or run it by hand from the Actions tab.
 name: Release (Windows installer)
 
