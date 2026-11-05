@@ -1,0 +1,4 @@
+# Migrations are compiled into the app and every database stores a checksum
+# of their exact text, line endings included. Installed databases recorded the
+# CRLF text of the Windows release builds, so every checkout must match it.
+src-tauri/migrations/*.sql text eol=crlf
