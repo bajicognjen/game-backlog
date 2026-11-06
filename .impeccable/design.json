@@ -487,7 +487,7 @@
       {
         "name": "dense",
         "value": "1400px",
-        "purpose": "Max-width: tighter main padding and cells, chips and status words step down a size, titles wrap."
+        "purpose": "Max-width: tighter main padding and cells, numbers and dates step down to 13px, chip padding tightens, titles wrap."
       },
       {
         "name": "drop-derived",
@@ -624,7 +624,7 @@
       },
       {
         "name": "The Fixed Steps Rule",
-        "body": "Six pixel sizes (11/12/13/14/18/22), no fluid or clamp sizes. Under 1400px the dense cells step down one size rather than scaling.",
+        "body": "Six pixel sizes (11/12/13/14/18/22), no fluid or clamp sizes. Under 1400px only numbers and dates step down to 13px and chip padding tightens; chips and status words keep the 12px caption size, and 11px stays reserved for uppercase labels.",
         "section": "typography"
       },
       {

@@ -114,7 +114,6 @@ export const t = {
     status: "Status",
     platform: "Platform",
     hours: "Hours",
-    weeks: "Weeks",
     cumulative: "Total hours",
     start: "Start",
     end: "End",
@@ -203,7 +202,6 @@ export const t = {
     overdue: "{days} d overdue",
   },
   totals: {
-    games: "Games in plan",
     played: "Played",
     playedDetail: "{played} h played so far",
     hours: "Hours left",

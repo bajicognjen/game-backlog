@@ -11,7 +11,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from "@dnd-kit/utilities";
 import type { CSSProperties, ReactNode } from "react";
 import { formatDate } from "../domain/dates";
-import { formatHours, formatWeeks } from "../domain/format";
+import { formatHours } from "../domain/format";
 import { progressOf } from "../domain/sessions";
 import type { ScheduleRow } from "../domain/schedule";
 import type { Game, GameStatus } from "../domain/types";
@@ -109,9 +109,6 @@ export function PlanTable({
                 <>
                   <th scope="col" className="num">
                     {t.columns.hours}
-                  </th>
-                  <th scope="col" className="num col-opt">
-                    {t.columns.weeks}
                   </th>
                   <th scope="col" className="num col-opt">
                     {t.columns.cumulative}
@@ -261,7 +258,6 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
               formatHours(schedule.hours)
             )}
           </td>
-          <td className="num col-opt">{formatWeeks(schedule.weeks)}</td>
           <td className="num col-opt">{formatHours(schedule.cumulativeHours)}</td>
           <td className="date">{formatDate(schedule.startMs)}</td>
           <td className="date">

@@ -3,7 +3,7 @@ import { formatHours, formatWeeks } from "../domain/format";
 import type { ScheduleTotals } from "../domain/schedule";
 import { t } from "../i18n/en";
 
-/** The plan in three numbers; the day-to-day status lives in the Now playing card. */
+/** The plan in two numbers; the count sits on the platform tab and the day-to-day status on the Now playing card. */
 export function TotalsBar({ totals }: { totals: ScheduleTotals }) {
   return (
     <dl className="totals">
@@ -12,7 +12,6 @@ export function TotalsBar({ totals }: { totals: ScheduleTotals }) {
         value={totals.endMs === null ? t.none : formatDate(totals.endMs)}
         detail={totals.endMs === null ? undefined : t.totals.weeks.replace("{weeks}", formatWeeks(totals.weeks))}
       />
-      <Stat label={t.totals.games} value={String(totals.games)} />
       <Stat
         label={t.totals.hours}
         value={formatHours(totals.hours)}

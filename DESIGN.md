@@ -354,7 +354,7 @@ Dark is a full second set under `prefers-color-scheme: dark` and `[data-theme="d
 
 **The Ledger Rule.** Any number that will be compared down a column (hours, dates, counts, ratings, stat values) is set with `tabular-nums`; in tables it is right-aligned and never wraps.
 
-**The Fixed Steps Rule.** Six pixel sizes (11/12/13/14/18/22), no fluid or clamp sizes. Under 1400px the dense cells step down one size rather than scaling.
+**The Fixed Steps Rule.** Six pixel sizes (11/12/13/14/18/22), no fluid or clamp sizes. Under 1400px only numbers and dates step down to 13px and chip padding tightens; chips and status words keep the 12px caption size, and 11px stays reserved for uppercase labels.
 
 ## Layout
 

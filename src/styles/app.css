@@ -2258,12 +2258,12 @@ tr:focus-within .row-actions {
 
   .table .title {
     white-space: normal;
-    min-width: 190px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: 300px;
     text-wrap: pretty;
   }
 
-  /* The derived columns are narrow numbers; let their headers take two lines. */
+  /* The running-total header is wider than its numbers; let it take two lines. */
   .table thead th.col-opt {
     white-space: normal;
     max-width: 64px;
@@ -2277,13 +2277,9 @@ tr:focus-within .row-actions {
     font-size: var(--text-sm);
   }
 
+  /* Chips and status words keep the caption size; only padding tightens at the shipped width. */
   .chip {
-    padding: 1px 7px;
-    font-size: var(--text-xs);
-  }
-
-  .status {
-    font-size: var(--text-xs);
+    padding: 1px 8px;
   }
 
   .table .date,
