@@ -52,6 +52,8 @@ jobs:
           restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-
       - name: Install Tauri's Linux dependencies
         run: |
+          # apt only creates its partial/ download directory inside one that already exists.
+          mkdir -p "$APT_ARCHIVES"
           sudo apt-get -o Acquire::Retries=3 -o Dir::Cache::Archives="$APT_ARCHIVES" install -y $APT_PACKAGES
           # Drop superseded versions so the cache doesn't grow with every update.
           sudo apt-get -o Dir::Cache::Archives="$APT_ARCHIVES" autoclean
