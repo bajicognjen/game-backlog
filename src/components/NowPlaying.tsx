@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { formatDate } from "../domain/dates";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { formatDate, isValidIsoDate } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { releaseYear, thumbnailUrl } from "../domain/provider";
 import { planHours } from "../domain/schedule";
 import { progressOf } from "../domain/sessions";
 import type { TodayStatus } from "../domain/today";
-import type { Game } from "../domain/types";
+import type { Game, Settings } from "../domain/types";
 import { t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
 import { Icon } from "./Icon";
@@ -13,11 +13,17 @@ import type { PlanRowView } from "./PlanTable";
 import { StatusBadge } from "./StatusBadge";
 import { TypeChip } from "./TypeChip";
 
+/** The two numbers every date in the PC plan follows from. */
+export type PlanInputs = Pick<Settings, "startDate" | "hoursPerWeek">;
+
 interface Props {
   /** The active platform's plan, in order. */
   rows: PlanRowView[];
   /** Where today falls in the PC plan; null on a queue without dates. */
   today: TodayStatus | null;
+  /** The plan's start date and weekly hours; null on a queue without dates. */
+  plan: PlanInputs | null;
+  onPlanChange(patch: Partial<PlanInputs>): void;
   onOpen(game: Game): void;
   onFinish(game: Game): void;
   onLog(game: Game): void;
@@ -32,9 +38,10 @@ const SWAP_MS = 400;
  * The game being played now: progress, whether the plan is on track, and
  * what comes next. Without a game in progress it offers the next one. When
  * the current game changes (a finish, a start) the card hands over with a
- * short entrance, so the plan visibly moves on.
+ * short entrance, so the plan visibly moves on. On the PC plan the card also
+ * carries the two inputs the dates follow from, editable in place.
  */
-export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onStart }: Props) {
+export function NowPlaying({ rows, today, plan, onPlanChange, onOpen, onFinish, onLog, onPause, onStart }: Props) {
   const currentIndex = rows.findIndex((row) => row.game.status === "in_progress");
   const current = currentIndex >= 0 ? rows[currentIndex] : null;
   const next = (current ? rows.slice(currentIndex + 1) : rows).find((row) => row.game.status !== "in_progress") ?? null;
@@ -53,14 +60,15 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
 
   if (rows.length === 0) return null;
   const swapClass = swapping ? "now-swap" : "";
+  const anchor = plan && <PlanAnchor plan={plan} currentIsFirst={currentIndex === 0} onChange={onPlanChange} />;
 
   if (!current) {
     return (
       <section className={`now now-idle ${swapClass}`} aria-label={t.now.idle}>
         <div className="now-body">
           <h3 className="now-title">{t.now.idle}</h3>
-          {next && (
-            <p className="now-status">
+          <p className="now-status">
+            {next && (
               <span>
                 {t.now.upNext}:{" "}
                 <button type="button" className="link-button" onClick={() => onOpen(next.game)}>
@@ -68,8 +76,10 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
                 </button>
                 {next.game.casualHours > 0 && <span className="muted"> · {formatHours(next.game.casualHours)} h</span>}
               </span>
-            </p>
-          )}
+            )}
+            {anchor}
+          </p>
+          {plan && <p className="now-note">{t.now.explain}</p>}
         </div>
         {next && (
           <div className="now-actions">
@@ -120,7 +130,6 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
               <StatusBadge status="in_progress" />
               <TypeChip type={game.type} />
               <GenreChip genre={game.genre} />
-              {schedule && currentIndex === 0 && <span>{t.now.started.replace("{date}", formatDate(schedule.startMs))}</span>}
             </p>
           </div>
           <div className="now-actions">
@@ -166,7 +175,9 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
           ) : (
             <span className="muted">{t.now.last}</span>
           )}
+          {anchor}
         </p>
+        {plan && <p className="now-note">{t.now.explain}</p>}
       </div>
     </section>
   );
@@ -176,4 +187,139 @@ function driftOf(days: number): { text: string; tone: "ok" | "warn" } {
   if (days === 0) return { text: t.today.onTrack, tone: "ok" };
   if (days > 0) return { text: t.today.ahead.replace("{days}", String(days)), tone: "ok" };
   return { text: t.today.behind.replace("{days}", String(-days)), tone: "warn" };
+}
+
+/**
+ * "started 02.11.2026 · 13 h/week": the plan's start date and weekly hours,
+ * each a quiet control that turns into the matching field in place. The
+ * label reads "plan starts" when the current game is not first, since the
+ * date anchors the plan, not the game.
+ */
+function PlanAnchor({ plan, currentIsFirst, onChange }: { plan: PlanInputs; currentIsFirst: boolean; onChange(patch: Partial<PlanInputs>): void }) {
+  const dateLabel = (currentIsFirst ? t.now.started : t.now.planStarts).replace("{date}", formatDate(plan.startDate));
+  return (
+    <span className="now-anchor">
+      <InlineValue
+        kind="date"
+        text={dateLabel}
+        value={plan.startDate}
+        label={t.now.changeStart}
+        validate={(value) => (isValidIsoDate(value) ? null : t.settings.invalidDate)}
+        onCommit={(value) => value !== plan.startDate && onChange({ startDate: value })}
+      />
+      <span className="muted" aria-hidden="true">
+        ·
+      </span>
+      <InlineValue
+        kind="hours"
+        text={t.now.hoursPerWeek.replace("{hours}", formatHours(plan.hoursPerWeek))}
+        value={String(plan.hoursPerWeek)}
+        label={t.now.changeHours}
+        validate={(value) => {
+          const n = Number(value.replace(",", "."));
+          return value.trim() !== "" && Number.isFinite(n) && n > 0 ? null : t.settings.invalidHours;
+        }}
+        onCommit={(value) => {
+          const n = Number(value.replace(",", "."));
+          if (n !== plan.hoursPerWeek) onChange({ hoursPerWeek: n });
+        }}
+      />
+    </span>
+  );
+}
+
+interface InlineValueProps {
+  kind: "date" | "hours";
+  /** The value as read, e.g. "started 02.11.2026". */
+  text: string;
+  /** The raw value the field edits. */
+  value: string;
+  /** Accessible name of the control. */
+  label: string;
+  /** Null when `draft` may be saved, else the message to show. */
+  validate(draft: string): string | null;
+  onCommit(draft: string): void;
+}
+
+/** A value shown as text that becomes a field on click; Enter or leaving saves, Escape cancels. */
+function InlineValue({ kind, text, value, label, validate, onCommit }: InlineValueProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [error, setError] = useState<string | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const returnFocus = useRef(false);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+    else if (returnFocus.current) {
+      returnFocus.current = false;
+      buttonRef.current?.focus();
+    }
+  }, [editing]);
+
+  function open() {
+    setDraft(value);
+    setError(null);
+    setEditing(true);
+  }
+
+  function close(save: boolean) {
+    if (save) {
+      const problem = validate(draft);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      onCommit(draft);
+    }
+    returnFocus.current = true;
+    setEditing(false);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      close(true);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button ref={buttonRef} type="button" className="link-button inline-edit" aria-label={label} title={label} onClick={open}>
+        {text}
+        <Icon name="pencil" size={12} className="inline-edit-icon" />
+      </button>
+    );
+  }
+
+  return (
+    <span className="inline-edit-field">
+      <input
+        ref={inputRef}
+        type={kind === "date" ? "date" : "number"}
+        className="inline-edit-input"
+        aria-label={label}
+        aria-invalid={error !== null}
+        value={draft}
+        min={kind === "hours" ? 0.5 : undefined}
+        step={kind === "hours" ? 0.5 : undefined}
+        inputMode={kind === "hours" ? "decimal" : undefined}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError(null);
+        }}
+        onBlur={() => close(true)}
+        onKeyDown={onKeyDown}
+      />
+      {error && (
+        <span className="field-error inline-edit-error" role="alert">
+          {error}
+        </span>
+      )}
+    </span>
+  );
 }

@@ -210,6 +210,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
 function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
+  const updateSettings = useStore((s) => s.updateSettings);
   const addGame = useStore((s) => s.addGame);
   const editGame = useStore((s) => s.editGame);
   const removeGame = useStore((s) => s.removeGame);
@@ -316,6 +317,8 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
         <NowPlaying
           rows={rows}
           today={scheduled ? today : null}
+          plan={scheduled ? { startDate: settings.startDate, hoursPerWeek: settings.hoursPerWeek } : null}
+          onPlanChange={(patch) => void updateSettings(patch)}
           onOpen={onOpen}
           onFinish={(game) => setDialog({ kind: "finish", game })}
           onLog={(game) => setDialog({ kind: "log", game })}
