@@ -30,6 +30,8 @@ export interface AppState {
   undo: (() => Promise<void>) | null;
   /** True while the pointer or keyboard is on the undo offer; the countdown waits. */
   undoHeld: boolean;
+  /** When the undo offer expires (epoch ms); null without an offer or while held. */
+  undoDeadline: number | null;
   games: Game[];
   settings: Settings;
   /** All logged sessions; each game's `hoursPlayed` is their sum. */
@@ -160,9 +162,10 @@ export const useStore = create<AppState>((set, get) => {
   /** Let the current undo offer expire after `ms`. */
   function armUndo(undo: () => Promise<void>, ms: number): void {
     undoDeadlineMs = Date.now() + ms;
+    set({ undoDeadline: undoDeadlineMs });
     undoTimer = setTimeout(() => {
       undoTimer = null;
-      if (get().undo === undo) set({ notice: null, undo: null, undoHeld: false, recentlyFinishedId: null });
+      if (get().undo === undo) set({ notice: null, undo: null, undoHeld: false, undoDeadline: null, recentlyFinishedId: null });
     }, ms);
   }
 
@@ -176,7 +179,7 @@ export const useStore = create<AppState>((set, get) => {
   /** Show a routine confirmation that clears itself. */
   function flashNotice(notice: string): void {
     clearTimers();
-    set({ notice, undo: null, undoHeld: false });
+    set({ notice, undo: null, undoHeld: false, undoDeadline: null });
     noticeTimer = setTimeout(() => {
       noticeTimer = null;
       if (get().notice === notice) set({ notice: null });
@@ -213,6 +216,7 @@ export const useStore = create<AppState>((set, get) => {
     notice: null,
     undo: null,
     undoHeld: false,
+    undoDeadline: null,
     games: [],
     settings: SEED_SETTINGS,
     sessions: [],
@@ -427,7 +431,7 @@ export const useStore = create<AppState>((set, get) => {
       const undo = get().undo;
       if (!undo) return;
       clearTimers();
-      set({ undo: null, undoHeld: false });
+      set({ undo: null, undoHeld: false, undoDeadline: null });
       await undo();
     },
 
@@ -438,7 +442,7 @@ export const useStore = create<AppState>((set, get) => {
       undoRemainingMs = Math.max(1000, undoDeadline() - Date.now());
       clearTimeout(undoTimer);
       undoTimer = null;
-      set({ undoHeld: true });
+      set({ undoHeld: true, undoDeadline: null });
     },
 
     resumeUndo() {
@@ -454,7 +458,7 @@ export const useStore = create<AppState>((set, get) => {
 
     dismissNotice() {
       clearTimers();
-      set({ notice: null, undo: null, undoHeld: false, recentlyFinishedId: null });
+      set({ notice: null, undo: null, undoHeld: false, undoDeadline: null, recentlyFinishedId: null });
     },
   };
 });

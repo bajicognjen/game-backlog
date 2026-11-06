@@ -5,6 +5,7 @@ import { formatHours } from "../domain/format";
 import { planHours } from "../domain/schedule";
 import { SCHEDULED_PLATFORM, type Game } from "../domain/types";
 import { t } from "../i18n/en";
+import { DateField } from "./DateField";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { RatingPicker } from "./RatingPicker";
@@ -25,8 +26,15 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose }: Props) {
   const [review, setReview] = useState("");
   // The PC plan continues with the next game by default; a queue does not.
   const [startNext, setStartNext] = useState(game.platform === SCHEDULED_PLATFORM);
+  /** Until the next-start date is edited by hand, it follows the finish date. */
+  const [nextTouched, setNextTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  function changeCompletedAt(value: string) {
+    setCompletedAt(value);
+    if (!nextTouched) setNextStartDate(value);
+  }
 
   const scheduled = game.platform === SCHEDULED_PLATFORM;
   const completedAtValid = isValidIsoDate(completedAt);
@@ -62,32 +70,31 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose }: Props) {
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
         {played && <p className="modal-text muted">{played}</p>}
         <div className={scheduled ? "form-row form-row-2" : "form-row form-row-1"}>
-          <label className="field">
-            <span className="field-label">{t.finishDialog.completedAt}</span>
-            <input
-              type="date"
-              value={completedAt}
-              onChange={(e) => setCompletedAt(e.target.value)}
-              aria-invalid={submitted && !completedAtValid}
-              data-autofocus="true"
-            />
+          <div className="field">
+            <span className="field-label" id="finish-date-label">
+              {t.finishDialog.completedAt}
+            </span>
+            <DateField value={completedAt} onChange={changeCompletedAt} ariaLabel={t.finishDialog.completedAt} invalid={submitted && !completedAtValid} autoFocus />
             {submitted && !completedAtValid && <span className="field-error">{t.finishDialog.invalidDate}</span>}
-          </label>
+          </div>
           {scheduled && (
-            <label className="field">
+            <div className="field">
               <span className="field-label">{t.finishDialog.nextStart}</span>
-              <input
-                type="date"
+              <DateField
                 value={nextStartDate}
-                onChange={(e) => setNextStartDate(e.target.value)}
-                aria-invalid={submitted && !nextStartValid}
+                onChange={(value) => {
+                  setNextTouched(true);
+                  setNextStartDate(value);
+                }}
+                ariaLabel={t.finishDialog.nextStart}
+                invalid={submitted && !nextStartValid}
               />
               {submitted && !nextStartValid ? (
                 <span className="field-error">{t.finishDialog.invalidDate}</span>
               ) : (
                 nextTitle === null && <span className="field-hint">{t.finishDialog.noNextGame}</span>
               )}
-            </label>
+            </div>
           )}
         </div>
 

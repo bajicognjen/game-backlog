@@ -48,6 +48,19 @@ export function formatDate(value: number | string): string {
   return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 }
 
+/**
+ * Parse a typed date, 'dd.mm.yyyy' as the app shows them (single digits and a
+ * trailing dot allowed) or ISO, into 'YYYY-MM-DD'. Null when it is not a real date.
+ */
+export function parseDisplayDate(text: string): string | null {
+  const trimmed = text.trim();
+  if (isValidIsoDate(trimmed)) return trimmed;
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?$/.exec(trimmed);
+  if (!match) return null;
+  const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  return isValidIsoDate(iso) ? iso : null;
+}
+
 /** Add a (possibly fractional) number of days. */
 export function addDays(ms: number, days: number): number {
   return ms + days * MS_PER_DAY;

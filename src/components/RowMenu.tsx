@@ -43,7 +43,11 @@ export function RowMenu({ items, label = t.actions.more }: { items: RowMenuItem[
         close(true);
       }
     };
-    const onMove = () => setOpen(false);
+    // The menu is fixed-positioned: follow the button when the page scrolls or the window resizes.
+    const onMove = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) setPosition({ top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) });
+    };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onMove, true);

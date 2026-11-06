@@ -17,7 +17,9 @@ export function StatsSection() {
     <section className="section" aria-labelledby="stats-heading">
       <div className="section-head">
         <div className="section-title">
-          <h2 id="stats-heading">{t.stats.title}</h2>
+          <h2 id="stats-heading" tabIndex={-1}>
+            {t.stats.title}
+          </h2>
           <button type="button" className="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="stats-panel">
             <Icon name={open ? "chevron-up" : "chevron-down"} /> {open ? t.stats.hide : t.stats.show}
           </button>
@@ -26,7 +28,7 @@ export function StatsSection() {
           <Stat label={t.stats.finished} value={String(stats.finishedTotal)} />
           {stats.droppedTotal > 0 && <Stat label={t.stats.dropped} value={String(stats.droppedTotal)} />}
           <Stat label={t.stats.hoursLogged} value={formatHours(stats.hoursLoggedTotal)} />
-          <Stat label={t.stats.avgRating} value={stats.avgRating === null ? t.none : `${stats.avgRating} / 10`} />
+          <Stat label={t.stats.avgRating} value={stats.avgRating === null ? t.none : `${stats.avgRating}/10`} />
         </dl>
       </div>
 

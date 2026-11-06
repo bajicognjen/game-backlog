@@ -756,6 +756,14 @@ textarea {
 .banner-undo {
   position: relative;
   overflow: hidden;
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.banner-count {
+  min-width: 3ch;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 
 .banner-drain {
@@ -763,7 +771,7 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 2px;
+  height: 3px;
   background: var(--accent);
   transform-origin: left;
   animation: banner-drain var(--undo-ms, 20s) linear forwards;
@@ -997,11 +1005,20 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+.inline-edit:hover,
+.inline-edit:focus-visible {
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent);
 }
 
 .inline-edit-icon {
   color: var(--text-muted);
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 120ms ease;
 }
 
@@ -1016,21 +1033,78 @@ textarea {
   gap: 2px;
 }
 
-.inline-edit-input {
+.inline-edit-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The in-place field keeps the status line's size; the global 160px field minimum does not apply here. */
+input.inline-edit-input {
   min-width: 0;
-  width: auto;
+  width: 72px;
   padding: 1px 6px;
   font-size: var(--text-md);
   line-height: 1.3;
   border-radius: var(--radius-sm);
 }
 
-.inline-edit-input[type="number"] {
-  width: 72px;
+.inline-edit-suffix {
+  font-size: var(--text-md);
 }
 
 .inline-edit-error {
   white-space: nowrap;
+}
+
+/* A date typed as dd.mm.yyyy with the native picker one click away. */
+.date-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form .date-field {
+  width: 100%;
+}
+
+.form .date-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.date-field input[type="text"] {
+  min-width: 0;
+  width: 128px;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-field-pick {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.date-field-compact input.inline-edit-input {
+  width: 104px;
+}
+
+.date-field-compact .date-field-pick {
+  width: 24px;
+  height: 24px;
+}
+
+.date-picker-native {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .now-drift {
@@ -1291,6 +1365,12 @@ tr:focus-within .row-actions {
 
 .session-table td {
   padding: 5px 8px;
+}
+
+.session-empty {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .session-confirm {
@@ -1769,11 +1849,28 @@ tr:focus-within .row-actions {
   gap: 2px;
 }
 
+/* Headings that skip links and hashes land on stop below the sticky bar. */
+h2[id] {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+
+h2[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.skip-links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+}
+
 .skip-link {
   position: absolute;
   left: 16px;
   top: calc(var(--topbar-h) + 8px);
   z-index: 20;
+  white-space: nowrap;
   padding: 6px 12px;
   border-radius: var(--radius);
   background: var(--accent);

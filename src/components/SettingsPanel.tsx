@@ -8,6 +8,7 @@ import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
 import { useUpdates } from "../state/updates";
 import { t } from "../i18n/en";
+import { DateField } from "./DateField";
 import { failureMessage } from "./GameSearch";
 import { Icon } from "./Icon";
 
@@ -83,16 +84,16 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
 
   const startDateValid = isValidIsoDate(startDate);
   const hoursNumber = Number(hours.replace(",", "."));
-  const hoursValid = hours.trim() !== "" && Number.isFinite(hoursNumber) && hoursNumber > 0;
+  const hoursValid = hours.trim() !== "" && Number.isFinite(hoursNumber) && hoursNumber >= 0.5 && hoursNumber <= 168;
 
   function commitStartDate(value = startDate) {
     if (isValidIsoDate(value) && value !== settings.startDate) void updateSettings({ startDate: value });
   }
 
-  function onStartDateChange(value: string) {
+  function onStartDateChange(value: string, source: "typed" | "picked") {
     setStartDate(value);
-    // The picker hands over whole dates; typed ones commit on blur, so a half-typed year never reaches the plan.
-    if (Number(value.slice(0, 4)) >= 1990) commitStartDate(value);
+    // The picker hands over whole dates; typed ones commit when the field is left.
+    if (source === "picked") commitStartDate(value);
   }
 
   function commitHours() {
@@ -119,25 +120,25 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         <h3>{t.settings.plan}</h3>
         <p className="settings-group-note">{t.settings.planNote}</p>
         <div className="settings-group-body">
-          <label className="field">
+          <div className="field">
             <span className="field-label">{t.settings.startDate}</span>
-            <input
-              type="date"
+            <DateField
               value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-              onBlur={() => commitStartDate()}
+              onChange={onStartDateChange}
+              onBlurOutside={() => commitStartDate()}
               onKeyDown={commitOnEnter(() => commitStartDate())}
-              aria-invalid={!startDateValid}
-              required
+              ariaLabel={t.settings.startDate}
+              invalid={!startDateValid}
             />
             {!startDateValid && <span className="field-error">{t.settings.invalidDate}</span>}
-          </label>
+          </div>
           <label className="field">
             <span className="field-label">{t.settings.hoursPerWeek}</span>
             <input
               type="number"
               inputMode="decimal"
               min={0.5}
+              max={168}
               step={0.5}
               value={hours}
               onChange={(e) => setHours(e.target.value)}

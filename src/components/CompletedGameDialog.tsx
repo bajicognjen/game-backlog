@@ -7,6 +7,7 @@ import { seriesNames } from "../domain/warnings";
 import { useStore } from "../state/store";
 import { genreLabels, platformLabels, sourceLabels, t, typeLabels } from "../i18n/en";
 import { metadataOf, toMetadata, type Metadata } from "../domain/provider";
+import { DateField } from "./DateField";
 import { Modal } from "./Modal";
 import { ProviderLinked } from "./ProviderLinked";
 import { GameSearch, type SearchPick } from "./GameSearch";
@@ -173,16 +174,11 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
             />
             {errors.hours && <span className="field-error">{errors.hours}</span>}
           </label>
-          <label className="field">
+          <div className="field">
             <span className="field-label">{t.completedDialog.completedAt}</span>
-            <input
-              type="date"
-              value={completedAt}
-              onChange={(e) => setCompletedAt(e.target.value)}
-              aria-invalid={!!errors.completedAt}
-            />
+            <DateField value={completedAt} onChange={setCompletedAt} ariaLabel={t.completedDialog.completedAt} invalid={!!errors.completedAt} />
             {errors.completedAt && <span className="field-error">{errors.completedAt}</span>}
-          </label>
+          </div>
         </div>
 
         <div className="field">

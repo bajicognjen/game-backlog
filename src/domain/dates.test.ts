@@ -5,6 +5,7 @@ import {
   floorToDay,
   formatDate,
   isValidIsoDate,
+  parseDisplayDate,
   parseIsoDate,
   toIsoDate,
   todayIso,
@@ -64,5 +65,24 @@ describe("todayIso", () => {
   it("uses the local calendar date", () => {
     expect(todayIso(new Date(2026, 0, 5, 23, 30))).toBe("2026-01-05");
     expect(todayIso(new Date(2026, 11, 31, 0, 1))).toBe("2026-12-31");
+  });
+});
+
+describe("parseDisplayDate", () => {
+  it("reads the app's dd.mm.yyyy form, with or without leading zeros", () => {
+    expect(parseDisplayDate("06.11.2026")).toBe("2026-11-06");
+    expect(parseDisplayDate("6.11.2026")).toBe("2026-11-06");
+    expect(parseDisplayDate(" 1.1.2027. ")).toBe("2027-01-01");
+  });
+
+  it("accepts ISO as typed by a picker", () => {
+    expect(parseDisplayDate("2026-11-06")).toBe("2026-11-06");
+  });
+
+  it("rejects impossible or partial dates", () => {
+    expect(parseDisplayDate("31.02.2026")).toBeNull();
+    expect(parseDisplayDate("06.11")).toBeNull();
+    expect(parseDisplayDate("11/06/2026")).toBeNull();
+    expect(parseDisplayDate("")).toBeNull();
   });
 });

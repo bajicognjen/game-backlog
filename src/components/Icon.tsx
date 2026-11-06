@@ -30,7 +30,8 @@ export type IconName =
   | "undo"
   | "trash"
   | "refresh"
-  | "info";
+  | "info"
+  | "calendar";
 
 const PATHS: Record<IconName, ReactElement> = {
   play: <path d="M7 4.5v15a1 1 0 0 0 1.5.87l12.5-7.5a1 1 0 0 0 0-1.74L8.5 3.63A1 1 0 0 0 7 4.5Z" />,
@@ -107,6 +108,12 @@ const PATHS: Record<IconName, ReactElement> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 16v-4M12 8h.01" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
     </>
   ),
 };

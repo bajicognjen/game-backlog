@@ -6,6 +6,7 @@ import { sessionsOf } from "../domain/sessions";
 import type { Game } from "../domain/types";
 import { t } from "../i18n/en";
 import { useStore } from "../state/store";
+import { DateField } from "./DateField";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 
@@ -61,10 +62,10 @@ export function SessionDialog({ game: initial, onClose }: Props) {
 
       <form className="form session-form" onSubmit={(event) => void submit(event)} noValidate>
         <div className="form-row form-row-session">
-          <label className="field">
+          <div className="field">
             <span className="field-label">{t.sessions.playedOn}</span>
-            <input type="date" value={playedOn} onChange={(e) => setPlayedOn(e.target.value)} aria-invalid={error === t.sessions.invalidDate} />
-          </label>
+            <DateField value={playedOn} onChange={setPlayedOn} ariaLabel={t.sessions.playedOn} invalid={error === t.sessions.invalidDate} />
+          </div>
           <label className="field">
             <span className="field-label">{t.sessions.hours}</span>
             <input
@@ -94,7 +95,7 @@ export function SessionDialog({ game: initial, onClose }: Props) {
       </form>
 
       {sessions.length === 0 ? (
-        <p className="modal-text muted">{t.sessions.empty}</p>
+        <p className="modal-text muted session-empty">{t.sessions.empty}</p>
       ) : (
         <table className="table session-table">
           <tbody>

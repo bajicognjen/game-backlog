@@ -7,6 +7,7 @@ import { progressOf } from "../domain/sessions";
 import type { TodayStatus } from "../domain/today";
 import type { Game, Settings } from "../domain/types";
 import { t } from "../i18n/en";
+import { DateField } from "./DateField";
 import { GenreChip } from "./GenreChip";
 import { Icon } from "./Icon";
 import type { PlanRowView } from "./PlanTable";
@@ -214,10 +215,11 @@ function PlanAnchor({ plan, currentIsFirst, onChange }: { plan: PlanInputs; curr
         kind="hours"
         text={t.now.hoursPerWeek.replace("{hours}", formatHours(plan.hoursPerWeek))}
         value={String(plan.hoursPerWeek)}
+        suffix={t.now.hoursPerWeek.replace("{hours}", "").trim()}
         label={t.now.changeHours}
         validate={(value) => {
           const n = Number(value.replace(",", "."));
-          return value.trim() !== "" && Number.isFinite(n) && n > 0 ? null : t.settings.invalidHours;
+          return value.trim() !== "" && Number.isFinite(n) && n >= 0.5 && n <= 168 ? null : t.settings.invalidHours;
         }}
         onCommit={(value) => {
           const n = Number(value.replace(",", "."));
@@ -234,6 +236,8 @@ interface InlineValueProps {
   text: string;
   /** The raw value the field edits. */
   value: string;
+  /** Unit shown after the field while editing, so the row keeps its meaning. */
+  suffix?: string;
   /** Accessible name of the control. */
   label: string;
   /** Null when `draft` may be saved, else the message to show. */
@@ -242,7 +246,7 @@ interface InlineValueProps {
 }
 
 /** A value shown as text that becomes a field on click; Enter or leaving saves, Escape cancels. */
-function InlineValue({ kind, text, value, label, validate, onCommit }: InlineValueProps) {
+function InlineValue({ kind, text, value, suffix, label, validate, onCommit }: InlineValueProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -298,23 +302,43 @@ function InlineValue({ kind, text, value, label, validate, onCommit }: InlineVal
 
   return (
     <span className="inline-edit-field">
-      <input
-        ref={inputRef}
-        type={kind === "date" ? "date" : "number"}
-        className="inline-edit-input"
-        aria-label={label}
-        aria-invalid={error !== null}
-        value={draft}
-        min={kind === "hours" ? 0.5 : undefined}
-        step={kind === "hours" ? 0.5 : undefined}
-        inputMode={kind === "hours" ? "decimal" : undefined}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setError(null);
-        }}
-        onBlur={() => close(true)}
-        onKeyDown={onKeyDown}
-      />
+      <span className="inline-edit-row">
+        {kind === "date" ? (
+          <DateField
+            compact
+            value={draft}
+            ariaLabel={label}
+            invalid={error !== null}
+            inputRef={inputRef}
+            onChange={(next) => {
+              setDraft(next);
+              setError(null);
+            }}
+            onKeyDown={onKeyDown}
+            onBlurOutside={() => close(true)}
+          />
+        ) : (
+          <input
+            ref={inputRef}
+            type="number"
+            className="inline-edit-input"
+            aria-label={label}
+            aria-invalid={error !== null}
+            value={draft}
+            min={0.5}
+            max={168}
+            step={0.5}
+            inputMode="decimal"
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setError(null);
+            }}
+            onBlur={() => close(true)}
+            onKeyDown={onKeyDown}
+          />
+        )}
+        {suffix && <span className="inline-edit-suffix">{suffix}</span>}
+      </span>
       {error && (
         <span className="field-error inline-edit-error" role="alert">
           {error}

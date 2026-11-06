@@ -129,11 +129,16 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
-      <main>
+      <nav className="skip-links" aria-label={t.skipLinks}>
         <a className="skip-link" href="#completed-heading">
           {t.skipToFinished}
         </a>
+        <a className="skip-link" href="#stats-heading">
+          {t.skipToStats}
+        </a>
+      </nav>
+      <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
+      <main>
         <UpdateBanner />
         <Banner />
         {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
@@ -161,6 +166,10 @@ export default function App() {
           onEdit={(game) => {
             setDetailsId(null);
             setEditRequest(game);
+          }}
+          onSetupIgdb={() => {
+            setDetailsId(null);
+            openIgdbSetup();
           }}
         />
       )}
@@ -310,8 +319,9 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           <h2 id="plan-heading">{t.plan}</h2>
           <PlatformTabs active={platform} counts={counts} onChange={onPlatformChange} panelId={PLAN_PANEL_ID} />
           {addButton}
+          {!scheduled && <p className="section-hint">{t.queueHint}</p>}
         </div>
-        {scheduled ? <TotalsBar totals={schedule.totals} /> : <p className="section-hint">{t.queueHint}</p>}
+        {scheduled && <TotalsBar totals={schedule.totals} />}
       </div>
       <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(platform)}>
         <NowPlaying
@@ -333,6 +343,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           rows={visibleRows}
           showSchedule={scheduled}
           todayGameId={scheduled ? (today.expected?.game.id ?? null) : null}
+          cardGameId={rows.find((row) => row.game.status === "in_progress")?.game.id ?? null}
           warnings={warnings.byGame}
           canReorder={!filtering}
           empty={empty}
@@ -484,7 +495,7 @@ function CompletedSection({ defaultPlatform, onOpen, onSetupIgdb, editRequest, o
     <section className="section" aria-labelledby="completed-heading">
       <div className="section-head">
         <div className="section-title">
-          <h2 id="completed-heading">
+          <h2 id="completed-heading" tabIndex={-1}>
             {t.completed} <span className="count">{completed.length}</span>
           </h2>
           {addButton}

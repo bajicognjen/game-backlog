@@ -1,9 +1,11 @@
+import { useRef } from "react";
 import { APP_VERSION } from "../platform/updates";
 import { THEME_ORDER } from "../state/theme";
 import { useStore } from "../state/store";
 import type { Theme } from "../domain/types";
 import { t, themeLabels, themeShort } from "../i18n/en";
 import { Icon, type IconName } from "./Icon";
+import { useRovingGroup } from "./useRoving";
 
 const THEME_ICON: Record<Theme, IconName> = { system: "monitor", light: "sun", dark: "moon" };
 
@@ -17,6 +19,9 @@ interface Props {
 export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: Props) {
   const theme = useStore((s) => s.settings.theme);
   const updateSettings = useStore((s) => s.updateSettings);
+  const switchRef = useRef<HTMLDivElement>(null);
+  // One Tab stop; Left/Right move and pick, like a native radio group.
+  const roving = useRovingGroup(switchRef, { selector: '[role="radio"]', entry: '[aria-checked="true"]', activateOnMove: true });
 
   return (
     <header className="topbar">
@@ -35,7 +40,7 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
         </button>
         <span className="topbar-divider" aria-hidden="true" />
         {/* All three themes are visible; the chosen one is lit, so the next click is never a guess. */}
-        <div className="tabs theme-switch" role="radiogroup" aria-label={t.themeTitle}>
+        <div ref={switchRef} className="tabs theme-switch" role="radiogroup" aria-label={t.themeTitle} onFocus={roving.onFocus} onKeyDown={roving.onKeyDown}>
           {THEME_ORDER.map((option) => (
             <button
               key={option}

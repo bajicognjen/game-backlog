@@ -9,7 +9,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { formatDate } from "../domain/dates";
 import type { Game } from "../domain/types";
 import { t } from "../i18n/en";
@@ -20,6 +20,10 @@ import { PlatformChip } from "./PlatformChip";
 import { RowMenu } from "./RowMenu";
 import { TitleCell } from "./TitleCell";
 import { TypeChip } from "./TypeChip";
+import { useRovingGroup } from "./useRoving";
+
+/** The row's controls form one Tab stop; the title is where Tab lands. */
+const ROW_ROVING = { selector: 'button, [role="button"]', entry: ".title-cell-link", exclude: '[role="menu"]' };
 
 interface Props {
   /** Already sorted and filtered the way the user asked. */
@@ -116,6 +120,12 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
     id: game.id,
     disabled: !canReorder,
   });
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
+  const roving = useRovingGroup(rowRef, ROW_ROVING);
+  const setRowRef = (node: HTMLTableRowElement | null) => {
+    rowRef.current = node;
+    setNodeRef(node);
+  };
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -124,7 +134,14 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className={[isDragging ? "row-dragging" : "", arrived ? "row-arrived" : ""].filter(Boolean).join(" ") || undefined}>
+    <tr
+      ref={setRowRef}
+      id={`game-${game.id}`}
+      style={style}
+      className={[isDragging ? "row-dragging" : "", arrived ? "row-arrived" : ""].filter(Boolean).join(" ") || undefined}
+      onFocus={roving.onFocus}
+      onKeyDown={roving.onKeyDown}
+    >
       <td className="drag-col">
         <button
           ref={setActivatorNodeRef}

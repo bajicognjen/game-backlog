@@ -374,6 +374,8 @@ Density: table cells are `7px 10px` (`6px 8px` under 1400px), rows carry a 40×2
 
 **The Sticky Ledger Rule.** The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky.
 
+**The One Stop Rule.** A composite control is one Tab stop. A table row lands on its title and the theme switch on its chosen option; Left/Right (and Home/End) move inside, and a row remembers the control it left. The skip links sit before the top bar, so the first Tab on the page reaches the finished games or the stats.
+
 ## Elevation & Depth
 
 Depth is ambient, not structural. Resting surfaces (cards, tables, stat cards, the Now playing card, the active tab) carry a 1px rule and a faint two-layer shadow; it suggests paper on the desk rather than a lifted object. Things that genuinely float (the row menu, the search dropdown, a row being dragged, the Now playing cover) get a deeper popover shadow, and the native dialog gets a single deep shadow over a 45% (dark: 60%) scrim. Tables sit flat inside their rounded wrapper; the stats tables drop the shadow entirely. Hover never lifts: it tints the surface one step.
@@ -417,11 +419,15 @@ Refined and restrained: paper tiles with a thin strong rule, text at 500, an opt
 - **Label:** 12px/600 Ink in sentence case, 4px above the control; hints and errors are 12px below (Ink Muted / Drop Red; amber notes for cautions).
 - **Focus:** the global 2px Plan Blue outline.
 - **Error:** `aria-invalid` turns the border Drop Red.
+- **Date field (`DateField`):** every date is a 128px text input typed as dd.mm.yyyy (numeric keyboard, `dd.mm.yyyy` placeholder, tabular figures) with a 28×28 Ink Muted calendar icon button at a 4px gap that opens the native picker; a picked date lands in the field at once, a typed one commits on blur or Enter. The compact form on the Now playing card is 104px with a 24px button.
+
+**The Typed Date Rule.** A date is read and written the same way everywhere: dd.mm.yyyy text with the picker one click away. No surface shows a bare native date input or a month-first order.
 
 ### Navigation
-- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit, a radio group), and the Settings button that turns Active while open.
+- **Skip links:** two links before the top bar, "Skip to finished games" and "Skip to stats", hidden until focused; the focused one slides in under the top bar's left edge as an 8px Plan Blue tile with on-accent 600 text at `6px 12px`, and Enter lands focus on the section's heading.
+- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit; a radio group that is a single Tab stop, where Left/Right move and select), and the Settings button that turns Active while open.
 - **Platform tabs:** a segmented control on a Paper Shade track (10px, 3px padding, 2px gaps); tabs are 8px, `5px 14px`, 600 weight in Ink Muted. The active tab lifts to Paper with the Ambient shadow and Ink text, and its count pill turns Plan Blue Wash / Plan Blue Ink. Arrow keys move between tabs.
-- **Row menu:** a 28px "more" icon button opens a fixed-position Paper popover (8px, 4px padding, Popover shadow, 150px minimum); items are 13px at `6px 10px` with 6px corners, Paper Shade on hover and focus (outline inset 2px), danger items in Drop Red.
+- **Row menu:** a 28px "more" icon button opens a fixed-position Paper popover (8px, 4px padding, Popover shadow, 150px minimum); items are 13px at `6px 10px` with 6px corners, Paper Shade on hover and focus (outline inset 2px), danger items in Drop Red. The popover follows its button when the page scrolls or the window resizes rather than closing.
 
 ### Chips
 - **Design chips:** pills at `2px 10px`, 12px/600, one of the six fixed pastel/deep pairs.
@@ -441,18 +447,20 @@ A word, not a pill: 12px Ink Muted. "In progress" is Ink at 650 with a filled 8p
 - **Border:** 1px Rule.
 - **Internal Padding:** Settings `16px 22px 4px`, stats cards `14px 18px 12px`, empty state `28px 24px` with a dashed Rule Strong border and centered Ink Muted text (title in Ink at 600, hint capped at 48ch, actions 14px below).
 - **Stat cards:** 8px corners, `8px 14px 9px`, 118px minimum; an 11px Ink Muted label over an 18px/650 tabular figure with an optional 11px detail.
-- **Banners / warnings:** 10px panels at `10px 14px` on the role's wash with a 30–55% role-mixed border; warnings carry a 16px alert icon in Caution Amber.
+- **Banners / warnings:** 10px panels at `10px 14px` on the role's wash with a 30–55% role-mixed border; warnings carry a 16px alert icon in Caution Amber. The finished notice adds a ghost "Show in finished games" link that scrolls to the row and focuses its title, and an Undo offer that shows its own clock: a 3px Plan Blue track under the notice drains over 20 seconds while an Ink Muted tabular `N s` count sits beside the button; hovering or focusing the notice pauses it, and when it runs out focus returns to the card.
+
+**The Second Chance Rule.** An undo offer lasts 20 seconds and says so. The clock is a draining track and a count, not a toast that vanishes; it waits while the pointer or focus is on the notice, and the notice takes focus when it appears so the offer is the next thing a keyboard reaches.
 
 ### Tables
-Flat inside a 12px Paper wrapper with the Ambient shadow. Headers are sticky under the top bar on Paper Shade, 11px/600 uppercase tracked Ink Muted; cells are `7px 10px` with a Rule bottom edge, the last row rounding into the wrapper. Rows tint to Paper Hover on hover; the current game's row holds Current Row Wash even under hover; paused titles go muted; a dragged row's cells take Paper Shade and the Popover shadow. Numbers and dates are tabular and right-aligned; titles are 550 with a 40×24 cover; notes are Ink Muted, clamped to two lines, 160–340px wide. A 22×24 grip handle in Ink Muted starts each reorderable row.
+Flat inside a 12px Paper wrapper with the Ambient shadow. Headers are sticky under the top bar on Paper Shade, 11px/600 uppercase tracked Ink Muted; cells are `7px 10px` with a Rule bottom edge, the last row rounding into the wrapper. Rows tint to Paper Hover on hover; the current game's row holds Current Row Wash even under hover; paused titles go muted; a dragged row's cells take Paper Shade and the Popover shadow. Numbers and dates are tabular and right-aligned; titles are 550 with a 40×24 cover; notes are Ink Muted, clamped to two lines, 160–340px wide. A 22×24 grip handle in Ink Muted starts each reorderable row. Each row is one Tab stop that lands on the title; Left/Right (Home/End) move across the row's cover link and action buttons, and the row remembers the control it left.
 
 ### Dialogs
-Native `<dialog>` at 14px with a 1px Rule, Paper fill, the Dialog shadow and scrim, widths `min(560px, 100vw − 32px)` (lg 680, xl 880). Content padding `20px 24px 22px`; the Headline title keeps 36px clear for the ghost icon close button at `14px 14px`; actions are right-aligned with 8px gaps, 12px below the form. Focus moves to the first control and returns to the opener on close.
+Native `<dialog>` at 14px with a 1px Rule, Paper fill, the Dialog shadow and scrim, widths `min(560px, 100vw − 32px)` (lg 680, xl 880). Content padding `20px 24px 22px`; the Headline title keeps 36px clear for the ghost icon close button at `14px 14px`; actions are right-aligned with 8px gaps, 12px below the form. Focus moves to the first control and returns to the opener on close. Details opens at md for a game with no IGDB link and at xl once covers and screenshots exist; the unlinked footer states what IGDB adds, offers "Set up in Settings" while no credentials are saved, and makes Edit game the primary action (Close is primary once linked).
 
 ### Now playing (signature)
 The screen's peak. A 12px card washed with Plan Blue Wash at 45% into Paper, a 22%-accent border and the Ambient shadow; `20px 24px` padding, a 22px gap between the 96×128 cover (8px, Popover shadow) and the body. The title is Display with a 450-weight year; a 13px Ink Muted meta line holds the status word, Design chip, genre chip and start date; actions (Log hours, Pause, Finish game) sit to the right. An 8px Plan Blue progress bar on a 14%-accent track (520px max) is followed by 13px/600 tabular hours text; a status line carries an 8px drift dot (Finish Green "on track" or "ahead", Drop Red "behind"), days left and end date, and the next game. With nothing in progress the card goes quiet: Paper fill, Rule border, Headline title "Nothing in progress", and one primary Start button for the next game.
 
-The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week` ("plan starts" when the game in progress is not first), separated by a 6px gap around a middle dot. Each is a link-style control whose 12px pencil appears on hover or focus; activated, it becomes the native date or number field in place (13px, 6px corners, `1px 6px` padding), saves on Enter or blur, cancels on Escape, and shows the Settings error copy beneath itself when the value is invalid; afterwards the control returns to text and keeps focus. A 12px Ink Muted note under the line explains the mechanism. The idle card carries the same line.
+The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week` ("plan starts" when the game in progress is not first), separated by a 6px gap around a middle dot. Each is a link-style control with a dotted Rule Strong underline (solid Plan Blue on hover or focus) and a 12px pencil at 60% that lifts to full on hover or focus; activated, it becomes a field in place (13px, 6px corners, `1px 6px` padding): a 72px number field followed by "h/week", or the compact DateField. It saves on Enter or blur, cancels on Escape, and shows the Settings error copy beneath itself when the value is invalid (hours run from 0.5 to 168); afterwards the control returns to text and keeps focus. A 12px Ink Muted note under the line explains the mechanism and ends "Click a value to change it." The idle card carries the same line.
 
 **The Edit Where You Read Rule.** A number that moves the plan is edited where its effect is read. Settings keeps the same field, but the card owns the moment, and saving there recalculates every date at once.
 
@@ -472,6 +480,9 @@ The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week
 - **Do** give floating surfaces the Popover shadow and resting surfaces the Ambient shadow; keep tables flat inside their wrapper.
 - **Do** keep the current game's row on Current Row Wash under hover, and let row actions brighten from Ink Muted to Ink on hover or focus-within.
 - **Do** name the empty state's fact and its next step in a dashed 12px panel with one button.
+- **Do** make a row and a segmented control one Tab stop, with Left/Right moving inside, and keep the skip links before the top bar.
+- **Do** take every date as dd.mm.yyyy text through `DateField`, with the native picker behind its calendar button.
+- **Do** show an undo offer's clock (a draining track and a count) and pause it while the notice is hovered or focused.
 
 ### Don't:
 - **Don't** use Unicode glyphs or emoji as icons; every icon is an inline SVG from the set.
@@ -484,3 +495,5 @@ The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week
 - **Don't** render status as a colored pill or badge (except "Dropped"); it is a word with a dot.
 - **Don't** rename the "Design" chips or their six fixed color pairs.
 - **Don't** add a max-width container, a sidebar or a mobile layout; the window is the page and columns drop at 1100px and 1000px.
+- **Don't** show a bare native date input or let a date read month-first; `DateField` wraps the picker.
+- **Don't** make every row action its own Tab stop; the row is the stop and arrows move inside it.

@@ -9,7 +9,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { formatDate } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { progressOf } from "../domain/sessions";
@@ -23,6 +23,10 @@ import { RowMenu, type RowMenuItem } from "./RowMenu";
 import { StatusBadge } from "./StatusBadge";
 import { TitleCell } from "./TitleCell";
 import { TypeChip } from "./TypeChip";
+import { useRovingGroup } from "./useRoving";
+
+/** The row's controls form one Tab stop; the title is where Tab lands. */
+const ROW_ROVING = { selector: 'button, [role="button"]', entry: ".title-cell-link", exclude: '[role="menu"]' };
 
 /** One row of a plan: the PC plan carries schedule numbers, a plain queue does not. */
 export interface PlanRowView {
@@ -37,6 +41,8 @@ interface Props {
   showSchedule: boolean;
   /** Id of the game whose planned span contains today, if any. */
   todayGameId?: number | null;
+  /** The game the Now playing card shows; its row menu skips the actions the card already offers. */
+  cardGameId?: number | null;
   /** Warning text per game id, shown as an icon with a tooltip on the row. */
   warnings?: ReadonlyMap<number, string>;
   /** False while a filter hides rows: dragging a partial list would scramble positions. */
@@ -60,6 +66,7 @@ export function PlanTable({
   showSchedule,
   empty,
   todayGameId = null,
+  cardGameId = null,
   warnings,
   canReorder = true,
   onEdit,
@@ -135,6 +142,7 @@ export function PlanTable({
                   row={row}
                   showSchedule={showSchedule}
                   isToday={row.game.id === todayGameId}
+                  onCard={row.game.id === cardGameId}
                   warning={warnings?.get(row.game.id) ?? null}
                   canReorder={canReorder}
                   onEdit={onEdit}
@@ -158,6 +166,7 @@ interface RowProps {
   row: PlanRowView;
   showSchedule: boolean;
   isToday: boolean;
+  onCard: boolean;
   warning: string | null;
   canReorder: boolean;
   onEdit(game: Game): void;
@@ -169,11 +178,17 @@ interface RowProps {
   onStatus(game: Game, status: PlanStatus): void;
 }
 
-function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, onDelete, onFinish, onDrop, onLog, onOpen, onStatus }: RowProps) {
+function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, onEdit, onDelete, onFinish, onDrop, onLog, onOpen, onStatus }: RowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: row.game.id,
     disabled: !canReorder,
   });
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
+  const roving = useRovingGroup(rowRef, ROW_ROVING);
+  const setRowRef = (node: HTMLTableRowElement | null) => {
+    rowRef.current = node;
+    setNodeRef(node);
+  };
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -191,9 +206,10 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
   const active = game.status === "in_progress" || game.status === "paused";
   const progress = progressOf(game);
 
-  // The row shows one status action and Edit; everything else sits in the menu.
+  // The row shows one status action and Edit; everything else sits in the menu. The card's own
+  // game skips Finish and Pause here, since the card shows them as buttons.
   const menu: RowMenuItem[] = [
-    ...(game.status === "in_progress"
+    ...(game.status === "in_progress" && !onCard
       ? [
           { label: t.actions.finish, onSelect: () => onFinish(game) },
           { label: t.actions.pause, onSelect: () => onStatus(game, "paused") },
@@ -206,7 +222,7 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
   ];
 
   return (
-    <tr ref={setNodeRef} style={style} className={classes || undefined}>
+    <tr ref={setRowRef} style={style} className={classes || undefined} onFocus={roving.onFocus} onKeyDown={roving.onKeyDown}>
       <td className="drag-col">
         <button
           ref={setActivatorNodeRef}

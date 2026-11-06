@@ -21,6 +21,8 @@ interface Props {
   onClose(): void;
   /** Open the edit form for this game (the dialog closes first). */
   onEdit?(game: Game): void;
+  /** Leave for the IGDB credentials in Settings. */
+  onSetupIgdb?(): void;
 }
 
 /**
@@ -28,8 +30,9 @@ interface Props {
  * summary, store links, screenshots, trailers, similar games and the rest
  * of its series or franchise in the library. Linked games can refresh from IGDB.
  */
-export function GameDetailsDialog({ gameId, onClose, onEdit }: Props) {
+export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Props) {
   const games = useStore((s) => s.games);
+  const hasCredentials = useStore((s) => s.settings.igdbClientId !== "" && s.settings.igdbClientSecret !== "");
   const editGame = useStore((s) => s.editGame);
   const addGame = useStore((s) => s.addGame);
   const game = games.find((g) => g.id === gameId);
@@ -88,7 +91,7 @@ export function GameDetailsDialog({ gameId, onClose, onEdit }: Props) {
   const year = releaseYear(game.releaseDate);
 
   return (
-    <Modal title={game.title} onClose={onClose} size="xl">
+    <Modal title={game.title} onClose={onClose} size={d ? "xl" : "md"}>
       <div className="details">
         <header className="details-head">
           {game.coverUrl && <img className="details-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" width={132} height={187} />}
@@ -309,13 +312,18 @@ export function GameDetailsDialog({ gameId, onClose, onEdit }: Props) {
               {busy === "refresh" ? t.search.loadingDetails : t.details.refresh}
             </button>
           )}
-          {!linked && <span className="muted details-fetched">{t.details.notLinked}</span>}
+          {!linked && <span className="muted details-fetched">{hasCredentials ? t.details.notLinked : t.details.igdbPitch}</span>}
+          {!linked && !hasCredentials && onSetupIgdb && (
+            <button type="button" className="button" onClick={onSetupIgdb}>
+              {t.search.setupAction}
+            </button>
+          )}
           {onEdit && (
-            <button type="button" className="button" onClick={() => onEdit(game)}>
+            <button type="button" className={`button ${linked ? "" : "button-primary"}`} onClick={() => onEdit(game)}>
               <Icon name="pencil" /> {t.details.edit}
             </button>
           )}
-          <button type="button" className="button button-primary" onClick={onClose}>
+          <button type="button" className={`button ${linked ? "button-primary" : ""}`} onClick={onClose}>
             {t.close}
           </button>
         </footer>
