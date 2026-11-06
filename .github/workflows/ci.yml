@@ -23,12 +23,47 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
+    env:
+      # What Tauri needs to build on Linux.
+      APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      # Where apt keeps the .deb files it downloads, so they can be cached between runs.
+      APT_ARCHIVES: /tmp/apt-archives
     steps:
       - uses: actions/checkout@v4
+
+      # GitHub's apt mirror is sometimes extremely slow: the package download (not
+      # `apt-get update`) took 33 minutes on one run. So the downloaded .deb files are
+      # cached. The cache key hashes the exact package versions apt is about to install:
+      # when Ubuntu publishes an update the key changes, the previous cache is restored
+      # as a starting point, and only the changed packages are downloaded and saved.
+      - name: Refresh apt package lists
+        id: apt-plan
+        shell: bash
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          plan="$(apt-get --simulate install $APT_PACKAGES | { grep '^Inst ' || true; } | sort | sha256sum | cut -c1-16)"
+          echo "key=apt-${{ runner.os }}-${{ runner.arch }}-$plan" >> "$GITHUB_OUTPUT"
+      - name: Restore apt package cache
+        id: apt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.APT_ARCHIVES }}/*.deb
+          key: ${{ steps.apt-plan.outputs.key }}
+          restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-
       - name: Install Tauri's Linux dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          # apt only creates its partial/ download directory inside one that already exists.
+          mkdir -p "$APT_ARCHIVES"
+          sudo apt-get -o Acquire::Retries=3 -o Dir::Cache::Archives="$APT_ARCHIVES" install -y $APT_PACKAGES
+          # Drop superseded versions so the cache doesn't grow with every update.
+          sudo apt-get -o Dir::Cache::Archives="$APT_ARCHIVES" autoclean
+      - name: Save apt package cache
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.APT_ARCHIVES }}/*.deb
+          key: ${{ steps.apt-plan.outputs.key }}
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
