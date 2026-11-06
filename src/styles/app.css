@@ -14,6 +14,8 @@
   --surface: #ffffff;
   --surface-2: #f0f2f5;
   --surface-hover: #f2f4f7;
+  /* Fields sit on the surface in light and one step above it in dark, so a border is never the only cue. */
+  --field: #ffffff;
   --border: #dde1e6;
   --border-strong: #c5cbd3;
 
@@ -85,6 +87,7 @@
     --surface: #171b21;
     --surface-2: #1f242c;
     --surface-hover: #1c2129;
+    --field: #1f242c;
     --border: #2a303a;
     --border-strong: #3a414d;
     --text: #e6e9ee;
@@ -131,6 +134,7 @@
   --surface: #171b21;
   --surface-2: #1f242c;
   --surface-hover: #1c2129;
+  --field: #1f242c;
   --border: #2a303a;
   --border-strong: #3a414d;
   --text: #e6e9ee;
@@ -508,7 +512,7 @@ textarea {
   padding: 6px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--field);
   color: var(--text);
   min-width: 0;
 }
@@ -1508,6 +1512,13 @@ tr:focus-within .row-actions {
   color: var(--accent-text);
 }
 
+/* The theme switch is the same segmented control, one size smaller for the top bar. */
+.theme-switch .tab {
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: var(--text-md);
+}
+
 /* ---------- Filters and sorting ---------- */
 
 .filter-bar {
@@ -1701,7 +1712,7 @@ tr:focus-within .row-actions {
   padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--field);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -2241,6 +2252,34 @@ tr:focus-within .row-actions {
   .progress-bar,
   .button {
     transition: none;
+  }
+}
+
+/* ---------- Short windows: the card gives rows back ---------- */
+
+@media (max-height: 700px) {
+  .now {
+    padding: 12px 16px;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .now-body {
+    gap: 8px;
+  }
+
+  .now-cover {
+    width: 56px;
+    height: 75px;
+  }
+
+  .now-title {
+    font-size: var(--text-lg);
+  }
+
+  .now-meta,
+  .now-note {
+    display: none;
   }
 }
 

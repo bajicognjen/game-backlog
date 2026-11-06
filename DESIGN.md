@@ -32,6 +32,7 @@ colors:
   video-black: "#000000"
   desk: "#f4f5f7"
   paper: "#ffffff"
+  field: "#ffffff"
   paper-shade: "#f0f2f5"
   paper-hover: "#f7f8fa"
   rule: "#dde1e6"
@@ -369,6 +370,8 @@ Density: table cells are `7px 10px` (`6px 8px` under 1400px), rows carry a 40×2
 ### Named Rules
 **The One Window Rule.** There is no max-width container and no mobile layout; the plan table is the page. Shrinking the window drops columns at 1100px and 1000px instead of wrapping cells.
 
+**The Short Window Rule.** Under 700px of window height the Now playing card gives rows back: `12px 16px` padding, a 56×75 cover, a Headline title, and no meta line or explanation note; nothing else changes.
+
 **The Sticky Ledger Rule.** The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky.
 
 ## Elevation & Depth
@@ -410,13 +413,13 @@ Refined and restrained: paper tiles with a thin strong rule, text at 500, an opt
 - **Hover / Focus:** background, border and color transition 120ms ease (disabled under reduced motion); focus-visible is a 2px Plan Blue outline offset 2px. Disabled is 55% opacity.
 
 ### Inputs / Fields
-- **Style:** Paper fill, 1px Rule Strong, 8px corners, `6px 10px`, body size, 160px minimum width for text/number/date/password; the search field is `8px 12px`. Textareas resize vertically from 56px.
+- **Style:** Field fill (`field`: Paper in light, Paper Shade one step above the dialog surface in dark, so a border is never the only cue), 1px Rule Strong, 8px corners, `6px 10px`, body size, 160px minimum width for text/number/date/password; the search field is `8px 12px`. Textareas resize vertically from 56px.
 - **Label:** 12px/600 Ink in sentence case, 4px above the control; hints and errors are 12px below (Ink Muted / Drop Red; amber notes for cautions).
 - **Focus:** the global 2px Plan Blue outline.
 - **Error:** `aria-invalid` turns the border Drop Red.
 
 ### Navigation
-- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import and theme on the right, a 1px 20px divider, and the Settings button that turns Active while open.
+- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit, a radio group), and the Settings button that turns Active while open.
 - **Platform tabs:** a segmented control on a Paper Shade track (10px, 3px padding, 2px gaps); tabs are 8px, `5px 14px`, 600 weight in Ink Muted. The active tab lifts to Paper with the Ambient shadow and Ink text, and its count pill turns Plan Blue Wash / Plan Blue Ink. Arrow keys move between tabs.
 - **Row menu:** a 28px "more" icon button opens a fixed-position Paper popover (8px, 4px padding, Popover shadow, 150px minimum); items are 13px at `6px 10px` with 6px corners, Paper Shade on hover and focus (outline inset 2px), danger items in Drop Red.
 

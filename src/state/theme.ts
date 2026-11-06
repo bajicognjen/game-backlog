@@ -13,9 +13,5 @@ export function applyTheme(theme: Theme): void {
   }
 }
 
+/** The order the top bar's theme switch shows them in. */
 export const THEME_ORDER: readonly Theme[] = ["system", "light", "dark"];
-
-export function nextTheme(current: Theme): Theme {
-  const index = THEME_ORDER.indexOf(current);
-  return THEME_ORDER[(index + 1) % THEME_ORDER.length];
-}

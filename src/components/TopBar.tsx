@@ -1,10 +1,11 @@
 import { APP_VERSION } from "../platform/updates";
-import { nextTheme } from "../state/theme";
+import { THEME_ORDER } from "../state/theme";
 import { useStore } from "../state/store";
-import { t, themeLabels } from "../i18n/en";
+import type { Theme } from "../domain/types";
+import { t, themeLabels, themeShort } from "../i18n/en";
 import { Icon, type IconName } from "./Icon";
 
-const THEME_ICON: Record<keyof typeof themeLabels, IconName> = { system: "monitor", light: "sun", dark: "moon" };
+const THEME_ICON: Record<Theme, IconName> = { system: "monitor", light: "sun", dark: "moon" };
 
 interface Props {
   settingsOpen: boolean;
@@ -16,7 +17,6 @@ interface Props {
 export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: Props) {
   const theme = useStore((s) => s.settings.theme);
   const updateSettings = useStore((s) => s.updateSettings);
-  const next = nextTheme(theme);
 
   return (
     <header className="topbar">
@@ -34,15 +34,23 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
           <Icon name="upload" /> {t.backup.import}
         </button>
         <span className="topbar-divider" aria-hidden="true" />
-        <button
-          type="button"
-          className="button button-ghost"
-          onClick={() => void updateSettings({ theme: next })}
-          title={t.themeSwitch.replace("{theme}", themeLabels[next].toLowerCase())}
-          aria-label={`${themeLabels[theme]}. ${t.themeSwitch.replace("{theme}", themeLabels[next].toLowerCase())}`}
-        >
-          <Icon name={THEME_ICON[theme]} /> {themeLabels[theme]}
-        </button>
+        {/* All three themes are visible; the chosen one is lit, so the next click is never a guess. */}
+        <div className="tabs theme-switch" role="radiogroup" aria-label={t.themeTitle}>
+          {THEME_ORDER.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={theme === option}
+              aria-label={themeLabels[option]}
+              title={themeLabels[option]}
+              className={`tab ${theme === option ? "tab-active" : ""}`}
+              onClick={() => void updateSettings({ theme: option })}
+            >
+              <Icon name={THEME_ICON[option]} /> {themeShort[option]}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           className={`button ${settingsOpen ? "button-active" : ""}`}

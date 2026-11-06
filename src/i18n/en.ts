@@ -77,6 +77,13 @@ export const themeLabels: Record<Theme, string> = {
   dark: "Dark theme",
 };
 
+/** The same three, as they read inside the top bar's switch. */
+export const themeShort: Record<Theme, string> = {
+  system: "System",
+  light: "Light",
+  dark: "Dark",
+};
+
 /** Short month names for the stats charts, January first. */
 export const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
@@ -90,7 +97,7 @@ export const t = {
   loadError: "Could not load the database",
   dismiss: "Dismiss",
   undo: "Undo",
-  themeSwitch: "Switch to {theme}",
+  themeTitle: "Theme",
   crash: {
     title: "Something broke in the view",
     hint: "Your data is safe in the database. Reload the view; if it happens again, note which click caused it.",

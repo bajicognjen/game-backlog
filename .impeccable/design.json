@@ -405,6 +405,21 @@
           "#bfbfbf",
           "#ebebeb"
         ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Field",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#4c4c4c",
+          "#737373",
+          "#999999",
+          "#bfbfbf",
+          "#e0e0e0",
+          "#f5f5f5",
+          "#ffffff"
+        ]
       }
     },
     "typographyMeta": {
@@ -666,6 +681,11 @@
         "name": "The Dot Not Pill Rule",
         "body": "Status is a word with a dot. Only \"Dropped\" and the \"Today\" marker are pills, and no status gets a colored border.",
         "section": "components"
+      },
+      {
+        "name": "The Short Window Rule",
+        "body": "Under 700px of window height the Now playing card gives rows back: `12px 16px` padding, a 56\u00d775 cover, a Headline title, and no meta line or explanation note; nothing else changes.",
+        "section": "layout"
       }
     ],
     "dos": [
