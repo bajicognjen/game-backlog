@@ -18,6 +18,8 @@ interface Props {
   defaultPlatform: Platform;
   onSubmit(values: GameInput & CompletedDetails): Promise<boolean>;
   onClose(): void;
+  /** Leave for the IGDB credentials in Settings. */
+  onSetupIgdb?(): void;
 }
 
 interface Errors {
@@ -27,7 +29,7 @@ interface Errors {
 }
 
 /** Add a game finished before the app existed, or edit a completed game. */
-export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onClose }: Props) {
+export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onClose, onSetupIgdb }: Props) {
   const [title, setTitle] = useState(game?.title ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
   const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
@@ -100,7 +102,7 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
   return (
     <Modal title={mode === "add" ? t.completedDialog.addTitle : t.completedDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} autoFocus={mode === "add"} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add"} onSetupIgdb={onSetupIgdb} />
         <ProviderLinked
           meta={meta}
           note={pick?.note ?? null}

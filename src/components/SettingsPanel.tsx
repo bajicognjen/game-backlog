@@ -1,7 +1,8 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { isValidIsoDate } from "../domain/dates";
 import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
+import { openExternal } from "../platform/links";
 import { appVersion } from "../platform/updates";
 import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
@@ -15,8 +16,20 @@ import { Icon } from "./Icon";
  * its own draft while you type; valid values reach the store when you leave
  * the field (or press Enter), and the plan recalculates then.
  */
-export function SettingsPanel({ onClose }: { onClose(): void }) {
+interface Props {
+  onClose(): void;
+  /** Changes when a dialog sends the user here for IGDB; the Client ID field takes focus. */
+  focusIgdb?: number;
+}
+
+const TWITCH_CONSOLE_URL = "https://dev.twitch.tv/console";
+
+export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   const settings = useStore((s) => s.settings);
+  const clientIdRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusIgdb > 0) clientIdRef.current?.focus();
+  }, [focusIgdb]);
   const updateSettings = useStore((s) => s.updateSettings);
   const updateGames = useStore((s) => s.updateGames);
   /** Progress of the design refresh while it runs; null when idle. */
@@ -142,9 +155,20 @@ export function SettingsPanel({ onClose }: { onClose(): void }) {
         <h3>{t.settings.igdb}</h3>
         <p className="settings-group-note">{t.settings.igdbNote}</p>
         <div className="settings-group-body">
+          <ol className="settings-steps">
+            {t.settings.igdbSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <div className="field-actions">
+            <button type="button" className="button button-small" onClick={() => void openExternal(TWITCH_CONSOLE_URL)}>
+              {t.settings.igdbConsole} <Icon name="external" size={14} />
+            </button>
+          </div>
           <label className="field">
             <span className="field-label">{t.search.igdbClientId}</span>
             <input
+              ref={clientIdRef}
               type="text"
               value={igdbClientId}
               autoComplete="off"

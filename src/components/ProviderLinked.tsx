@@ -18,7 +18,7 @@ export function ProviderLinked({ meta, note, noteTone = "hint", onUnlink }: Prop
   return (
     <div className="search-linked">
       {meta.coverUrl && !broken && (
-        <img className="search-linked-cover" src={thumbnailUrl(meta.coverUrl, 200)} alt="" onError={() => setBroken(true)} />
+        <img className="search-linked-cover" src={thumbnailUrl(meta.coverUrl, 200)} alt="" width={100} height={60} onError={() => setBroken(true)} />
       )}
       <div className="search-linked-body">
         <div className="search-linked-head">

@@ -6,6 +6,7 @@ import { ProviderError } from "../platform/http";
 import { providers } from "../state/providers";
 import { useStore } from "../state/store";
 import { useGameSearch } from "../state/useGameSearch";
+import { Icon } from "./Icon";
 
 export type SearchPick = { kind: "provider"; meta: GameMetadata } | { kind: "library"; game: Game };
 
@@ -13,6 +14,8 @@ interface Props {
   onPick(pick: SearchPick): void;
   /** Take the first focus when the dialog opens. */
   autoFocus?: boolean;
+  /** Jump to the IGDB credentials in Settings; shown while none are entered. */
+  onSetupIgdb?(): void;
 }
 
 /**
@@ -20,8 +23,9 @@ interface Props {
  * (read locally, no request), then IGDB results. Picking a result that is
  * already in the library hands back the library row instead of fetching.
  */
-export function GameSearch({ onPick, autoFocus = false }: Props) {
+export function GameSearch({ onPick, autoFocus = false, onSetupIgdb }: Props) {
   const games = useStore((s) => s.games);
+  const hasCredentials = useStore((s) => s.settings.igdbClientId !== "" && s.settings.igdbClientSecret !== "");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [fetching, setFetching] = useState<string | null>(null);
@@ -114,6 +118,22 @@ export function GameSearch({ onPick, autoFocus = false }: Props) {
             if (e.key === "Escape") close();
           }}
         />
+        {!hasCredentials && (
+          <p className="search-setup">
+            <Icon name="info" size={14} />
+            <span>
+              {t.search.setupNeeded}
+              {onSetupIgdb && (
+                <>
+                  {" "}
+                  <button type="button" className="link-button link-accent" onClick={onSetupIgdb}>
+                    {t.search.setupAction}
+                  </button>
+                </>
+              )}
+            </span>
+          </p>
+        )}
       </div>
 
       {open && query.trim() !== "" && (
@@ -176,7 +196,7 @@ export function GameSearch({ onPick, autoFocus = false }: Props) {
 function Thumb({ url }: { url: string | null }) {
   const [broken, setBroken] = useState(false);
   if (!url || broken) return <span className="search-thumb search-thumb-empty" aria-hidden="true" />;
-  return <img className="search-thumb" src={thumbnailUrl(url, 120)} alt="" loading="lazy" onError={() => setBroken(true)} />;
+  return <img className="search-thumb" src={thumbnailUrl(url, 120)} alt="" width={48} height={29} loading="lazy" onError={() => setBroken(true)} />;
 }
 
 export function failureMessage(reason: ProviderError["reason"]): string {

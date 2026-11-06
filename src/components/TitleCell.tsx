@@ -10,7 +10,7 @@ export function TitleCell({ game, onOpen }: { game: Game; onOpen?(game: Game): v
   const content = (
     <>
       {game.coverUrl && !broken && (
-        <img className="cover" src={thumbnailUrl(game.coverUrl, 120)} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <img className="cover" src={thumbnailUrl(game.coverUrl, 120)} alt="" width={27} height={36} loading="lazy" onError={() => setBroken(true)} />
       )}
       <span>
         <span className="title-text">{game.title}</span>

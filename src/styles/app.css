@@ -13,7 +13,7 @@
   --bg: #f4f5f7;
   --surface: #ffffff;
   --surface-2: #f0f2f5;
-  --surface-hover: #f7f8fa;
+  --surface-hover: #f2f4f7;
   --border: #dde1e6;
   --border-strong: #c5cbd3;
 
@@ -38,6 +38,7 @@
   --danger-soft: #fdecea;
   --on-danger: #ffffff;
   --warning: #b7791f;
+  --warning-text: #8a5a12;
   --warning-soft: #fff6d6;
   --warning-border: #f0b429;
 
@@ -46,6 +47,7 @@
 
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
   --shadow-pop: 0 10px 28px rgba(16, 24, 40, 0.18), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-dialog: 0 24px 60px rgba(0, 0, 0, 0.3);
 
   /* Type scale: dense product UI, one family, fixed steps */
   --font: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -58,6 +60,7 @@
 
   --radius-sm: 6px;
   --radius: 8px;
+  --radius-panel: 10px;
   --radius-lg: 12px;
   --radius-xl: 14px;
 
@@ -100,6 +103,7 @@
     --danger-soft: #3a1d1a;
     --on-danger: #0f1216;
     --warning: #e0a526;
+    --warning-text: #f0c060;
     --warning-soft: #2d2611;
     --warning-border: #e0a526;
     --current-bg: #182238;
@@ -145,6 +149,7 @@
   --danger-soft: #3a1d1a;
   --on-danger: #0f1216;
   --warning: #e0a526;
+  --warning-text: #f0c060;
   --warning-soft: #2d2611;
   --warning-border: #e0a526;
   --current-bg: #182238;
@@ -600,7 +605,7 @@ textarea {
 
 .field-note {
   font-size: var(--text-sm);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .hint {
@@ -647,6 +652,7 @@ textarea {
 .settings-group {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-rows: max-content 1fr;
   gap: 6px 32px;
   padding: 16px 0;
   border-top: 1px solid var(--border);
@@ -658,7 +664,7 @@ textarea {
 }
 
 .settings-group h3 {
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   font-weight: 600;
 }
 
@@ -716,7 +722,7 @@ textarea {
   gap: 12px;
   padding: 10px 14px;
   margin-bottom: 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   border: 1px solid transparent;
 }
 
@@ -738,6 +744,41 @@ textarea {
   gap: 6px;
 }
 
+.banner:focus-visible {
+  outline-offset: 0;
+}
+
+/* An undo offer shows the time it has left as a line draining under it; it waits while the user is on the offer. */
+.banner-undo {
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-drain {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: banner-drain var(--undo-ms, 20s) linear forwards;
+}
+
+.banner-held .banner-drain {
+  animation-play-state: paused;
+}
+
+@keyframes banner-drain {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
 .warnings {
   display: flex;
   gap: 10px;
@@ -745,7 +786,7 @@ textarea {
   margin-bottom: 12px;
   padding: 10px 14px;
   border: 1px solid color-mix(in srgb, var(--warning-border) 55%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--warning-soft);
   font-size: var(--text-md);
 }
@@ -811,25 +852,44 @@ textarea {
 
 /* ---------- Now playing ---------- */
 
+/* The screen's peak: a wash of the accent on the surface, the cover at full weight, the title at full strength. */
 .now {
   display: flex;
-  gap: 20px;
+  gap: 22px;
   align-items: flex-start;
-  padding: 18px 22px;
+  padding: 20px 24px;
   margin-bottom: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
 
 .now-cover {
   flex: none;
-  width: 72px;
-  height: 96px;
+  width: 96px;
+  height: 128px;
   border-radius: var(--radius);
   object-fit: cover;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-pop);
+}
+
+/* Handover: when the current game changes, the new one arrives; the first paint never animates. */
+.now-swap .now-cover,
+.now-swap .now-body {
+  animation: now-enter 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes now-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .now-body {
@@ -857,7 +917,8 @@ textarea {
 
 .now-title {
   font-size: var(--text-xl);
-  letter-spacing: -0.015em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
@@ -891,13 +952,15 @@ textarea {
 .now-progress .progress {
   flex: 1;
   width: auto;
-  max-width: 440px;
-  height: 6px;
-  border-radius: 3px;
+  max-width: 520px;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
 
 .now-hours {
   font-size: var(--text-md);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -909,6 +972,7 @@ textarea {
   gap: 6px 20px;
   margin: 0;
   font-size: var(--text-md);
+  color: var(--text);
 }
 
 .now-drift {
@@ -934,12 +998,17 @@ textarea {
   color: var(--danger);
 }
 
+/* Nothing in progress: the card goes quiet and only offers the next game. */
 .now-idle {
   align-items: center;
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .now-idle .now-title {
   font-size: var(--text-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 /* ---------- Tables ---------- */
@@ -1035,8 +1104,8 @@ textarea {
   overflow: hidden;
 }
 
-.row-current,
-.row-current:hover {
+.table tbody tr.row-current,
+.table tbody tr.row-current:hover {
   background: var(--current-bg);
 }
 
@@ -1047,6 +1116,21 @@ textarea {
 .row-dragging td {
   background: var(--surface-2);
   box-shadow: var(--shadow-pop);
+}
+
+/* A game finished moments ago joins the finished list with a tint that settles. */
+.row-arrived {
+  animation: row-arrive 1600ms ease-out both;
+}
+
+@keyframes row-arrive {
+  from {
+    background-color: var(--success-soft);
+  }
+
+  to {
+    background-color: var(--surface);
+  }
 }
 
 .drag-col {
@@ -1328,7 +1412,7 @@ tr:focus-within .row-actions {
   padding: 3px;
   gap: 2px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--surface-2);
 }
 
@@ -1435,9 +1519,9 @@ tr:focus-within .row-actions {
 
 .title-cell .cover {
   flex: none;
-  width: 40px;
-  height: 24px;
-  border-radius: 4px;
+  width: 27px;
+  height: 36px;
+  border-radius: 3px;
   object-fit: cover;
 }
 
@@ -1495,7 +1579,7 @@ tr:focus-within .row-actions {
   background: var(--surface);
   color: var(--text);
   width: min(560px, calc(100vw - 32px));
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-dialog);
 }
 
 .modal-lg {
@@ -1580,19 +1664,64 @@ tr:focus-within .row-actions {
   color: var(--on-accent);
 }
 
+/* A finished game's score is the row's number; an unrated row offers "Rate" quietly. */
 .rating-value {
   padding: 2px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
+  font-size: var(--text-lg);
   font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
+}
+
+.rating-value .muted {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .rating-value:hover {
   border-color: var(--border-strong);
   background: var(--surface);
+}
+
+.rating-link {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.rating-link:hover {
+  color: var(--accent-text);
+}
+
+.note-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: calc(var(--topbar-h) + 8px);
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+}
+
+.skip-link:focus-visible {
+  transform: none;
+  opacity: 1;
 }
 
 /* ---------- Game search ---------- */
@@ -1615,7 +1744,7 @@ tr:focus-within .row-actions {
   max-height: 320px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
 }
@@ -1687,7 +1816,7 @@ tr:focus-within .row-actions {
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--surface-2);
 }
 
@@ -1729,6 +1858,35 @@ tr:focus-within .row-actions {
 .search-addons {
   font-size: var(--text-sm);
   font-weight: 500;
+}
+
+.search-setup {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.search-setup .icon {
+  margin-top: 2px;
+}
+
+.link-accent {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.settings-steps {
+  flex-basis: 100%;
+  margin: 0;
+  padding-left: 20px;
+  font-size: var(--text-md);
+}
+
+.settings-steps li + li {
+  margin-top: 2px;
 }
 
 /* ---------- Stats ---------- */
@@ -1809,7 +1967,7 @@ tr:focus-within .row-actions {
   flex: none;
   width: 132px;
   height: 187px;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   object-fit: cover;
   box-shadow: var(--shadow);
 }
@@ -1932,7 +2090,7 @@ tr:focus-within .row-actions {
 .details-lightbox img {
   display: block;
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
 }
 
 .details-video {
@@ -1946,7 +2104,7 @@ tr:focus-within .row-actions {
   width: 100%;
   aspect-ratio: 16 / 9;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: #000;
 }
 
@@ -2002,6 +2160,34 @@ tr:focus-within .row-actions {
 .details-fetched {
   margin-right: auto;
   font-size: var(--text-sm);
+}
+
+/* ---------- Reduced motion: keep the feedback, drop the travel ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .now-swap .now-cover,
+  .now-swap .now-body {
+    animation: now-enter-still 200ms ease-out both;
+  }
+
+  @keyframes now-enter-still {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .row-arrived {
+    animation-duration: 800ms;
+  }
+
+  .progress-bar,
+  .button {
+    transition: none;
+  }
 }
 
 /* ---------- Responsive: the window ships at 1280 and can shrink to 900 ---------- */

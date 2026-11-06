@@ -1,0 +1,695 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T10:10:23Z",
+  "title": "Design System: Game Backlog",
+  "extensions": {
+    "colorMeta": {
+      "plan-blue": {
+        "role": "primary",
+        "displayName": "Plan Blue",
+        "canonical": "#2b62d9",
+        "darkTheme": "#6d9cff",
+        "tonalRamp": [
+          "oklch(20% 0.08 265)",
+          "oklch(30% 0.12 265)",
+          "oklch(41% 0.16 265)",
+          "oklch(52% 0.19 265)",
+          "oklch(63% 0.16 265)",
+          "oklch(75% 0.11 265)",
+          "oklch(87% 0.06 265)",
+          "oklch(95% 0.025 265)"
+        ]
+      },
+      "plan-blue-deep": {
+        "role": "primary",
+        "displayName": "Plan Blue Deep",
+        "canonical": "#244fb3",
+        "darkTheme": "#88b0ff"
+      },
+      "plan-blue-ink": {
+        "role": "primary",
+        "displayName": "Plan Blue Ink",
+        "canonical": "#1d4ed8",
+        "darkTheme": "#8fb3ff"
+      },
+      "plan-blue-wash": {
+        "role": "primary",
+        "displayName": "Plan Blue Wash",
+        "canonical": "#e4ecfd",
+        "darkTheme": "#1c2a47"
+      },
+      "current-row-wash": {
+        "role": "primary",
+        "displayName": "Current Row Wash",
+        "canonical": "#eef3ff",
+        "darkTheme": "#182238"
+      },
+      "on-plan-blue": {
+        "role": "primary",
+        "displayName": "On Plan Blue",
+        "canonical": "#ffffff",
+        "darkTheme": "#0f1216"
+      },
+      "finish-green": {
+        "role": "secondary",
+        "displayName": "Finish Green",
+        "canonical": "#1f7a45",
+        "darkTheme": "#6fd49a",
+        "tonalRamp": [
+          "oklch(20% 0.05 152)",
+          "oklch(30% 0.08 152)",
+          "oklch(41% 0.11 152)",
+          "oklch(52% 0.13 152)",
+          "oklch(64% 0.13 152)",
+          "oklch(76% 0.1 152)",
+          "oklch(88% 0.06 152)",
+          "oklch(95% 0.025 152)"
+        ]
+      },
+      "finish-green-deep": {
+        "role": "secondary",
+        "displayName": "Finish Green Deep",
+        "canonical": "#196639",
+        "darkTheme": "#8ae0ae"
+      },
+      "finish-green-wash": {
+        "role": "secondary",
+        "displayName": "Finish Green Wash",
+        "canonical": "#e9f7ee",
+        "darkTheme": "#14271c"
+      },
+      "on-finish-green": {
+        "role": "secondary",
+        "displayName": "On Finish Green",
+        "canonical": "#ffffff",
+        "darkTheme": "#0f1216"
+      },
+      "drop-red": {
+        "role": "secondary",
+        "displayName": "Drop Red",
+        "canonical": "#c0392b",
+        "darkTheme": "#ff7b6b",
+        "tonalRamp": [
+          "oklch(20% 0.07 28)",
+          "oklch(31% 0.11 28)",
+          "oklch(42% 0.15 28)",
+          "oklch(53% 0.18 28)",
+          "oklch(64% 0.17 28)",
+          "oklch(76% 0.12 28)",
+          "oklch(88% 0.06 28)",
+          "oklch(95% 0.025 28)"
+        ]
+      },
+      "drop-red-deep": {
+        "role": "secondary",
+        "displayName": "Drop Red Deep",
+        "canonical": "#a33124",
+        "darkTheme": "#ff9486"
+      },
+      "drop-red-wash": {
+        "role": "secondary",
+        "displayName": "Drop Red Wash",
+        "canonical": "#fdecea",
+        "darkTheme": "#3a1d1a"
+      },
+      "on-drop-red": {
+        "role": "secondary",
+        "displayName": "On Drop Red",
+        "canonical": "#ffffff",
+        "darkTheme": "#0f1216"
+      },
+      "caution-amber": {
+        "role": "secondary",
+        "displayName": "Caution Amber",
+        "canonical": "#b7791f",
+        "darkTheme": "#e0a526",
+        "tonalRamp": [
+          "oklch(22% 0.05 75)",
+          "oklch(33% 0.08 75)",
+          "oklch(46% 0.11 75)",
+          "oklch(60% 0.13 75)",
+          "oklch(71% 0.14 75)",
+          "oklch(81% 0.11 75)",
+          "oklch(90% 0.07 75)",
+          "oklch(96% 0.03 75)"
+        ]
+      },
+      "caution-amber-wash": {
+        "role": "secondary",
+        "displayName": "Caution Amber Wash",
+        "canonical": "#fff6d6",
+        "darkTheme": "#2d2611"
+      },
+      "caution-amber-line": {
+        "role": "secondary",
+        "displayName": "Caution Amber Line",
+        "canonical": "#f0b429",
+        "darkTheme": "#e0a526"
+      },
+      "desk": {
+        "role": "neutral",
+        "displayName": "Desk",
+        "canonical": "#f4f5f7",
+        "darkTheme": "#0f1216",
+        "tonalRamp": [
+          "oklch(17% 0.01 250)",
+          "oklch(25% 0.012 250)",
+          "oklch(35% 0.012 250)",
+          "oklch(50% 0.012 250)",
+          "oklch(66% 0.01 250)",
+          "oklch(82% 0.008 250)",
+          "oklch(91% 0.005 250)",
+          "oklch(97% 0.003 250)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "darkTheme": "#171b21"
+      },
+      "paper-shade": {
+        "role": "neutral",
+        "displayName": "Paper Shade",
+        "canonical": "#f0f2f5",
+        "darkTheme": "#1f242c"
+      },
+      "paper-hover": {
+        "role": "neutral",
+        "displayName": "Paper Hover",
+        "canonical": "#f7f8fa",
+        "darkTheme": "#1c2129"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#dde1e6",
+        "darkTheme": "#2a303a"
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Rule Strong",
+        "canonical": "#c5cbd3",
+        "darkTheme": "#3a414d"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1b1f24",
+        "darkTheme": "#e6e9ee",
+        "tonalRamp": [
+          "oklch(15% 0.01 250)",
+          "oklch(22% 0.01 250)",
+          "oklch(32% 0.012 250)",
+          "oklch(45% 0.012 250)",
+          "oklch(58% 0.012 250)",
+          "oklch(72% 0.01 250)",
+          "oklch(86% 0.006 250)",
+          "oklch(95% 0.003 250)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#626b76",
+        "darkTheme": "#9aa3af"
+      },
+      "design-linear-bg": {
+        "role": "tertiary",
+        "displayName": "Design Linear (fill)",
+        "canonical": "#dbe7ff",
+        "darkTheme": "color-mix(in srgb, #bfdbfe 16%, var(--surface))"
+      },
+      "design-linear-fg": {
+        "role": "tertiary",
+        "displayName": "Design Linear (text)",
+        "canonical": "#1d4ed8",
+        "darkTheme": "#bfdbfe"
+      },
+      "design-open-world-bg": {
+        "role": "tertiary",
+        "displayName": "Design Open world (fill)",
+        "canonical": "#dcfce7",
+        "darkTheme": "color-mix(in srgb, #bbf7d0 16%, var(--surface))"
+      },
+      "design-open-world-fg": {
+        "role": "tertiary",
+        "displayName": "Design Open world (text)",
+        "canonical": "#166534",
+        "darkTheme": "#bbf7d0"
+      },
+      "design-roguelike-bg": {
+        "role": "tertiary",
+        "displayName": "Design Roguelike (fill)",
+        "canonical": "#fee2e2",
+        "darkTheme": "color-mix(in srgb, #fecaca 16%, var(--surface))"
+      },
+      "design-roguelike-fg": {
+        "role": "tertiary",
+        "displayName": "Design Roguelike (text)",
+        "canonical": "#b91c1c",
+        "darkTheme": "#fecaca"
+      },
+      "design-sandbox-bg": {
+        "role": "tertiary",
+        "displayName": "Design Sandbox (fill)",
+        "canonical": "#ccfbf1",
+        "darkTheme": "color-mix(in srgb, #99f6e4 16%, var(--surface))"
+      },
+      "design-sandbox-fg": {
+        "role": "tertiary",
+        "displayName": "Design Sandbox (text)",
+        "canonical": "#0f766e",
+        "darkTheme": "#99f6e4"
+      },
+      "design-semi-open-bg": {
+        "role": "tertiary",
+        "displayName": "Design Semi-open (fill)",
+        "canonical": "#fef3c7",
+        "darkTheme": "color-mix(in srgb, #fde68a 16%, var(--surface))"
+      },
+      "design-semi-open-fg": {
+        "role": "tertiary",
+        "displayName": "Design Semi-open (text)",
+        "canonical": "#a2480a",
+        "darkTheme": "#fde68a"
+      },
+      "design-metroidvania-bg": {
+        "role": "tertiary",
+        "displayName": "Design Metroidvania (fill)",
+        "canonical": "#ede9fe",
+        "darkTheme": "color-mix(in srgb, #ddd6fe 16%, var(--surface))"
+      },
+      "design-metroidvania-fg": {
+        "role": "tertiary",
+        "displayName": "Design Metroidvania (text)",
+        "canonical": "#6d28d9",
+        "darkTheme": "#ddd6fe"
+      },
+      "caution-amber-ink": {
+        "role": "secondary",
+        "displayName": "Caution Amber Ink",
+        "canonical": "#8a5a12",
+        "tonalRamp": [
+          "#301f06",
+          "#53360b",
+          "#754c0f",
+          "#8a5a12",
+          "#a7834d",
+          "#c4ac88",
+          "#e2d6c4",
+          "#f6f2ec"
+        ]
+      },
+      "design-linear-ink-dark": {
+        "role": "semantic",
+        "displayName": "Linear Ink (dark)",
+        "canonical": "#bfdbfe",
+        "tonalRamp": [
+          "#434d59",
+          "#738398",
+          "#a2bad8",
+          "#bfdbfe",
+          "#cfe4fe",
+          "#dfedfe",
+          "#eff6ff",
+          "#fafcff"
+        ]
+      },
+      "design-open-world-ink-dark": {
+        "role": "semantic",
+        "displayName": "Open World Ink (dark)",
+        "canonical": "#bbf7d0",
+        "tonalRamp": [
+          "#415649",
+          "#70947d",
+          "#9fd2b1",
+          "#bbf7d0",
+          "#ccf9dc",
+          "#ddfbe8",
+          "#eefdf3",
+          "#fafefb"
+        ]
+      },
+      "design-roguelike-ink-dark": {
+        "role": "semantic",
+        "displayName": "Roguelike Ink (dark)",
+        "canonical": "#fecaca",
+        "tonalRamp": [
+          "#594747",
+          "#987979",
+          "#d8acac",
+          "#fecaca",
+          "#fed7d7",
+          "#fee4e4",
+          "#fff2f2",
+          "#fffbfb"
+        ]
+      },
+      "design-sandbox-ink-dark": {
+        "role": "semantic",
+        "displayName": "Sandbox Ink (dark)",
+        "canonical": "#99f6e4",
+        "tonalRamp": [
+          "#365650",
+          "#5c9489",
+          "#82d1c2",
+          "#99f6e4",
+          "#b2f8eb",
+          "#ccfaf2",
+          "#e6fdf8",
+          "#f7fefd"
+        ]
+      },
+      "design-semi-open-ink-dark": {
+        "role": "semantic",
+        "displayName": "Semi-open Ink (dark)",
+        "canonical": "#fde68a",
+        "tonalRamp": [
+          "#595030",
+          "#988a53",
+          "#d7c475",
+          "#fde68a",
+          "#feeca7",
+          "#fef2c4",
+          "#fef9e2",
+          "#fffdf6"
+        ]
+      },
+      "design-metroidvania-ink-dark": {
+        "role": "semantic",
+        "displayName": "Metroidvania Ink (dark)",
+        "canonical": "#ddd6fe",
+        "tonalRamp": [
+          "#4d4b59",
+          "#858098",
+          "#bcb6d8",
+          "#ddd6fe",
+          "#e6e0fe",
+          "#eeeafe",
+          "#f6f5ff",
+          "#fcfcff"
+        ]
+      },
+      "video-black": {
+        "role": "semantic",
+        "displayName": "Video Black",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#000000",
+          "#000000",
+          "#000000",
+          "#000000",
+          "#404040",
+          "#808080",
+          "#bfbfbf",
+          "#ebebeb"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The Now playing title only; the release year beside it drops to weight 450."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings, dialog titles, and the tabular figure in a stat card."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The app name in the top bar."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Table cells, buttons, inputs, dialog text; table titles at 550."
+      },
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Meta lines, hints, filter bars, menu items, warnings, checkbox labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Field labels, chips, status words, count pills and small buttons; sentence case."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Sticky table headers and search-dropdown section names; uppercase, 0.05em tracked."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient",
+        "value": "0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1)",
+        "dark": "0 1px 2px rgba(0, 0, 0, 0.4)",
+        "purpose": "Resting surfaces: cards, table wrappers, stat cards, the Now playing card, the details cover, the active tab."
+      },
+      {
+        "name": "popover",
+        "value": "0 10px 28px rgba(16, 24, 40, 0.18), 0 1px 3px rgba(16, 24, 40, 0.08)",
+        "dark": "0 12px 32px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4)",
+        "purpose": "Floating surfaces: the row menu, the search dropdown, a dragged row's cells, the Now playing cover."
+      },
+      {
+        "name": "dialog",
+        "value": "0 24px 60px rgba(0, 0, 0, 0.3)",
+        "purpose": "The native dialog only, over a rgba(10, 12, 16, 0.45) scrim (dark: rgba(0, 0, 0, 0.6))."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "120ms ease",
+        "purpose": "Button background, border and color on hover; removed under prefers-reduced-motion."
+      },
+      {
+        "name": "progress-width",
+        "value": "200ms ease-out",
+        "purpose": "Progress bar width when logged hours change; removed under prefers-reduced-motion."
+      },
+      {
+        "name": "now-enter",
+        "value": "400ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The Now playing handover: opacity 0 to 1 and an 8px rise on the cover and body, only when the current game changes after mount. Never on first paint."
+      },
+      {
+        "name": "now-enter-still",
+        "value": "200ms ease-out",
+        "purpose": "Reduced-motion handover: the same feedback as a fade, no travel."
+      },
+      {
+        "name": "row-arrive",
+        "value": "1600ms ease-out",
+        "purpose": "A row that just joined the finished list settles from Finish Green Wash to Paper; 800ms under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "dense",
+        "value": "1400px",
+        "purpose": "Max-width: tighter main padding and cells, chips and status words step down a size, titles wrap."
+      },
+      {
+        "name": "drop-derived",
+        "value": "1100px",
+        "purpose": "Max-width: derived schedule columns leave; stats grid goes single-column."
+      },
+      {
+        "name": "drop-secondary",
+        "value": "1000px",
+        "purpose": "Max-width: genre and note columns leave; the settings grid collapses to one column."
+      },
+      {
+        "name": "window-ship",
+        "value": "1280x820",
+        "purpose": "The size the desktop window ships at."
+      },
+      {
+        "name": "window-min",
+        "value": "900x600",
+        "purpose": "The smallest window the layout must survive."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The default action: a paper tile with a thin strong rule and an optional leading 16px icon; hover tints one step.",
+      "html": "<button type=\"button\" class=\"ds-btn\"><svg class=\"ds-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg> Log hours</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-strong, #c5cbd3); border-radius: var(--radius, 8px); background: var(--surface, #ffffff); color: var(--text, #1b1f24); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 14px; font-weight: 500; line-height: 1.3; white-space: nowrap; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-btn .ds-icon { flex: none; margin-left: -2px; } .ds-btn:hover { background: var(--surface-2, #f0f2f5); } .ds-btn:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-btn:disabled { opacity: 0.55; cursor: default; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action that moves the plan on a surface (Start, Save, Add game): a Plan Blue fill with on-accent text.",
+      "html": "<button type=\"button\" class=\"ds-btn-primary\"><svg class=\"ds-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 4.5v15a1 1 0 0 0 1.5.87l12.5-7.5a1 1 0 0 0 0-1.74L8.5 3.63A1 1 0 0 0 7 4.5Z\"/></svg> Start</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--accent, #2b62d9); border-radius: var(--radius, 8px); background: var(--accent, #2b62d9); color: var(--on-accent, #ffffff); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 14px; font-weight: 500; line-height: 1.3; white-space: nowrap; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-btn-primary .ds-icon { flex: none; margin-left: -2px; } .ds-btn-primary:hover { border-color: var(--accent-hover, #244fb3); background: var(--accent-hover, #244fb3); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.55; cursor: default; }"
+    },
+    {
+      "name": "Finish Button",
+      "kind": "button",
+      "refersTo": "button-success",
+      "description": "The success fill used for \"Finish game\" only; Finish Green with on-success text, one hover step deeper.",
+      "html": "<button type=\"button\" class=\"ds-btn-success\"><svg class=\"ds-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m20 6-11 11-5-5\"/></svg> Finish game</button>",
+      "css": ".ds-btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--success, #1f7a45); border-radius: var(--radius, 8px); background: var(--success, #1f7a45); color: var(--on-success, #ffffff); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 14px; font-weight: 500; line-height: 1.3; white-space: nowrap; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-btn-success .ds-icon { flex: none; margin-left: -2px; } .ds-btn-success:hover { border-color: var(--success-hover, #196639); background: var(--success-hover, #196639); } .ds-btn-success:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon-sm",
+      "description": "A 28px transparent icon-only button used for row actions and the dialog close; the label lives in aria-label and title.",
+      "html": "<button type=\"button\" class=\"ds-btn-icon\" aria-label=\"Edit\" title=\"Edit\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg></button> <button type=\"button\" class=\"ds-btn-icon\" aria-label=\"More actions\" title=\"More actions\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"12\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"19\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/></svg></button>",
+      "css": ".ds-btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-sm, 6px); background: transparent; color: var(--text-muted, #626b76); cursor: pointer; transition: background-color 120ms ease, color 120ms ease; } .ds-btn-icon:hover { background: var(--surface-2, #f0f2f5); color: var(--text, #1b1f24); } .ds-btn-icon:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labelled input: 12px/600 sentence-case label, paper field with a thin strong rule, 8px corners, a 12px hint below.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Estimated hours</span><input class=\"ds-input\" type=\"number\" value=\"42\" placeholder=\"0\"><span class=\"ds-field-hint\">Casual play-time, in hours.</span></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; } .ds-field-label { font-size: 12px; font-weight: 600; color: var(--text, #1b1f24); } .ds-input { padding: 6px 10px; min-width: 160px; border: 1px solid var(--border-strong, #c5cbd3); border-radius: var(--radius, 8px); background: var(--surface, #ffffff); color: var(--text, #1b1f24); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; } .ds-input::placeholder { color: var(--text-muted, #626b76); opacity: 1; } .ds-input:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-input[aria-invalid=\"true\"] { border-color: var(--danger, #c0392b); } .ds-field-hint { font-size: 12px; color: var(--text-muted, #626b76); min-height: 1.2em; }"
+    },
+    {
+      "name": "Platform Tabs",
+      "kind": "nav",
+      "refersTo": "tabs",
+      "description": "The segmented control that switches the plan between PC and PS5; the active tab lifts to paper with the ambient shadow and its count pill turns Plan Blue.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Plan\"><button type=\"button\" role=\"tab\" aria-selected=\"true\" class=\"ds-tab ds-tab-active\">PC <span class=\"ds-tab-count\">27</span></button><button type=\"button\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" class=\"ds-tab\">PS5 <span class=\"ds-tab-count\">6</span></button></div>",
+      "css": ".ds-tabs { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border, #dde1e6); border-radius: 10px; background: var(--surface-2, #f0f2f5); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; } .ds-tab { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border: none; border-radius: var(--radius, 8px); background: transparent; font-size: 14px; font-weight: 600; color: var(--text-muted, #626b76); cursor: pointer; } .ds-tab:hover { color: var(--text, #1b1f24); } .ds-tab:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-tab-active, .ds-tab-active:hover { background: var(--surface, #ffffff); color: var(--text, #1b1f24); box-shadow: var(--shadow, 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1)); } .ds-tab-count { padding: 0 7px; border-radius: 999px; background: var(--surface-2, #f0f2f5); font-size: 11px; font-weight: 600; color: var(--text-muted, #626b76); } .ds-tab-active .ds-tab-count { background: var(--accent-soft, #e4ecfd); color: var(--accent-text, #1d4ed8); }"
+    },
+    {
+      "name": "Chips and Status",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "The Design chip in its fixed pastel pair, a genre chip, a filter toggle (off and on), and the status word with its dot.",
+      "html": "<span class=\"ds-chip ds-chip-open_world\">Open world</span> <span class=\"ds-chip ds-chip-genre\">RPG</span> <button type=\"button\" class=\"ds-chip ds-chip-toggle\" aria-pressed=\"false\">Linear</button> <button type=\"button\" class=\"ds-chip ds-chip-toggle ds-chip-toggle-on\" aria-pressed=\"true\">Open world</button> <span class=\"ds-status ds-status-in_progress\">In progress</span> <span class=\"ds-status ds-status-paused\">Paused</span> <span class=\"ds-status ds-status-completed\">Completed</span> <span class=\"ds-status ds-status-dropped\">Dropped</span>",
+      "css": ".ds-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--surface-2, #f0f2f5); color: var(--text, #1b1f24); } .ds-chip-open_world { background: var(--chip-open_world-bg, #dcfce7); color: var(--chip-open_world-fg, #166534); } .ds-chip-genre { color: var(--text-muted, #626b76); font-weight: 500; } .ds-chip-toggle { border: 1px solid var(--border-strong, #c5cbd3); background: var(--surface, #ffffff); color: var(--text-muted, #626b76); cursor: pointer; } .ds-chip-toggle:hover { color: var(--text, #1b1f24); } .ds-chip-toggle:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-chip-toggle-on { border-color: var(--accent, #2b62d9); background: var(--accent-soft, #e4ecfd); color: var(--accent-text, #1d4ed8); } .ds-status { font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 12px; white-space: nowrap; color: var(--text-muted, #626b76); } .ds-status-in_progress { font-weight: 650; color: var(--text, #1b1f24); } .ds-status-in_progress::before, .ds-status-paused::before { content: \"\"; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; vertical-align: 1px; box-sizing: border-box; } .ds-status-in_progress::before { background: var(--accent, #2b62d9); } .ds-status-paused::before { border: 2px solid var(--text-muted, #626b76); } .ds-status-completed { color: var(--success, #1f7a45); } .ds-status-dropped { margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: var(--danger-soft, #fdecea); color: var(--danger, #c0392b); font-size: 11px; font-weight: 600; }"
+    },
+    {
+      "name": "Now Playing Card",
+      "kind": "card",
+      "refersTo": "now-playing",
+      "description": "The screen's peak: an accent-washed card with the cover at full weight, the title at display size, an 8px progress bar, the drift dot and the next game. Nothing animates on first paint.",
+      "html": "<section class=\"ds-now\" aria-label=\"Now playing\"><div class=\"ds-now-cover\" aria-hidden=\"true\"></div><div class=\"ds-now-body\"><div class=\"ds-now-head\"><div class=\"ds-now-heading\"><h3 class=\"ds-now-title\">Control <span class=\"ds-now-year\">(2019)</span></h3><p class=\"ds-now-meta\"><span class=\"ds-now-status-word\">In progress</span><span class=\"ds-now-chip\">Semi-open</span><span>started 03.11.2026</span></p></div><div class=\"ds-now-actions\"><button type=\"button\" class=\"ds-now-btn\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg> Log hours</button><button type=\"button\" class=\"ds-now-btn\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"/><rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"/></svg> Pause</button><button type=\"button\" class=\"ds-now-btn ds-now-btn-success\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m20 6-11 11-5-5\"/></svg> Finish game</button></div></div><div class=\"ds-now-progress\"><span class=\"ds-now-track\" aria-hidden=\"true\"><span class=\"ds-now-bar\" style=\"width: 62%\"></span></span><span class=\"ds-now-hours\">9.5 / 15 h \u00b7 5.5 h left</span></div><p class=\"ds-now-line\"><span class=\"ds-now-drift ds-now-drift-ok\">On track</span><span>4 days left \u00b7 ends 10.11.2026</span><span>Next: <button type=\"button\" class=\"ds-now-link\">Alan Wake 2</button> <span class=\"ds-now-muted\">\u00b7 20 h \u00b7 from 10.11.2026</span></span></p></div></section>",
+      "css": ".ds-now { display: flex; gap: 22px; align-items: flex-start; padding: 20px 24px; background: color-mix(in srgb, var(--accent-soft, #e4ecfd) 45%, var(--surface, #ffffff)); border: 1px solid color-mix(in srgb, var(--accent, #2b62d9) 22%, var(--border, #dde1e6)); border-radius: var(--radius-lg, 12px); box-shadow: var(--shadow, 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1)); color: var(--text, #1b1f24); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; font-size: 14px; line-height: 1.45; } .ds-now-cover { flex: none; width: 96px; height: 128px; border-radius: var(--radius, 8px); background: var(--surface-2, #f0f2f5); box-shadow: var(--shadow-pop, 0 10px 28px rgba(16, 24, 40, 0.18), 0 1px 3px rgba(16, 24, 40, 0.08)); } .ds-now-body { display: flex; flex: 1; flex-direction: column; gap: 12px; min-width: 0; } .ds-now-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; } .ds-now-heading { display: flex; flex-direction: column; gap: 6px; min-width: 0; } .ds-now-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; text-wrap: balance; } .ds-now-year { font-weight: 450; color: var(--text-muted, #626b76); } .ds-now-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 13px; color: var(--text-muted, #626b76); } .ds-now-status-word { font-size: 12px; font-weight: 650; color: var(--text, #1b1f24); } .ds-now-status-word::before { content: \"\"; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; vertical-align: 1px; background: var(--accent, #2b62d9); } .ds-now-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--chip-semi_open-bg, #fef3c7); color: var(--chip-semi_open-fg, #a2480a); } .ds-now-actions { display: flex; flex: none; flex-wrap: wrap; gap: 8px; } .ds-now-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-strong, #c5cbd3); border-radius: var(--radius, 8px); background: var(--surface, #ffffff); color: var(--text, #1b1f24); font: inherit; font-weight: 500; line-height: 1.3; white-space: nowrap; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; } .ds-now-btn:hover { background: var(--surface-2, #f0f2f5); } .ds-now-btn-success { border-color: var(--success, #1f7a45); background: var(--success, #1f7a45); color: var(--on-success, #ffffff); } .ds-now-btn-success:hover { border-color: var(--success-hover, #196639); background: var(--success-hover, #196639); } .ds-now-btn:focus-visible, .ds-now-link:focus-visible { outline: 2px solid var(--accent, #2b62d9); outline-offset: 2px; } .ds-now-progress { display: flex; align-items: center; gap: 12px; } .ds-now-track { display: block; flex: 1; max-width: 520px; height: 8px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--accent, #2b62d9) 14%, var(--surface, #ffffff)); } .ds-now-bar { display: block; height: 100%; border-radius: inherit; background: var(--accent, #2b62d9); transition: width 200ms ease-out; } .ds-now-hours { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; } .ds-now-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; margin: 0; font-size: 13px; } .ds-now-drift { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; } .ds-now-drift::before { content: \"\"; width: 8px; height: 8px; border-radius: 50%; background: currentColor; } .ds-now-drift-ok { color: var(--success, #1f7a45); } .ds-now-link { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; border-radius: 3px; } .ds-now-link:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong, #c5cbd3); } .ds-now-muted { color: var(--text-muted, #626b76); } .ds-now-swap .ds-now-cover, .ds-now-swap .ds-now-body { animation: ds-now-enter 400ms cubic-bezier(0.16, 1, 0.3, 1) both; } @keyframes ds-now-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { .ds-now-swap .ds-now-cover, .ds-now-swap .ds-now-body { animation: ds-now-enter-still 200ms ease-out both; } @keyframes ds-now-enter-still { from { opacity: 0; } to { opacity: 1; } } .ds-now-bar, .ds-now-btn { transition: none; } }"
+    },
+    {
+      "name": "Row Menu",
+      "kind": "custom",
+      "refersTo": "menu",
+      "description": "The fixed-position popover behind the row's \"more\" button: paper, 4px padding, the popover shadow, 13px items with a tint on hover and a danger item in Drop Red.",
+      "html": "<div class=\"ds-menu\" role=\"menu\" aria-label=\"More actions\"><button type=\"button\" role=\"menuitem\" class=\"ds-menu-item\">Details</button><button type=\"button\" role=\"menuitem\" class=\"ds-menu-item\">Pause</button><button type=\"button\" role=\"menuitem\" class=\"ds-menu-item\">Drop</button><button type=\"button\" role=\"menuitem\" class=\"ds-menu-item ds-menu-item-danger\">Delete</button></div>",
+      "css": ".ds-menu { display: inline-block; min-width: 150px; padding: 4px; border: 1px solid var(--border, #dde1e6); border-radius: var(--radius, 8px); background: var(--surface, #ffffff); box-shadow: var(--shadow-pop, 0 10px 28px rgba(16, 24, 40, 0.18), 0 1px 3px rgba(16, 24, 40, 0.08)); font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; } .ds-menu-item { display: block; width: 100%; padding: 6px 10px; border: none; border-radius: var(--radius-sm, 6px); background: transparent; color: var(--text, #1b1f24); text-align: left; font: inherit; font-size: 13px; cursor: pointer; } .ds-menu-item:hover { background: var(--surface-2, #f0f2f5); } .ds-menu-item:focus-visible { background: var(--surface-2, #f0f2f5); outline: 2px solid var(--accent, #2b62d9); outline-offset: -2px; } .ds-menu-item-danger { color: var(--danger, #c0392b); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Planner's Desk",
+    "overview": "Game Backlog is a calm desk where the plan sits. The surfaces are quiet paper on a cool grey desk, the lines between them are thin rules, and the numbers line up like a ledger: tabular figures, right-aligned hours, dates as dd.mm.yyyy. One blue says what is current and what moves the plan; everything else stays in ink and grey. The product replaced a spreadsheet, and the system keeps that honesty: density serves scanning, and nothing animates for show.\n\nThe mood is calm, precise, unhurried. This is a restrained Operate-mode product UI: a sticky top bar, a Now playing card at the peak of the page, then tables that hold the whole plan in view at 1280\u00d7820 and still work at 900\u00d7600. The accent is rare, hover is a tint rather than a lift, and depth is ambient (a soft shadow under cards, a popover shadow for things that float) rather than structural. Light and dark themes share one grammar; in dark the washes deepen and the accents lighten so dark ink can sit on them.\n\nThe confirmed anti-reference is \"a generic admin table\": grey chrome with no point of view. The build answers it with the Now playing hero (an accent wash, the cover at full weight, the title at full strength), the six Design chips, the dotted status words and the ledger numbers; these are what make the system read as this product rather than any dashboard.",
+    "keyCharacteristics": [
+      "One accent, Plan Blue, reserved for action, selection and the current game.",
+      "Paper surfaces on a cool grey desk with 1px rules; no colored stripes or side borders.",
+      "One family (system-ui), six fixed pixel steps, tabular numerals everywhere a number is compared.",
+      "Ambient elevation: a soft shadow at rest on cards and the Now playing card, a popover shadow only for things that float, flat tables.",
+      "Nested radii: 12px containers, 8px controls, 6px small controls, 14px dialogs, pills for chips and counts.",
+      "The only entrance animation is the Now playing handover, and it never runs on first paint."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "Plan Blue marks exactly three things: an action that moves the plan, a selected control, and the current game. Headings, chrome, icons and dividers stay in ink and grey; if a screen shows blue anywhere else, it is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark Ink Rule",
+        "body": "Every filled color carries its own `--on-*` text token. In light theme that text is white; in dark theme the fills lighten and the text flips to dark ink (`#0f1216`). Never hard-code white on a fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Soft Pair Rule",
+        "body": "A semantic color appears either as a fill with `--on-*` text, or as its wash carrying the same role's colored text (error banner, dropped pill, danger-ghost hover). It is never used as a border stripe or an outline on its own.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "system-ui is the only face. No webfont, no display face, no monospace; alignment comes from tabular numerals and right-aligned cells.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ledger Rule",
+        "body": "Any number that will be compared down a column (hours, dates, counts, ratings, stat values) is set with `tabular-nums`; in tables it is right-aligned and never wraps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed Steps Rule",
+        "body": "Six pixel sizes (11/12/13/14/18/22), no fluid or clamp sizes. Under 1400px the dense cells step down one size rather than scaling.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Window Rule",
+        "body": "There is no max-width container and no mobile layout; the plan table is the page. Shrinking the window drops columns at 1100px and 1000px instead of wrapping cells.",
+        "section": "layout"
+      },
+      {
+        "name": "The Sticky Ledger Rule",
+        "body": "The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ambient Rule",
+        "body": "Shadows describe where a surface sits, never where attention should go. Resting surfaces get Ambient, floating surfaces get Popover, dialogs get Dialog; no element gets a hard or colored shadow, and nothing gains a shadow on hover.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Tint-Not-Lift Rule",
+        "body": "Every hover is a background tint (Paper Shade for controls, Paper Hover for rows, the role's wash for ghost danger and success icons) with a 120ms ease; no transform, no shadow change.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Nested Radius Rule",
+        "body": "A control inside a container is one step tighter than the container: 12px wrapper, 8px control, 6px inner control. Dialogs sit one step looser at 14px.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Thin Line Rule",
+        "body": "Every border is 1px and grey; a role color may tint a border only through `color-mix` with the grey or the transparent base, never as a solid colored edge or side stripe.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Handover Rule",
+        "body": "When the current game changes after mount, the cover and body enter with `now-enter`: 400ms `cubic-bezier(0.16, 1, 0.3, 1)`, opacity 0\u21921 and an 8px rise. The first paint never animates. Under `prefers-reduced-motion` the entrance is a 200ms fade; the finished-row settle shortens from 1600ms to 800ms and control transitions are removed.",
+        "section": "components"
+      },
+      {
+        "name": "The Dot Not Pill Rule",
+        "body": "Status is a word with a dot. Only \"Dropped\" and the \"Today\" marker are pills, and no status gets a colored border.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do draw every icon with the `Icon` component: a 24-unit grid, 2px round-capped strokes in `currentColor`, 16px by default, `aria-hidden`, with the surrounding control carrying the accessible name.",
+      "Do keep Plan Blue for action, selection and the current game (The One Blue Rule) and give every fill its `--on-*` text token so dark theme flips to dark ink.",
+      "Do set compared numbers in `tabular-nums`, right-aligned in tables, and dates as dd.mm.yyyy.",
+      "Do write labels in sentence case at 12px/600; reserve uppercase 11px tracking for table headers and search section names.",
+      "Do make hover a one-step tint with a 120ms ease and focus a 2px Plan Blue outline offset 2px (inset 2px inside menus).",
+      "Do nest radii: 12px container, 8px control, 6px small control, 14px dialog, pills for chips and counts.",
+      "Do give floating surfaces the Popover shadow and resting surfaces the Ambient shadow; keep tables flat inside their wrapper.",
+      "Do keep the current game's row on Current Row Wash under hover, and let row actions brighten from Ink Muted to Ink on hover or focus-within.",
+      "Do name the empty state's fact and its next step in a dashed 12px panel with one button."
+    ],
+    "donts": [
+      "Don't use Unicode glyphs or emoji as icons; every icon is an inline SVG from the set.",
+      "Don't add colored side borders, left stripes or solid colored edges to rows, cards, banners or chips; role color enters a border only through `color-mix`.",
+      "Don't add eyebrow or kicker labels above headings; a section is a Headline, optionally with a count pill.",
+      "Don't animate on page load, stagger entrances or add page-load choreography; the only entrance is the Now playing handover after a change.",
+      "Don't load a webfont, a display face or a monospace face; system-ui is the one family.",
+      "Don't use hard offset shadows, colored shadows or hover lifts; depth is ambient and hover is a tint.",
+      "Don't hard-code white text on an accent or semantic fill; use the `--on-*` token.",
+      "Don't render status as a colored pill or badge (except \"Dropped\"); it is a word with a dot.",
+      "Don't rename the \"Design\" chips or their six fixed color pairs.",
+      "Don't add a max-width container, a sidebar or a mobile layout; the window is the page and columns drop at 1100px and 1000px."
+    ]
+  }
+}

@@ -32,6 +32,8 @@ interface Props {
   /** Resolves true when saved; the dialog then closes itself. */
   onSubmit(values: GameInput, index: number): Promise<boolean>;
   onClose(): void;
+  /** Leave for the IGDB credentials in Settings. */
+  onSetupIgdb?(): void;
 }
 
 interface Errors {
@@ -40,7 +42,7 @@ interface Errors {
   position?: string;
 }
 
-export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose }: Props) {
+export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose, onSetupIgdb }: Props) {
   const [title, setTitle] = useState(game?.title ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
   const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
@@ -137,7 +139,7 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   return (
     <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} autoFocus={mode === "add"} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add"} onSetupIgdb={onSetupIgdb} />
         <ProviderLinked
           meta={meta}
           note={pick?.note ?? null}

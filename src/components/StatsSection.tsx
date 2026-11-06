@@ -83,9 +83,13 @@ function GroupTable<K extends string>({ rows, label }: { rows: GroupStat<K>[]; l
     <table className="table stats-table">
       <thead>
         <tr>
-          <th />
-          <th className="num">{t.stats.count}</th>
-          <th className="num">{t.columns.rating}</th>
+          <th scope="col" />
+          <th scope="col" className="num">
+            {t.stats.count}
+          </th>
+          <th scope="col" className="num">
+            {t.columns.rating}
+          </th>
         </tr>
       </thead>
       <tbody>

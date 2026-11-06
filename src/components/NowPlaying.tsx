@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { formatDate } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { releaseYear, thumbnailUrl } from "../domain/provider";
@@ -24,19 +25,38 @@ interface Props {
   onStart(game: Game): void;
 }
 
+/** How long the handover entrance runs; matches `now-enter` in the stylesheet. */
+const SWAP_MS = 400;
+
 /**
  * The game being played now: progress, whether the plan is on track, and
- * what comes next. Without a game in progress it offers the next one.
+ * what comes next. Without a game in progress it offers the next one. When
+ * the current game changes (a finish, a start) the card hands over with a
+ * short entrance, so the plan visibly moves on.
  */
 export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onStart }: Props) {
-  if (rows.length === 0) return null;
   const currentIndex = rows.findIndex((row) => row.game.status === "in_progress");
   const current = currentIndex >= 0 ? rows[currentIndex] : null;
   const next = (current ? rows.slice(currentIndex + 1) : rows).find((row) => row.game.status !== "in_progress") ?? null;
+  const currentId = current?.game.id ?? null;
+
+  // Animate only a change after mount, never the first paint.
+  const shownId = useRef(currentId);
+  const [swapping, setSwapping] = useState(false);
+  useEffect(() => {
+    if (shownId.current === currentId) return;
+    shownId.current = currentId;
+    setSwapping(true);
+    const timer = setTimeout(() => setSwapping(false), SWAP_MS);
+    return () => clearTimeout(timer);
+  }, [currentId]);
+
+  if (rows.length === 0) return null;
+  const swapClass = swapping ? "now-swap" : "";
 
   if (!current) {
     return (
-      <section className="now now-idle" aria-label={t.now.idle}>
+      <section className={`now now-idle ${swapClass}`} aria-label={t.now.idle}>
         <div className="now-body">
           <h3 className="now-title">{t.now.idle}</h3>
           {next && (
@@ -85,8 +105,8 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
       : null;
 
   return (
-    <section className="now" aria-labelledby="now-title">
-      {game.coverUrl && <img className="now-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" />}
+    <section className={`now ${swapClass}`} aria-labelledby="now-title">
+      {game.coverUrl && <img className="now-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" width={96} height={128} />}
       <div className="now-body">
         <div className="now-head">
           <div className="now-heading">
@@ -126,7 +146,7 @@ export function NowPlaying({ rows, today, onOpen, onFinish, onLog, onPause, onSt
         <p className="now-status">
           {drift && <span className={`now-drift now-drift-${drift.tone}`}>{drift.text}</span>}
           {schedule && daysText && (
-            <span className="muted">
+            <span>
               {daysText} · {t.now.ends.replace("{date}", formatDate(schedule.endMs))}
             </span>
           )}

@@ -27,7 +27,7 @@ import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type Game
 import { computeSchedule, plannedGames } from "./domain/schedule";
 import { todayStatus } from "./domain/today";
 import { planWarnings } from "./domain/warnings";
-import { PLATFORMS, SCHEDULED_PLATFORM, type Game, type Platform } from "./domain/types";
+import { PLATFORMS, SCHEDULED_PLATFORM, isDone, type Game, type Platform } from "./domain/types";
 import { platformLabels, t } from "./i18n/en";
 import { setStoreMessages, useStore } from "./state/store";
 import { applyTheme } from "./state/theme";
@@ -43,6 +43,11 @@ setStoreMessages({
   deleted: (title) => t.undoNotice.deleted.replace("{title}", title),
   dropped: (title) => t.undoNotice.dropped.replace("{title}", title),
   restored: (title) => t.undoNotice.restored.replace("{title}", title),
+  finished: (title, rating, next) =>
+    (rating === null
+      ? t.undoNotice.finished.replace("{title}", title)
+      : t.undoNotice.finishedRated.replace("{title}", title).replace("{rating}", String(rating))) +
+    (next ? ` ${t.undoNotice.finishedNext.replace("{next}", next)}` : ""),
 });
 
 export default function App() {
@@ -54,8 +59,12 @@ export default function App() {
   const pickBackup = useStore((s) => s.pickBackup);
   const applyBackup = useStore((s) => s.applyBackup);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Bumped when a dialog sends the user to the IGDB credentials; the panel focuses the Client ID field. */
+  const [igdbFocus, setIgdbFocus] = useState(0);
   const [platform, setPlatform] = useState<Platform>(SCHEDULED_PLATFORM);
   const [detailsId, setDetailsId] = useState<number | null>(null);
+  /** A game whose edit form should open next; the section that owns it picks it up. */
+  const [editRequest, setEditRequest] = useState<Game | null>(null);
   const [pendingImport, setPendingImport] = useState<{ name: string; backup: Backup } | null>(null);
 
   useEffect(() => {
@@ -74,9 +83,20 @@ export default function App() {
     if (settingsOpen) document.getElementById("settings-panel")?.scrollIntoView({ block: "start" });
   }, [settingsOpen]);
 
+  function toggleSettings() {
+    setIgdbFocus(0);
+    setSettingsOpen((open) => !open);
+  }
+
   function closeSettings() {
+    setIgdbFocus(0);
     setSettingsOpen(false);
     document.querySelector<HTMLElement>('[aria-controls="settings-panel"]')?.focus();
+  }
+
+  function openIgdbSetup() {
+    setSettingsOpen(true);
+    setIgdbFocus((n) => n + 1);
   }
 
   async function startImport() {
@@ -109,21 +129,41 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar
-        settingsOpen={settingsOpen}
-        onToggleSettings={() => setSettingsOpen((open) => !open)}
-        onExport={() => void exportBackup()}
-        onImport={() => void startImport()}
-      />
+      <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
+        <a className="skip-link" href="#completed-heading">
+          {t.skipToFinished}
+        </a>
         <UpdateBanner />
         <Banner />
-        {settingsOpen && <SettingsPanel onClose={closeSettings} />}
-        <PlanSection platform={platform} onPlatformChange={setPlatform} onOpen={(game) => setDetailsId(game.id)} />
-        <CompletedSection defaultPlatform={platform} onOpen={(game) => setDetailsId(game.id)} />
+        {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
+        <PlanSection
+          platform={platform}
+          onPlatformChange={setPlatform}
+          onOpen={(game) => setDetailsId(game.id)}
+          onSetupIgdb={openIgdbSetup}
+          editRequest={editRequest}
+          onEditHandled={() => setEditRequest(null)}
+        />
+        <CompletedSection
+          defaultPlatform={platform}
+          onOpen={(game) => setDetailsId(game.id)}
+          onSetupIgdb={openIgdbSetup}
+          editRequest={editRequest}
+          onEditHandled={() => setEditRequest(null)}
+        />
         <StatsSection />
       </main>
-      {detailsId !== null && <GameDetailsDialog gameId={detailsId} onClose={() => setDetailsId(null)} />}
+      {detailsId !== null && (
+        <GameDetailsDialog
+          gameId={detailsId}
+          onClose={() => setDetailsId(null)}
+          onEdit={(game) => {
+            setDetailsId(null);
+            setEditRequest(game);
+          }}
+        />
+      )}
       {pendingImport && (
         <ConfirmDialog
           title={t.backup.confirmTitle}
@@ -154,11 +194,20 @@ interface PlanSectionProps {
   platform: Platform;
   onPlatformChange(platform: Platform): void;
   onOpen(game: Game): void;
+  onSetupIgdb(): void;
+  /** A planned game whose edit form should open (from the details dialog). */
+  editRequest: Game | null;
+  onEditHandled(): void;
 }
 
 const PLAN_PANEL_ID = "plan-panel";
 
-function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
+/** True when any game carries IGDB tags or platforms, i.e. when the mode and platform filters can match anything. */
+function hasIgdbData(games: readonly Game[]): boolean {
+  return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
+}
+
+function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   const addGame = useStore((s) => s.addGame);
@@ -171,6 +220,15 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
   const [dialog, setDialog] = useState<PlanDialog>(null);
   const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
   const platforms = useMemo(() => availablePlatforms(games), [games]);
+  const filterable = useMemo(() => hasIgdbData(games), [games]);
+
+  // The details dialog can ask for a planned game's edit form.
+  useEffect(() => {
+    if (editRequest && !isDone(editRequest)) {
+      setDialog({ kind: "edit", game: editRequest });
+      onEditHandled();
+    }
+  }, [editRequest, onEditHandled]);
 
   // Recomputed on every change to games or settings: this is the "live" part.
   const schedule = useMemo(() => computeSchedule(games, settings), [games, settings]);
@@ -217,6 +275,10 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
     [games],
   );
   const close = () => setDialog(null);
+  const leaveForIgdb = () => {
+    close();
+    onSetupIgdb();
+  };
   const platformLabel = platformLabels[platform];
 
   const addButton = (
@@ -235,13 +297,9 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
       }
     />
   ) : scheduled ? (
-    <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} action={addButton} />
+    <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} />
   ) : (
-    <EmptyState
-      title={t.emptyQueue.replace("{platform}", platformLabel)}
-      hint={t.emptyQueueHint.replace("{platform}", platformLabel)}
-      action={addButton}
-    />
+    <EmptyState title={t.emptyQueue.replace("{platform}", platformLabel)} hint={t.emptyQueueHint.replace("{platform}", platformLabel)} />
   );
 
   return (
@@ -265,7 +323,7 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
           onStart={(game) => void setGameStatus(game.id, "in_progress")}
         />
         <WarningsBar messages={warnings.messages} />
-        {rows.length > 0 && (
+        {rows.length > 0 && filterable && (
           <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
         )}
         <PlanTable
@@ -293,6 +351,7 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
           planTitles={planTitles}
           onSubmit={(values, index) => addGame(values, index)}
           onClose={close}
+          onSetupIgdb={leaveForIgdb}
         />
       )}
       {dialog?.kind === "edit" && (
@@ -304,6 +363,7 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
           currentIndex={rows.findIndex((row) => row.game.id === dialog.game.id)}
           onSubmit={(values, index) => editGame(dialog.game.id, values, index)}
           onClose={close}
+          onSetupIgdb={leaveForIgdb}
         />
       )}
       {dialog?.kind === "delete" && (
@@ -346,8 +406,26 @@ type CompletedDialog =
   | { kind: "delete"; game: Game }
   | null;
 
-function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platform; onOpen(game: Game): void }) {
+interface CompletedSectionProps {
+  defaultPlatform: Platform;
+  onOpen(game: Game): void;
+  onSetupIgdb(): void;
+  /** A finished game whose edit form should open (from the details dialog). */
+  editRequest: Game | null;
+  onEditHandled(): void;
+}
+
+function CompletedSection({ defaultPlatform, onOpen, onSetupIgdb, editRequest, onEditHandled }: CompletedSectionProps) {
   const games = useStore((s) => s.games);
+  const arrivedId = useStore((s) => s.recentlyFinishedId);
+  const filterable = useMemo(() => hasIgdbData(games), [games]);
+
+  useEffect(() => {
+    if (editRequest && isDone(editRequest)) {
+      setDialog({ kind: "edit", game: editRequest });
+      onEditHandled();
+    }
+  }, [editRequest, onEditHandled]);
   const addCompletedGame = useStore((s) => s.addCompletedGame);
   const editGame = useStore((s) => s.editGame);
   const rateGame = useStore((s) => s.rateGame);
@@ -367,6 +445,10 @@ function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platfo
   );
   const canReorder = sortKey === "order" && filter === "all" && !isFilterActive(modeFilter);
   const close = () => setDialog(null);
+  const leaveForIgdb = () => {
+    close();
+    onSetupIgdb();
+  };
 
   const addButton = (
     <button type="button" className="button" onClick={() => setDialog({ kind: "add" })}>
@@ -425,13 +507,14 @@ function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platfo
           </div>
         )}
       </div>
-      {allCompleted.length > 0 && (
+      {allCompleted.length > 0 && filterable && (
         <FilterBar filter={modeFilter} platforms={platforms} shown={completed.length} total={allCompleted.length} onChange={setModeFilter} />
       )}
       <CompletedTable
         games={completed}
         canReorder={canReorder}
         empty={empty}
+        arrivedId={arrivedId}
         onRate={(game) => setDialog({ kind: "rate", game })}
         onEdit={(game) => setDialog({ kind: "edit", game })}
         onDelete={(game) => setDialog({ kind: "delete", game })}
@@ -440,7 +523,13 @@ function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platfo
       />
 
       {dialog?.kind === "add" && (
-        <CompletedGameDialog mode="add" defaultPlatform={defaultPlatform} onSubmit={addCompletedGame} onClose={close} />
+        <CompletedGameDialog
+          mode="add"
+          defaultPlatform={defaultPlatform}
+          onSubmit={addCompletedGame}
+          onClose={close}
+          onSetupIgdb={leaveForIgdb}
+        />
       )}
       {dialog?.kind === "edit" && (
         <CompletedGameDialog
@@ -449,6 +538,7 @@ function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platfo
           defaultPlatform={defaultPlatform}
           onSubmit={(values) => editGame(dialog.game.id, values)}
           onClose={close}
+          onSetupIgdb={leaveForIgdb}
         />
       )}
       {dialog?.kind === "rate" && (

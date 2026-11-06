@@ -29,8 +29,13 @@ export function Modal({ title, onClose, children, size = "md" }: Props) {
     const first = dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
     return () => {
+      // Closing a modal dialog makes the browser refocus what was focused before it opened; keep a
+      // focus that something else claimed meanwhile (an undo notice), otherwise go back to the opener.
+      const active = document.activeElement;
+      const claimed = active instanceof HTMLElement && active !== document.body && !(dialog?.contains(active) ?? false) ? active : null;
       dialog?.close();
-      if (opener?.isConnected) opener.focus();
+      if (claimed) claimed.focus({ preventScroll: true });
+      else if (opener?.isConnected) opener.focus();
     };
   }, []);
 

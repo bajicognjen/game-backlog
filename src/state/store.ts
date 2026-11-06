@@ -26,12 +26,16 @@ export interface AppState {
   error: string | null;
   /** Last success message worth showing (export, import, delete), until dismissed. */
   notice: string | null;
-  /** When set, the notice offers to undo the last delete or drop. */
+  /** When set, the notice offers to undo the last delete, drop or finish. */
   undo: (() => Promise<void>) | null;
+  /** True while the pointer or keyboard is on the undo offer; the countdown waits. */
+  undoHeld: boolean;
   games: Game[];
   settings: Settings;
   /** All logged sessions; each game's `hoursPlayed` is their sum. */
   sessions: PlaySession[];
+  /** The game finished moments ago, while its undo offer stands; the finished list marks its row. */
+  recentlyFinishedId: number | null;
 
   load(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
@@ -70,12 +74,17 @@ export interface AppState {
   applyBackup(backup: Backup): Promise<boolean>;
   /** Run the pending undo, if any. */
   undoLast(): Promise<void>;
+  /** Stop the undo countdown while the user is on the offer; `resumeUndo` restarts it with the time left. */
+  pauseUndo(): void;
+  resumeUndo(): void;
   dismissError(): void;
   dismissNotice(): void;
 }
 
-/** How long the undo offer stays on screen. */
-export const UNDO_WINDOW_MS = 8000;
+/** How long an undo offer stays on screen (a thin line under it drains over this time). */
+export const UNDO_WINDOW_MS = 20000;
+/** How long a routine confirmation (restored, exported, imported) stays before it clears itself. */
+export const NOTICE_WINDOW_MS = 8000;
 
 /** Messages the store needs; injected so the store stays free of UI strings. */
 export interface StoreMessages {
@@ -86,6 +95,8 @@ export interface StoreMessages {
   deleted(title: string): string;
   dropped(title: string): string;
   restored(title: string): string;
+  /** A game was finished; `next` is the title that was put in progress, if any. */
+  finished(title: string, rating: number | null, next: string | null): string;
 }
 
 export interface GameUpdate {
@@ -101,6 +112,8 @@ let messages: StoreMessages = {
   deleted: (title) => `Deleted "${title}".`,
   dropped: (title) => `Dropped "${title}".`,
   restored: (title) => `Restored "${title}".`,
+  finished: (title, rating, next) =>
+    `Finished "${title}"${rating === null ? "" : `, rated ${rating}/10`}.${next ? ` "${next}" is now in progress.` : ""}`,
 };
 
 /** How long after the last change the automatic backup is written. */
@@ -131,15 +144,43 @@ export const useStore = create<AppState>((set, get) => {
   }
 
   let undoTimer: ReturnType<typeof setTimeout> | null = null;
+  let undoRemainingMs = 0;
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** Show a notice with an undo button for a few seconds. */
-  function offerUndo(notice: string, undo: () => Promise<void>): void {
+  function clearTimers(): void {
     if (undoTimer) clearTimeout(undoTimer);
-    set({ notice, undo, error: null });
+    if (noticeTimer) clearTimeout(noticeTimer);
+    undoTimer = null;
+    noticeTimer = null;
+  }
+
+  let undoDeadlineMs = 0;
+  const undoDeadline = () => undoDeadlineMs;
+
+  /** Let the current undo offer expire after `ms`. */
+  function armUndo(undo: () => Promise<void>, ms: number): void {
+    undoDeadlineMs = Date.now() + ms;
     undoTimer = setTimeout(() => {
       undoTimer = null;
-      if (get().undo === undo) set({ notice: null, undo: null });
-    }, UNDO_WINDOW_MS);
+      if (get().undo === undo) set({ notice: null, undo: null, undoHeld: false, recentlyFinishedId: null });
+    }, ms);
+  }
+
+  /** Show a notice with an undo button; it expires unless the user is on it. */
+  function offerUndo(notice: string, undo: () => Promise<void>): void {
+    clearTimers();
+    set({ notice, undo, undoHeld: false, error: null });
+    armUndo(undo, UNDO_WINDOW_MS);
+  }
+
+  /** Show a routine confirmation that clears itself. */
+  function flashNotice(notice: string): void {
+    clearTimers();
+    set({ notice, undo: null, undoHeld: false });
+    noticeTimer = setTimeout(() => {
+      noticeTimer = null;
+      if (get().notice === notice) set({ notice: null });
+    }, NOTICE_WINDOW_MS);
   }
 
   let autoBackupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -171,9 +212,11 @@ export const useStore = create<AppState>((set, get) => {
     error: null,
     notice: null,
     undo: null,
+    undoHeld: false,
     games: [],
     settings: SEED_SETTINGS,
     sessions: [],
+    recentlyFinishedId: null,
 
     async load() {
       try {
@@ -236,7 +279,7 @@ export const useStore = create<AppState>((set, get) => {
       if (ok) {
         offerUndo(messages.deleted(game.title), async () => {
           if (await persist(() => repository.reinsertGame(game, ownSessions, planOrder, completedOrder))) {
-            set({ notice: messages.restored(game.title), undo: null });
+            flashNotice(messages.restored(game.title));
           }
         });
       }
@@ -251,10 +294,33 @@ export const useStore = create<AppState>((set, get) => {
       return ok;
     },
 
-    finishGame(id, input) {
-      const game = get().games.find((g) => g.id === id);
-      if (!game) return Promise.resolve(false);
-      return persist(() => repository.finishGame(id, input, orderWithout(game.platform, id)));
+    async finishGame(id, input) {
+      const { games, settings } = get();
+      const game = games.find((g) => g.id === id);
+      if (!game) return false;
+      // Remember enough to put the plan back: the full orders, the next game's status and the start date.
+      const planOrder = { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const completedOrder = completedIds(games);
+      const remaining = planOrder.ids.filter((other) => other !== id);
+      const next = remaining.length > 0 ? games.find((g) => g.id === remaining[0]) : undefined;
+      const startsNext = input.startNext && next !== undefined && next.status !== "completed";
+      const previousStartDate = settings.startDate;
+      const ok = await persist(() => repository.finishGame(id, input, { platform: game.platform, ids: remaining }));
+      if (ok) {
+        set({ recentlyFinishedId: id });
+        offerUndo(messages.finished(game.title, input.rating, startsNext && next ? next.title : null), async () => {
+          const restored = await persist(async () => {
+            await repository.restoreGame(game, planOrder, completedOrder);
+            if (startsNext && next) await repository.updateGame(next.id, { status: next.status });
+            if (input.nextStartDate) await repository.saveSettings({ startDate: previousStartDate });
+          });
+          if (restored) {
+            set({ recentlyFinishedId: null });
+            flashNotice(messages.restored(game.title));
+          }
+        });
+      }
+      return ok;
     },
 
     addCompletedGame(input) {
@@ -287,7 +353,7 @@ export const useStore = create<AppState>((set, get) => {
       if (ok) {
         offerUndo(messages.dropped(game.title), async () => {
           if (await persist(() => repository.restoreGame(game, planOrder, completedOrder))) {
-            set({ notice: messages.restored(game.title), undo: null });
+            flashNotice(messages.restored(game.title));
           }
         });
       }
@@ -331,7 +397,10 @@ export const useStore = create<AppState>((set, get) => {
       const { games, settings, sessions } = get();
       try {
         const saved = await saveTextFile(backupFileName(), serializeBackup(createBackup(games, settings, sessions)));
-        if (saved) set({ notice: messages.exported, error: null });
+        if (saved) {
+          set({ error: null });
+          flashNotice(messages.exported);
+        }
       } catch (error) {
         set({ error: describeError(error) });
       }
@@ -350,17 +419,33 @@ export const useStore = create<AppState>((set, get) => {
 
     async applyBackup(backup) {
       const ok = await persist(() => repository.replaceAll(backup));
-      if (ok) set({ notice: messages.imported });
+      if (ok) flashNotice(messages.imported);
       return ok;
     },
 
     async undoLast() {
       const undo = get().undo;
       if (!undo) return;
-      if (undoTimer) clearTimeout(undoTimer);
-      undoTimer = null;
-      set({ undo: null });
+      clearTimers();
+      set({ undo: null, undoHeld: false });
       await undo();
+    },
+
+    pauseUndo() {
+      const { undo, undoHeld } = get();
+      if (!undo || undoHeld || !undoTimer) return;
+      // Keep what is left of the window; `resumeUndo` arms it again.
+      undoRemainingMs = Math.max(1000, undoDeadline() - Date.now());
+      clearTimeout(undoTimer);
+      undoTimer = null;
+      set({ undoHeld: true });
+    },
+
+    resumeUndo() {
+      const { undo, undoHeld } = get();
+      if (!undo || !undoHeld) return;
+      set({ undoHeld: false });
+      armUndo(undo, undoRemainingMs);
     },
 
     dismissError() {
@@ -368,7 +453,8 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     dismissNotice() {
-      set({ notice: null, undo: null });
+      clearTimers();
+      set({ notice: null, undo: null, undoHeld: false, recentlyFinishedId: null });
     },
   };
 });

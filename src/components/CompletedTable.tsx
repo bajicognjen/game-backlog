@@ -28,6 +28,8 @@ interface Props {
   canReorder: boolean;
   /** Shown instead of the table when there are no rows. */
   empty: ReactNode;
+  /** The game finished moments ago; its row arrives with a short highlight. */
+  arrivedId?: number | null;
   onRate(game: Game): void;
   onEdit(game: Game): void;
   onDelete(game: Game): void;
@@ -35,7 +37,7 @@ interface Props {
   onMove(activeId: number, overId: number): void;
 }
 
-export function CompletedTable({ games, canReorder, empty, onRate, onEdit, onDelete, onOpen, onMove }: Props) {
+export function CompletedTable({ games, canReorder, empty, arrivedId = null, onRate, onEdit, onDelete, onOpen, onMove }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -52,20 +54,29 @@ export function CompletedTable({ games, canReorder, empty, onRate, onEdit, onDel
   return (
     <div className="table-wrap">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <table className="table completed-table">
+        <table className="table completed-table" aria-label={t.completed}>
           <thead>
             <tr>
-              <th className="drag-col" aria-label={t.actions.drag} />
-              <th className="num">{t.columns.index}</th>
-              <th>{t.columns.title}</th>
-              <th title={t.columns.typeHint}>{t.columns.type}</th>
-              <th className="col-opt-2">{t.columns.genre}</th>
-              <th>{t.columns.platform}</th>
-              <th className="date">{t.columns.completedAt}</th>
-              <th className="num">{t.columns.rating}</th>
-              <th>{t.columns.review}</th>
-              <th className="col-opt-2">{t.columns.note}</th>
-              <th className="actions-col" />
+              <th scope="col" className="drag-col" aria-label={t.actions.drag} />
+              <th scope="col" className="num">
+                {t.columns.index}
+              </th>
+              <th scope="col">{t.columns.title}</th>
+              <th scope="col" title={t.columns.typeHint}>
+                {t.columns.type}
+              </th>
+              <th scope="col" className="col-opt-2">
+                {t.columns.genre}
+              </th>
+              <th scope="col">{t.columns.platform}</th>
+              <th scope="col" className="date">
+                {t.columns.completedAt}
+              </th>
+              <th scope="col" className="num">
+                {t.columns.rating}
+              </th>
+              <th scope="col">{t.columns.reviewNote}</th>
+              <th scope="col" className="actions-col" aria-label={t.actions.more} />
             </tr>
           </thead>
           <SortableContext items={games.map((g) => g.id)} strategy={verticalListSortingStrategy}>
@@ -74,6 +85,7 @@ export function CompletedTable({ games, canReorder, empty, onRate, onEdit, onDel
                 <CompletedRow
                   key={game.id}
                   game={game}
+                  arrived={game.id === arrivedId}
                   canReorder={canReorder}
                   onRate={onRate}
                   onEdit={onEdit}
@@ -91,6 +103,7 @@ export function CompletedTable({ games, canReorder, empty, onRate, onEdit, onDel
 
 interface RowProps {
   game: Game;
+  arrived: boolean;
   canReorder: boolean;
   onRate(game: Game): void;
   onEdit(game: Game): void;
@@ -98,7 +111,7 @@ interface RowProps {
   onOpen(game: Game): void;
 }
 
-function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: RowProps) {
+function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onOpen }: RowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: game.id,
     disabled: !canReorder,
@@ -111,7 +124,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className={isDragging ? "row-dragging" : undefined}>
+    <tr ref={setNodeRef} style={style} className={[isDragging ? "row-dragging" : "", arrived ? "row-arrived" : ""].filter(Boolean).join(" ") || undefined}>
       <td className="drag-col">
         <button
           ref={setActivatorNodeRef}
@@ -142,7 +155,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
       <td className="date">{game.completedAt ? formatDate(game.completedAt) : t.none}</td>
       <td className="num">
         {game.rating === null ? (
-          <button type="button" className="button button-small" onClick={() => onRate(game)}>
+          <button type="button" className="link-button rating-link" onClick={() => onRate(game)}>
             {t.actions.rate}
           </button>
         ) : (
@@ -159,16 +172,18 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
         )}
       </td>
       <td className="note">
-        {game.review && (
-          <span className="clamp-2" title={game.review}>
-            {game.review}
-          </span>
-        )}
-      </td>
-      <td className="note col-opt-2">
-        {game.note && (
-          <span className="clamp-2" title={game.note}>
-            {game.note}
+        {(game.review || game.note) && (
+          <span className="note-stack">
+            {game.review && (
+              <span className="clamp-2" title={game.review}>
+                {game.review}
+              </span>
+            )}
+            {game.note && (
+              <span className="clamp-2 muted" title={game.note}>
+                {game.note}
+              </span>
+            )}
           </span>
         )}
       </td>

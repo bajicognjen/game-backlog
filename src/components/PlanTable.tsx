@@ -90,26 +90,44 @@ export function PlanTable({
   return (
     <div className="table-wrap">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <table className="table plan-table">
+        <table className="table plan-table" aria-label={t.plan}>
           <thead>
             <tr>
-              <th className="drag-col" aria-label={t.actions.drag} />
-              <th className="num">{t.columns.index}</th>
-              <th>{t.columns.title}</th>
-              <th title={t.columns.typeHint}>{t.columns.type}</th>
-              <th className="col-opt-2">{t.columns.genre}</th>
-              <th>{t.columns.status}</th>
+              <th scope="col" className="drag-col" aria-label={t.actions.drag} />
+              <th scope="col" className="num">
+                {t.columns.index}
+              </th>
+              <th scope="col">{t.columns.title}</th>
+              <th scope="col" title={t.columns.typeHint}>
+                {t.columns.type}
+              </th>
+              <th scope="col" className="col-opt-2">
+                {t.columns.genre}
+              </th>
+              <th scope="col">{t.columns.status}</th>
               {showSchedule && (
                 <>
-                  <th className="num">{t.columns.hours}</th>
-                  <th className="num col-opt">{t.columns.weeks}</th>
-                  <th className="num col-opt">{t.columns.cumulative}</th>
-                  <th className="date">{t.columns.start}</th>
-                  <th className="date">{t.columns.end}</th>
+                  <th scope="col" className="num">
+                    {t.columns.hours}
+                  </th>
+                  <th scope="col" className="num col-opt">
+                    {t.columns.weeks}
+                  </th>
+                  <th scope="col" className="num col-opt">
+                    {t.columns.cumulative}
+                  </th>
+                  <th scope="col" className="date">
+                    {t.columns.start}
+                  </th>
+                  <th scope="col" className="date">
+                    {t.columns.end}
+                  </th>
                 </>
               )}
-              <th className="col-opt-2">{t.columns.note}</th>
-              <th className="actions-col" />
+              <th scope="col" className="col-opt-2">
+                {t.columns.note}
+              </th>
+              <th scope="col" className="actions-col" aria-label={t.actions.more} />
             </tr>
           </thead>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -248,7 +266,12 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
           <td className="date">{formatDate(schedule.startMs)}</td>
           <td className="date">
             {formatDate(schedule.endMs)}
-            {isToday && <span className="today-marker">{t.today.marker}</span>}
+            {isToday && (
+              <>
+                {" "}
+                <span className="today-marker">{t.today.marker}</span>
+              </>
+            )}
           </td>
         </>
       )}

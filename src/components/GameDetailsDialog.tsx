@@ -19,6 +19,8 @@ import { TypeChip } from "./TypeChip";
 interface Props {
   gameId: number;
   onClose(): void;
+  /** Open the edit form for this game (the dialog closes first). */
+  onEdit?(game: Game): void;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  * summary, store links, screenshots, trailers, similar games and the rest
  * of its series or franchise in the library. Linked games can refresh from IGDB.
  */
-export function GameDetailsDialog({ gameId, onClose }: Props) {
+export function GameDetailsDialog({ gameId, onClose, onEdit }: Props) {
   const games = useStore((s) => s.games);
   const editGame = useStore((s) => s.editGame);
   const addGame = useStore((s) => s.addGame);
@@ -89,7 +91,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
     <Modal title={game.title} onClose={onClose} size="xl">
       <div className="details">
         <header className="details-head">
-          {game.coverUrl && <img className="details-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" />}
+          {game.coverUrl && <img className="details-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" width={132} height={187} />}
           <div className="details-summary">
             <div className="details-chips">
               <TypeChip type={game.type} />
@@ -188,7 +190,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
               <div className="details-strip">
                 {d.screenshots.map((url) => (
                   <button key={url} type="button" className="details-thumb" onClick={() => setScreenshot(url)}>
-                    <img src={url} alt="" loading="lazy" />
+                    <img src={url} alt="" width={180} height={101} loading="lazy" />
                   </button>
                 ))}
               </div>
@@ -215,7 +217,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
               <div className="details-strip">
                 {d.videos.map((video) => (
                   <button key={video.id} type="button" className="details-thumb details-thumb-video" onClick={() => setPlaying(video.id)} title={video.name}>
-                    <img src={youtubeThumbnailUrl(video.id)} alt="" loading="lazy" />
+                    <img src={youtubeThumbnailUrl(video.id)} alt="" width={180} height={101} loading="lazy" />
                     <span className="play-badge" aria-hidden="true">
                       <Icon name="play" size={18} />
                     </span>
@@ -270,7 +272,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
                 return (
                   <div key={similar.igdbId} className="similar-card">
                     {similar.coverUrl ? (
-                      <img src={thumbnailUrl(similar.coverUrl, 120)} alt="" loading="lazy" />
+                      <img src={thumbnailUrl(similar.coverUrl, 120)} alt="" width={90} height={128} loading="lazy" />
                     ) : (
                       <span className="similar-cover-empty" aria-hidden="true" />
                     )}
@@ -308,6 +310,11 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
             </button>
           )}
           {!linked && <span className="muted details-fetched">{t.details.notLinked}</span>}
+          {onEdit && (
+            <button type="button" className="button" onClick={() => onEdit(game)}>
+              <Icon name="pencil" /> {t.details.edit}
+            </button>
+          )}
           <button type="button" className="button button-primary" onClick={onClose}>
             {t.close}
           </button>
