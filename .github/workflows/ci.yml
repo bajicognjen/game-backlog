@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # What Tauri needs to build on Linux.
-      APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev figlet
+      APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
       # Where apt keeps the .deb files it downloads, so they can be cached between runs.
       APT_ARCHIVES: /tmp/apt-archives
     steps:
