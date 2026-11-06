@@ -1,5 +1,6 @@
 import { DEFAULT_SORT_DIRECTION, type CompletedSortKey, type SortDirection } from "../domain/completed";
 import { t } from "../i18n/en";
+import { Icon } from "./Icon";
 
 interface Props {
   sortKey: CompletedSortKey;
@@ -10,6 +11,7 @@ interface Props {
 const KEYS: CompletedSortKey[] = ["order", "date", "rating"];
 
 export function SortControl({ sortKey, direction, onChange }: Props) {
+  const directionLabel = direction === "asc" ? t.sort.asc : t.sort.desc;
   return (
     <div className="sort-control">
       <label className="sort-label">
@@ -30,12 +32,12 @@ export function SortControl({ sortKey, direction, onChange }: Props) {
       </label>
       <button
         type="button"
-        className="button button-ghost button-icon"
+        className="button button-icon-sm"
         onClick={() => onChange(sortKey, direction === "asc" ? "desc" : "asc")}
-        title={direction === "asc" ? t.sort.asc : t.sort.desc}
-        aria-label={direction === "asc" ? t.sort.asc : t.sort.desc}
+        title={directionLabel}
+        aria-label={directionLabel}
       >
-        {direction === "asc" ? "↑" : "↓"}
+        <Icon name={direction === "asc" ? "arrow-up" : "arrow-down"} />
       </button>
     </div>
   );

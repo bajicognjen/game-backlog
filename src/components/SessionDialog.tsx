@@ -6,6 +6,7 @@ import { sessionsOf } from "../domain/sessions";
 import type { Game } from "../domain/types";
 import { t } from "../i18n/en";
 import { useStore } from "../state/store";
+import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 
 interface Props {
@@ -27,6 +28,8 @@ export function SessionDialog({ game: initial, onClose }: Props) {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Session whose delete is waiting for a second click. */
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -60,7 +63,7 @@ export function SessionDialog({ game: initial, onClose }: Props) {
         <div className="form-row form-row-session">
           <label className="field">
             <span className="field-label">{t.sessions.playedOn}</span>
-            <input type="date" value={playedOn} onChange={(e) => setPlayedOn(e.target.value)} />
+            <input type="date" value={playedOn} onChange={(e) => setPlayedOn(e.target.value)} aria-invalid={error === t.sessions.invalidDate} />
           </label>
           <label className="field">
             <span className="field-label">{t.sessions.hours}</span>
@@ -71,18 +74,23 @@ export function SessionDialog({ game: initial, onClose }: Props) {
               step={0.25}
               value={hours}
               onChange={(e) => setHours(e.target.value)}
-              autoFocus
+              aria-invalid={error === t.sessions.invalidHours}
+              data-autofocus="true"
             />
           </label>
           <label className="field">
             <span className="field-label">{t.sessions.note}</span>
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
-          <button type="submit" className="button button-primary session-add" disabled={busy}>
-            + {t.sessions.add}
+          <button type="submit" className="button button-primary" disabled={busy}>
+            <Icon name="plus" /> {t.sessions.add}
           </button>
         </div>
-        {error && <span className="field-error">{error}</span>}
+        {error && (
+          <span className="field-error" role="alert">
+            {error}
+          </span>
+        )}
       </form>
 
       {sessions.length === 0 ? (
@@ -96,15 +104,34 @@ export function SessionDialog({ game: initial, onClose }: Props) {
                 <td className="num">{formatHours(session.hours)} h</td>
                 <td className="note">{session.note}</td>
                 <td className="actions-col">
-                  <button
-                    type="button"
-                    className="button button-icon-sm"
-                    title={t.actions.delete}
-                    aria-label={t.actions.delete}
-                    onClick={() => void removeSession(session.id)}
-                  >
-                    ✕
-                  </button>
+                  {confirmId === session.id ? (
+                    <span className="session-confirm">
+                      <span className="muted">{t.sessions.confirmDelete}</span>
+                      <button
+                        type="button"
+                        className="button button-danger button-small"
+                        onClick={() => {
+                          setConfirmId(null);
+                          void removeSession(session.id);
+                        }}
+                      >
+                        {t.actions.delete}
+                      </button>
+                      <button type="button" className="button button-small" onClick={() => setConfirmId(null)}>
+                        {t.sessions.keep}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="button button-icon-sm"
+                      title={t.actions.delete}
+                      aria-label={t.actions.delete}
+                      onClick={() => setConfirmId(session.id)}
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

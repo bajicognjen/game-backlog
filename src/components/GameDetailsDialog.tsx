@@ -11,6 +11,7 @@ import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
 import { providers } from "../state/providers";
 import { useStore } from "../state/store";
+import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { PlatformChip } from "./PlatformChip";
 import { TypeChip } from "./TypeChip";
@@ -85,7 +86,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
   const year = releaseYear(game.releaseDate);
 
   return (
-    <Modal title={game.title} onClose={onClose} wide>
+    <Modal title={game.title} onClose={onClose} size="xl">
       <div className="details">
         <header className="details-head">
           {game.coverUrl && <img className="details-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" />}
@@ -156,7 +157,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
               <div className="details-links">
                 {d.storeLinks.map((link) => (
                   <button key={link.store} type="button" className="button button-small" onClick={() => void openExternal(link.url)}>
-                    {link.store} ↗
+                    {link.store} <Icon name="external" size={14} />
                   </button>
                 ))}
               </div>
@@ -216,7 +217,7 @@ export function GameDetailsDialog({ gameId, onClose }: Props) {
                   <button key={video.id} type="button" className="details-thumb details-thumb-video" onClick={() => setPlaying(video.id)} title={video.name}>
                     <img src={youtubeThumbnailUrl(video.id)} alt="" loading="lazy" />
                     <span className="play-badge" aria-hidden="true">
-                      ▶
+                      <Icon name="play" size={18} />
                     </span>
                     <span className="details-thumb-label">{video.name}</span>
                   </button>

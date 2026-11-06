@@ -42,30 +42,30 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
   const allGames = useStore((s) => s.games);
   const knownSeries = useMemo(() => seriesNames(allGames), [allGames]);
   const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
-  const [pickNote, setPickNote] = useState<string | null>(null);
+  const [pick, setPick] = useState<{ note: string; tone: "hint" | "warn" } | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
-  function applyPick(pick: SearchPick) {
-    if (pick.kind === "library") {
-      const g = pick.game;
+  function applyPick(picked: SearchPick) {
+    if (picked.kind === "library") {
+      const g = picked.game;
       setTitle(g.title);
       setType(g.type);
       setGenre(g.genre ?? "");
       setHours(g.casualHours > 0 ? String(g.casualHours) : "");
       setNote(g.note ?? "");
       setMeta(metadataOf(g));
-      setPickNote(t.search.inLibraryNote);
+      setPick({ note: t.search.inLibraryNote, tone: mode === "add" ? "warn" : "hint" });
       return;
     }
-    const m = pick.meta;
+    const m = picked.meta;
     setTitle(m.title);
     if (m.genre) setGenre(m.genre);
     if (m.typeHint) setType(m.typeHint);
     if (m.playtimeHours && hours.trim() === "") setHours(String(m.playtimeHours));
     if (m.seriesHint && series.trim() === "") setSeries(m.seriesHint);
     setMeta(toMetadata(m));
-    setPickNote(t.search.filled.replace("{source}", sourceLabels[m.source]));
+    setPick({ note: t.search.filled.replace("{source}", sourceLabels[m.source]), tone: "hint" });
   }
 
   async function submit(event: FormEvent) {
@@ -98,25 +98,32 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
   }
 
   return (
-    <Modal title={mode === "add" ? t.completedDialog.addTitle : t.completedDialog.editTitle} onClose={onClose}>
+    <Modal title={mode === "add" ? t.completedDialog.addTitle : t.completedDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add"} />
         <ProviderLinked
           meta={meta}
-          note={pickNote}
+          note={pick?.note ?? null}
+          noteTone={pick?.tone}
           onUnlink={() => {
             setMeta(NO_METADATA);
-            setPickNote(null);
+            setPick(null);
           }}
         />
 
         <label className="field">
           <span className="field-label">{t.gameDialog.title}</span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-invalid={!!errors.title}
+            data-autofocus={mode === "edit" ? "true" : undefined}
+          />
           {errors.title && <span className="field-error">{errors.title}</span>}
         </label>
 
-        <div className="form-row form-row-5">
+        <div className="form-row">
           <label className="field">
             <span className="field-label">{t.gameDialog.platform}</span>
             <select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)}>
@@ -127,7 +134,7 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="field" title={t.columns.typeHint}>
             <span className="field-label">{t.gameDialog.type}</span>
             <select value={type} onChange={(e) => setType(e.target.value as GameType)}>
               {GAME_TYPES.map((value) => (
@@ -148,6 +155,9 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="form-row form-row-2">
           <label className="field">
             <span className="field-label">{t.completedDialog.hours}</span>
             <input

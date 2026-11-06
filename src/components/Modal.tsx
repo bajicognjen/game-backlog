@@ -1,28 +1,43 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { t } from "../i18n/en";
+import { Icon } from "./Icon";
+
+/** Controls that can take the first focus; the close button comes last in the DOM and is skipped. */
+const FOCUSABLE =
+  'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not(.modal-close), [tabindex]:not([tabindex="-1"])';
 
 interface Props {
   title: string;
   onClose(): void;
   children: ReactNode;
-  /** Wider dialog for content-heavy views. */
-  wide?: boolean;
+  /** md for confirmations and short forms, lg for the game forms, xl for content-heavy views. */
+  size?: "md" | "lg" | "xl";
 }
 
-/** Native <dialog> shown modally; Escape, the backdrop and the ✕ button close it. */
-export function Modal({ title, onClose, children, wide = false }: Props) {
+/**
+ * Native <dialog> shown modally; Escape, the backdrop and the ✕ button close it.
+ * Focus goes to the element marked `data-autofocus` (else the first control)
+ * and returns to whatever opened the dialog when it closes.
+ */
+export function Modal({ title, onClose, children, size = "md" }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (dialog && !dialog.open) dialog.showModal();
-    return () => dialog?.close();
+    const first = dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+    return () => {
+      dialog?.close();
+      if (opener?.isConnected) opener.focus();
+    };
   }, []);
 
   return (
     <dialog
       ref={ref}
-      className={`modal ${wide ? "modal-wide" : ""}`}
+      className={`modal modal-${size}`}
       aria-labelledby="modal-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -33,13 +48,13 @@ export function Modal({ title, onClose, children, wide = false }: Props) {
       }}
     >
       <div className="modal-content">
-        <header className="modal-head">
-          <h2 id="modal-title">{title}</h2>
-          <button type="button" className="button button-ghost button-icon" onClick={onClose} aria-label={t.close}>
-            ✕
-          </button>
-        </header>
+        <h2 id="modal-title" className="modal-title">
+          {title}
+        </h2>
         {children}
+        <button type="button" className="button button-ghost button-icon-sm modal-close" onClick={onClose} aria-label={t.close} title={t.close}>
+          <Icon name="x" />
+        </button>
       </div>
     </dialog>
   );

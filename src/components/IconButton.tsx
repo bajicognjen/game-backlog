@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { Icon, type IconName } from "./Icon";
 
 interface Props {
   label: string;
-  icon: ReactNode;
+  icon: IconName;
   variant?: "default" | "success";
   onClick(): void;
 }
@@ -17,7 +17,7 @@ export function IconButton({ label, icon, variant = "default", onClick }: Props)
       title={label}
       aria-label={label}
     >
-      {icon}
+      <Icon name={icon} />
     </button>
   );
 }

@@ -26,19 +26,20 @@ export function FilterBar({ filter, platforms, shown, total, onChange }: Props) 
           {mode}
         </button>
       ))}
-      <select
-        value={filter.platform ?? ""}
-        onChange={(e) => onChange({ ...filter, platform: e.target.value === "" ? null : e.target.value })}
-        aria-label={t.filters.platform}
-        disabled={platforms.length === 0}
-      >
-        <option value="">{t.filters.anyPlatform}</option>
-        {platforms.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
+      {platforms.length > 0 && (
+        <select
+          value={filter.platform ?? ""}
+          onChange={(e) => onChange({ ...filter, platform: e.target.value === "" ? null : e.target.value })}
+          aria-label={t.filters.platform}
+        >
+          <option value="">{t.filters.anyPlatform}</option>
+          {platforms.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      )}
       {active && (
         <>
           <span className="muted">{t.filters.shown.replace("{shown}", String(shown)).replace("{total}", String(total))}</span>

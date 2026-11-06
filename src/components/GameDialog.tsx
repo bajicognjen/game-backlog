@@ -52,30 +52,31 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   const allGames = useStore((s) => s.games);
   const knownSeries = useMemo(() => seriesNames(allGames), [allGames]);
   const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
-  const [pickNote, setPickNote] = useState<string | null>(null);
+  const [pick, setPick] = useState<{ note: string; tone: "hint" | "warn" } | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
-  function applyPick(pick: SearchPick) {
-    if (pick.kind === "library") {
-      const g = pick.game;
+  function applyPick(picked: SearchPick) {
+    if (picked.kind === "library") {
+      const g = picked.game;
       setTitle(g.title);
       setType(g.type);
       setGenre(g.genre ?? "");
       setHours(g.casualHours > 0 ? String(g.casualHours) : "");
       setNote(g.note ?? "");
       setMeta(metadataOf(g));
-      setPickNote(t.search.inLibraryNote);
+      // Picking a library game from an add form creates a duplicate; say so.
+      setPick({ note: t.search.inLibraryNote, tone: mode === "add" ? "warn" : "hint" });
       return;
     }
-    const m = pick.meta;
+    const m = picked.meta;
     setTitle(m.title);
     if (m.genre) setGenre(m.genre);
     if (m.typeHint) setType(m.typeHint);
     if (m.playtimeHours && hours.trim() === "") setHours(String(m.playtimeHours));
     if (m.seriesHint && series.trim() === "") setSeries(m.seriesHint);
     setMeta(toMetadata(m));
-    setPickNote(t.search.filled.replace("{source}", sourceLabels[m.source]));
+    setPick({ note: t.search.filled.replace("{source}", sourceLabels[m.source]), tone: "hint" });
   }
 
   // The position picks a slot among the other planned games of the chosen platform.
@@ -95,9 +96,10 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
 
   function changePlatform(next: Platform) {
     setPlatform(next);
-    const nextOthers = mode === "edit" && game?.platform === next && currentIndex !== undefined
-      ? planTitles[next].filter((_, i) => i !== currentIndex)
-      : planTitles[next];
+    const nextOthers =
+      mode === "edit" && game?.platform === next && currentIndex !== undefined
+        ? planTitles[next].filter((_, i) => i !== currentIndex)
+        : planTitles[next];
     setPosition(String(mode === "edit" && game?.platform === next && currentIndex !== undefined ? currentIndex + 1 : nextOthers.length + 1));
   }
 
@@ -133,25 +135,32 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   }
 
   return (
-    <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose}>
+    <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add"} />
         <ProviderLinked
           meta={meta}
-          note={pickNote}
+          note={pick?.note ?? null}
+          noteTone={pick?.tone}
           onUnlink={() => {
             setMeta(NO_METADATA);
-            setPickNote(null);
+            setPick(null);
           }}
         />
 
         <label className="field">
           <span className="field-label">{t.gameDialog.title}</span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-invalid={!!errors.title}
+            data-autofocus={mode === "edit" ? "true" : undefined}
+          />
           {errors.title && <span className="field-error">{errors.title}</span>}
         </label>
 
-        <div className="form-row form-row-5">
+        <div className="form-row">
           <label className="field">
             <span className="field-label">{t.gameDialog.platform}</span>
             <select value={platform} onChange={(e) => changePlatform(e.target.value as Platform)}>
@@ -163,7 +172,7 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
             </select>
           </label>
 
-          <label className="field">
+          <label className="field" title={t.columns.typeHint}>
             <span className="field-label">{t.gameDialog.type}</span>
             <select value={type} onChange={(e) => setType(e.target.value as GameType)}>
               {GAME_TYPES.map((value) => (
@@ -185,9 +194,11 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
               ))}
             </select>
           </label>
+        </div>
 
+        <div className="form-row form-row-2">
           <label className="field">
-            <span className="field-label">{scheduled ? t.gameDialog.hours : t.completedDialog.hours}</span>
+            <span className="field-label">{scheduled ? t.gameDialog.hours : t.gameDialog.hoursOptional}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -229,11 +240,11 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
                 <option key={name} value={name} />
               ))}
             </datalist>
+            <span className="field-hint">{t.gameDialog.seriesHint}</span>
           </label>
           <label className="field">
             <span className="field-label">{t.gameDialog.seriesOrder}</span>
             <input type="number" inputMode="numeric" min={1} step={1} value={seriesOrder} onChange={(e) => setSeriesOrder(e.target.value)} />
-            <span className="field-hint">{t.gameDialog.seriesHint}</span>
           </label>
         </div>
 
@@ -254,4 +265,3 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
     </Modal>
   );
 }
-

@@ -9,11 +9,12 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { formatDate } from "../domain/dates";
 import type { Game } from "../domain/types";
 import { t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
+import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
 import { PlatformChip } from "./PlatformChip";
 import { RowMenu } from "./RowMenu";
@@ -25,6 +26,8 @@ interface Props {
   games: Game[];
   /** Dragging only makes sense when the list shows the full finish order. */
   canReorder: boolean;
+  /** Shown instead of the table when there are no rows. */
+  empty: ReactNode;
   onRate(game: Game): void;
   onEdit(game: Game): void;
   onDelete(game: Game): void;
@@ -32,14 +35,14 @@ interface Props {
   onMove(activeId: number, overId: number): void;
 }
 
-export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, onOpen, onMove }: Props) {
+export function CompletedTable({ games, canReorder, empty, onRate, onEdit, onDelete, onOpen, onMove }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   if (games.length === 0) {
-    return <p className="empty">{t.emptyCompleted}</p>;
+    return <>{empty}</>;
   }
 
   function onDragEnd({ active, over }: DragEndEvent) {
@@ -55,13 +58,13 @@ export function CompletedTable({ games, canReorder, onRate, onEdit, onDelete, on
               <th className="drag-col" aria-label={t.actions.drag} />
               <th className="num">{t.columns.index}</th>
               <th>{t.columns.title}</th>
-              <th>{t.columns.type}</th>
-              <th>{t.columns.genre}</th>
+              <th title={t.columns.typeHint}>{t.columns.type}</th>
+              <th className="col-opt-2">{t.columns.genre}</th>
               <th>{t.columns.platform}</th>
               <th className="date">{t.columns.completedAt}</th>
               <th className="num">{t.columns.rating}</th>
               <th>{t.columns.review}</th>
-              <th>{t.columns.note}</th>
+              <th className="col-opt-2">{t.columns.note}</th>
               <th className="actions-col" />
             </tr>
           </thead>
@@ -108,7 +111,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className={`row-done ${isDragging ? "row-dragging" : ""}`}>
+    <tr ref={setNodeRef} style={style} className={isDragging ? "row-dragging" : undefined}>
       <td className="drag-col">
         <button
           ref={setActivatorNodeRef}
@@ -120,7 +123,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
           {...attributes}
           {...listeners}
         >
-          ⋮⋮
+          <Icon name="grip" />
         </button>
       </td>
       <td className="num muted">{game.completedOrder ?? t.none}</td>
@@ -130,7 +133,7 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
       <td>
         <TypeChip type={game.type} />
       </td>
-      <td>
+      <td className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
       <td>
@@ -155,11 +158,23 @@ function CompletedRow({ game, canReorder, onRate, onEdit, onDelete, onOpen }: Ro
           </button>
         )}
       </td>
-      <td className="note">{game.review}</td>
-      <td className="note">{game.note}</td>
+      <td className="note">
+        {game.review && (
+          <span className="clamp-2" title={game.review}>
+            {game.review}
+          </span>
+        )}
+      </td>
+      <td className="note col-opt-2">
+        {game.note && (
+          <span className="clamp-2" title={game.note}>
+            {game.note}
+          </span>
+        )}
+      </td>
       <td className="actions-col">
         <div className="row-actions">
-          <IconButton label={t.actions.edit} icon={"\u270E\uFE0E"} onClick={() => onEdit(game)} />
+          <IconButton label={t.actions.edit} icon="pencil" onClick={() => onEdit(game)} />
           <RowMenu
             items={[
               { label: t.actions.details, onSelect: () => onOpen(game) },

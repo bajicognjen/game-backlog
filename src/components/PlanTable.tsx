@@ -9,7 +9,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { formatDate } from "../domain/dates";
 import { formatHours, formatWeeks } from "../domain/format";
 import { progressOf } from "../domain/sessions";
@@ -17,8 +17,9 @@ import type { ScheduleRow } from "../domain/schedule";
 import type { Game, GameStatus } from "../domain/types";
 import { t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
+import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
-import { RowMenu } from "./RowMenu";
+import { RowMenu, type RowMenuItem } from "./RowMenu";
 import { StatusBadge } from "./StatusBadge";
 import { TitleCell } from "./TitleCell";
 import { TypeChip } from "./TypeChip";
@@ -40,7 +41,8 @@ interface Props {
   warnings?: ReadonlyMap<number, string>;
   /** False while a filter hides rows: dragging a partial list would scramble positions. */
   canReorder?: boolean;
-  emptyText: string;
+  /** Shown instead of the table when there are no rows. */
+  empty: ReactNode;
   onEdit(game: Game): void;
   onDelete(game: Game): void;
   onFinish(game: Game): void;
@@ -56,7 +58,7 @@ export type PlanStatus = Extract<GameStatus, "in_progress" | "pending" | "paused
 export function PlanTable({
   rows,
   showSchedule,
-  emptyText,
+  empty,
   todayGameId = null,
   warnings,
   canReorder = true,
@@ -76,7 +78,7 @@ export function PlanTable({
   );
 
   if (rows.length === 0) {
-    return <p className="empty">{emptyText}</p>;
+    return <>{empty}</>;
   }
 
   function onDragEnd({ active, over }: DragEndEvent) {
@@ -94,19 +96,19 @@ export function PlanTable({
               <th className="drag-col" aria-label={t.actions.drag} />
               <th className="num">{t.columns.index}</th>
               <th>{t.columns.title}</th>
-              <th>{t.columns.type}</th>
-              <th>{t.columns.genre}</th>
+              <th title={t.columns.typeHint}>{t.columns.type}</th>
+              <th className="col-opt-2">{t.columns.genre}</th>
               <th>{t.columns.status}</th>
               {showSchedule && (
                 <>
                   <th className="num">{t.columns.hours}</th>
-                  <th className="num">{t.columns.weeks}</th>
-                  <th className="num">{t.columns.cumulative}</th>
+                  <th className="num col-opt">{t.columns.weeks}</th>
+                  <th className="num col-opt">{t.columns.cumulative}</th>
                   <th className="date">{t.columns.start}</th>
                   <th className="date">{t.columns.end}</th>
                 </>
               )}
-              <th>{t.columns.note}</th>
+              <th className="col-opt-2">{t.columns.note}</th>
               <th className="actions-col" />
             </tr>
           </thead>
@@ -174,6 +176,20 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
   const active = game.status === "in_progress" || game.status === "paused";
   const progress = progressOf(game);
 
+  // The row shows one status action and Edit; everything else sits in the menu.
+  const menu: RowMenuItem[] = [
+    ...(game.status === "in_progress"
+      ? [
+          { label: t.actions.finish, onSelect: () => onFinish(game) },
+          { label: t.actions.pause, onSelect: () => onStatus(game, "paused") },
+        ]
+      : []),
+    ...(game.status === "paused" ? [{ label: t.actions.logHours, onSelect: () => onLog(game) }] : []),
+    { label: t.actions.details, onSelect: () => onOpen(game) },
+    ...(active ? [{ label: t.actions.drop, danger: true, onSelect: () => onDrop(game) }] : []),
+    { label: t.actions.delete, danger: true, onSelect: () => onDelete(game) },
+  ];
+
   return (
     <tr ref={setNodeRef} style={style} className={classes || undefined}>
       <td className="drag-col">
@@ -187,22 +203,22 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
           {...attributes}
           {...listeners}
         >
-          ⋮⋮
+          <Icon name="grip" />
         </button>
       </td>
       <td className="num muted">{row.index}</td>
       <td className="title">
         <TitleCell game={game} onOpen={onOpen} />
         {warning && (
-          <span className="warning-icon" title={warning} aria-label={warning}>
-            !
+          <span className="warning-icon" title={warning} role="img" aria-label={warning}>
+            <Icon name="alert" size={15} />
           </span>
         )}
       </td>
       <td>
         <TypeChip type={game.type} />
       </td>
-      <td>
+      <td className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
       <td>
@@ -227,8 +243,8 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
               formatHours(schedule.hours)
             )}
           </td>
-          <td className="num">{formatWeeks(schedule.weeks)}</td>
-          <td className="num">{formatHours(schedule.cumulativeHours)}</td>
+          <td className="num col-opt">{formatWeeks(schedule.weeks)}</td>
+          <td className="num col-opt">{formatHours(schedule.cumulativeHours)}</td>
           <td className="date">{formatDate(schedule.startMs)}</td>
           <td className="date">
             {formatDate(schedule.endMs)}
@@ -236,30 +252,20 @@ function SortableRow({ row, showSchedule, isToday, warning, canReorder, onEdit, 
           </td>
         </>
       )}
-      <td className="note">{game.note}</td>
+      <td className="note col-opt-2">
+        {game.note && (
+          <span className="clamp-2" title={game.note}>
+            {game.note}
+          </span>
+        )}
+      </td>
       <td className="actions-col">
-        <div className={`row-actions ${active ? "row-actions-visible" : ""}`}>
-          {game.status === "pending" && (
-            <IconButton label={t.actions.start} icon={"\u25B6\uFE0E"} onClick={() => onStatus(game, "in_progress")} />
-          )}
-          {game.status === "paused" && (
-            <IconButton label={t.actions.resume} icon={"\u25B6\uFE0E"} onClick={() => onStatus(game, "in_progress")} />
-          )}
-          {game.status === "in_progress" && (
-            <>
-              <IconButton label={t.actions.finish} icon="✓" variant="success" onClick={() => onFinish(game)} />
-              <IconButton label={t.actions.pause} icon={"\u23F8\uFE0E"} onClick={() => onStatus(game, "paused")} />
-            </>
-          )}
-          {active && <IconButton label={t.actions.logHours} icon="+h" onClick={() => onLog(game)} />}
-          <IconButton label={t.actions.edit} icon={"\u270E\uFE0E"} onClick={() => onEdit(game)} />
-          <RowMenu
-            items={[
-              { label: t.actions.details, onSelect: () => onOpen(game) },
-              ...(active ? [{ label: t.actions.drop, danger: true, onSelect: () => onDrop(game) }] : []),
-              { label: t.actions.delete, danger: true, onSelect: () => onDelete(game) },
-            ]}
-          />
+        <div className="row-actions">
+          {game.status === "pending" && <IconButton label={t.actions.start} icon="play" onClick={() => onStatus(game, "in_progress")} />}
+          {game.status === "paused" && <IconButton label={t.actions.resume} icon="play" onClick={() => onStatus(game, "in_progress")} />}
+          {game.status === "in_progress" && <IconButton label={t.actions.logHours} icon="clock" onClick={() => onLog(game)} />}
+          <IconButton label={t.actions.edit} icon="pencil" onClick={() => onEdit(game)} />
+          <RowMenu items={menu} />
         </div>
       </td>
     </tr>

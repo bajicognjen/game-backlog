@@ -1,45 +1,30 @@
 import { formatDate } from "../domain/dates";
 import { formatHours, formatWeeks } from "../domain/format";
 import type { ScheduleTotals } from "../domain/schedule";
-import type { TodayStatus } from "../domain/today";
 import { t } from "../i18n/en";
 
-export function TotalsBar({ totals, today }: { totals: ScheduleTotals; today: TodayStatus }) {
+/** The plan in three numbers; the day-to-day status lives in the Now playing card. */
+export function TotalsBar({ totals }: { totals: ScheduleTotals }) {
   return (
     <dl className="totals">
-      <TodayStat status={today} />
+      <Stat
+        label={t.totals.end}
+        value={totals.endMs === null ? t.none : formatDate(totals.endMs)}
+        detail={totals.endMs === null ? undefined : t.totals.weeks.replace("{weeks}", formatWeeks(totals.weeks))}
+      />
       <Stat label={t.totals.games} value={String(totals.games)} />
-      {totals.hoursPlayed > 0 && <Stat label={t.totals.played} value={formatHours(totals.hoursPlayed)} />}
-      <Stat label={t.totals.hours} value={formatHours(totals.hours)} />
-      <Stat label={t.totals.weeks} value={formatWeeks(totals.weeks)} />
-      <Stat label={t.totals.end} value={totals.endMs === null ? t.none : formatDate(totals.endMs)} />
+      <Stat
+        label={t.totals.hours}
+        value={formatHours(totals.hours)}
+        detail={totals.hoursPlayed > 0 ? t.totals.playedDetail.replace("{played}", formatHours(totals.hoursPlayed)) : undefined}
+      />
     </dl>
   );
 }
 
-function TodayStat({ status }: { status: TodayStatus }) {
-  if (status.driftDays === null) {
-    return <Stat label={t.today.label} value={t.today.none} tone="muted" />;
-  }
-  const value =
-    status.driftDays === 0
-      ? t.today.onTrack
-      : status.driftDays > 0
-        ? t.today.ahead.replace("{days}", String(status.driftDays))
-        : t.today.behind.replace("{days}", String(-status.driftDays));
-  const tone = status.driftDays === 0 ? "ok" : status.driftDays > 0 ? "ok" : "warn";
-  const detail =
-    status.daysToCurrentEnd === null
-      ? undefined
-      : status.daysToCurrentEnd >= 0
-        ? t.today.endsIn.replace("{days}", String(status.daysToCurrentEnd))
-        : t.today.overdue.replace("{days}", String(-status.daysToCurrentEnd));
-  return <Stat label={t.today.label} value={value} detail={detail} tone={tone} />;
-}
-
-function Stat({ label, value, detail, tone }: { label: string; value: string; detail?: string; tone?: "ok" | "warn" | "muted" }) {
+export function Stat({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
-    <div className={`stat ${tone ? `stat-${tone}` : ""}`}>
+    <div className="stat">
       <dt>{label}</dt>
       <dd>
         {value}

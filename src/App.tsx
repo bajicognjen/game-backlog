@@ -3,12 +3,15 @@ import { Banner } from "./components/Banner";
 import { CompletedGameDialog } from "./components/CompletedGameDialog";
 import { CompletedTable } from "./components/CompletedTable";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { EmptyState } from "./components/EmptyState";
 import { FilterBar } from "./components/FilterBar";
 import { FinishDialog } from "./components/FinishDialog";
 import { GameDetailsDialog } from "./components/GameDetailsDialog";
 import { GameDialog } from "./components/GameDialog";
+import { Icon } from "./components/Icon";
+import { NowPlaying } from "./components/NowPlaying";
 import { PlanTable, type PlanRowView } from "./components/PlanTable";
-import { PlatformTabs } from "./components/PlatformTabs";
+import { PlatformTabs, tabId } from "./components/PlatformTabs";
 import { RatingDialog } from "./components/RatingDialog";
 import { SessionDialog } from "./components/SessionDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -66,13 +69,34 @@ export default function App() {
 
   useEffect(() => applyTheme(theme), [theme]);
 
+  // The panel opens above the plan; bring it on screen, and hand focus back to its button when it closes.
+  useEffect(() => {
+    if (settingsOpen) document.getElementById("settings-panel")?.scrollIntoView({ block: "start" });
+  }, [settingsOpen]);
+
+  function closeSettings() {
+    setSettingsOpen(false);
+    document.querySelector<HTMLElement>('[aria-controls="settings-panel"]')?.focus();
+  }
+
   async function startImport() {
     const picked = await pickBackup();
     if (picked) setPendingImport(picked);
   }
 
   if (status === "loading") {
-    return <main className="screen muted">{t.loading}</main>;
+    return (
+      <div className="app">
+        <header className="topbar">
+          <div className="topbar-brand">
+            <h1>{t.appTitle}</h1>
+          </div>
+        </header>
+        <main className="screen muted" aria-busy="true">
+          {t.loading}
+        </main>
+      </div>
+    );
   }
   if (status === "error") {
     return (
@@ -94,7 +118,7 @@ export default function App() {
       <main>
         <UpdateBanner />
         <Banner />
-        {settingsOpen && <SettingsPanel />}
+        {settingsOpen && <SettingsPanel onClose={closeSettings} />}
         <PlanSection platform={platform} onPlatformChange={setPlatform} onOpen={(game) => setDetailsId(game.id)} />
         <CompletedSection defaultPlatform={platform} onOpen={(game) => setDetailsId(game.id)} />
         <StatsSection />
@@ -131,6 +155,8 @@ interface PlanSectionProps {
   onPlatformChange(platform: Platform): void;
   onOpen(game: Game): void;
 }
+
+const PLAN_PANEL_ID = "plan-panel";
 
 function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
   const games = useStore((s) => s.games);
@@ -191,36 +217,74 @@ function PlanSection({ platform, onPlatformChange, onOpen }: PlanSectionProps) {
     [games],
   );
   const close = () => setDialog(null);
+  const platformLabel = platformLabels[platform];
+
+  const addButton = (
+    <button type="button" className="button button-primary" onClick={() => setDialog({ kind: "add" })}>
+      <Icon name="plus" /> {t.actions.add}
+    </button>
+  );
+  const empty = filtering ? (
+    <EmptyState
+      title={t.emptyFiltered}
+      hint={t.emptyFilteredHint}
+      action={
+        <button type="button" className="button" onClick={() => setFilter(NO_FILTER)}>
+          {t.filters.clear}
+        </button>
+      }
+    />
+  ) : scheduled ? (
+    <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} action={addButton} />
+  ) : (
+    <EmptyState
+      title={t.emptyQueue.replace("{platform}", platformLabel)}
+      hint={t.emptyQueueHint.replace("{platform}", platformLabel)}
+      action={addButton}
+    />
+  );
 
   return (
-    <section className="section">
+    <section className="section" aria-labelledby="plan-heading">
       <div className="section-head">
         <div className="section-title">
-          <PlatformTabs active={platform} counts={counts} onChange={onPlatformChange} />
-          <button type="button" className="button button-primary" onClick={() => setDialog({ kind: "add" })}>
-            + {t.actions.add}
-          </button>
+          <h2 id="plan-heading">{t.plan}</h2>
+          <PlatformTabs active={platform} counts={counts} onChange={onPlatformChange} panelId={PLAN_PANEL_ID} />
+          {addButton}
         </div>
-        {scheduled ? <TotalsBar totals={schedule.totals} today={today} /> : <p className="hint section-hint">{t.queueHint}</p>}
+        {scheduled ? <TotalsBar totals={schedule.totals} /> : <p className="section-hint">{t.queueHint}</p>}
       </div>
-      <WarningsBar messages={warnings.messages} />
-      <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
-      <PlanTable
-        rows={visibleRows}
-        showSchedule={scheduled}
-        todayGameId={scheduled ? (today.expected?.game.id ?? null) : null}
-        warnings={warnings.byGame}
-        canReorder={!filtering}
-        emptyText={scheduled ? t.emptyPlan : t.emptyQueue}
-        onEdit={(game) => setDialog({ kind: "edit", game })}
-        onDelete={(game) => setDialog({ kind: "delete", game })}
-        onFinish={(game) => setDialog({ kind: "finish", game })}
-        onDrop={(game) => setDialog({ kind: "drop", game })}
-        onLog={(game) => setDialog({ kind: "log", game })}
-        onOpen={onOpen}
-        onStatus={(game, status) => void setGameStatus(game.id, status)}
-        onMove={(activeId, overId) => void moveGame(activeId, overId)}
-      />
+      <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(platform)}>
+        <NowPlaying
+          rows={rows}
+          today={scheduled ? today : null}
+          onOpen={onOpen}
+          onFinish={(game) => setDialog({ kind: "finish", game })}
+          onLog={(game) => setDialog({ kind: "log", game })}
+          onPause={(game) => void setGameStatus(game.id, "paused")}
+          onStart={(game) => void setGameStatus(game.id, "in_progress")}
+        />
+        <WarningsBar messages={warnings.messages} />
+        {rows.length > 0 && (
+          <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
+        )}
+        <PlanTable
+          rows={visibleRows}
+          showSchedule={scheduled}
+          todayGameId={scheduled ? (today.expected?.game.id ?? null) : null}
+          warnings={warnings.byGame}
+          canReorder={!filtering}
+          empty={empty}
+          onEdit={(game) => setDialog({ kind: "edit", game })}
+          onDelete={(game) => setDialog({ kind: "delete", game })}
+          onFinish={(game) => setDialog({ kind: "finish", game })}
+          onDrop={(game) => setDialog({ kind: "drop", game })}
+          onLog={(game) => setDialog({ kind: "log", game })}
+          onOpen={onOpen}
+          onStatus={(game, status) => void setGameStatus(game.id, status)}
+          onMove={(activeId, overId) => void moveGame(activeId, overId)}
+        />
+      </div>
 
       {dialog?.kind === "add" && (
         <GameDialog
@@ -304,40 +368,70 @@ function CompletedSection({ defaultPlatform, onOpen }: { defaultPlatform: Platfo
   const canReorder = sortKey === "order" && filter === "all" && !isFilterActive(modeFilter);
   const close = () => setDialog(null);
 
+  const addButton = (
+    <button type="button" className="button" onClick={() => setDialog({ kind: "add" })}>
+      <Icon name="plus" /> {t.actions.addCompleted}
+    </button>
+  );
+  const empty =
+    allCompleted.length === 0 ? (
+      <EmptyState title={t.emptyCompleted} hint={t.emptyCompletedHint} action={addButton} />
+    ) : (
+      <EmptyState
+        title={t.emptyFiltered}
+        hint={t.emptyFilteredHint}
+        action={
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              setFilter("all");
+              setModeFilter(NO_FILTER);
+            }}
+          >
+            {t.filters.clear}
+          </button>
+        }
+      />
+    );
+
   return (
-    <section className="section">
+    <section className="section" aria-labelledby="completed-heading">
       <div className="section-head">
         <div className="section-title">
-          <h2>
+          <h2 id="completed-heading">
             {t.completed} <span className="count">{completed.length}</span>
           </h2>
-          <button type="button" className="button" onClick={() => setDialog({ kind: "add" })}>
-            + {t.actions.addCompleted}
-          </button>
+          {addButton}
         </div>
-        <div className="section-tools">
-          <select value={filter} onChange={(e) => setFilter(e.target.value as Platform | "all")} aria-label={t.columns.platform}>
-            <option value="all">{t.allPlatforms}</option>
-            {PLATFORMS.map((p) => (
-              <option key={p} value={p}>
-                {platformLabels[p]}
-              </option>
-            ))}
-          </select>
-          <SortControl
-            sortKey={sortKey}
-            direction={direction}
-            onChange={(key, dir) => {
-              setSortKey(key);
-              setDirection(dir);
-            }}
-          />
-        </div>
+        {allCompleted.length > 0 && (
+          <div className="section-tools">
+            <select value={filter} onChange={(e) => setFilter(e.target.value as Platform | "all")} aria-label={t.columns.platform}>
+              <option value="all">{t.allPlatforms}</option>
+              {PLATFORMS.map((p) => (
+                <option key={p} value={p}>
+                  {platformLabels[p]}
+                </option>
+              ))}
+            </select>
+            <SortControl
+              sortKey={sortKey}
+              direction={direction}
+              onChange={(key, dir) => {
+                setSortKey(key);
+                setDirection(dir);
+              }}
+            />
+          </div>
+        )}
       </div>
-      <FilterBar filter={modeFilter} platforms={platforms} shown={completed.length} total={allCompleted.length} onChange={setModeFilter} />
+      {allCompleted.length > 0 && (
+        <FilterBar filter={modeFilter} platforms={platforms} shown={completed.length} total={allCompleted.length} onChange={setModeFilter} />
+      )}
       <CompletedTable
         games={completed}
         canReorder={canReorder}
+        empty={empty}
         onRate={(game) => setDialog({ kind: "rate", game })}
         onEdit={(game) => setDialog({ kind: "edit", game })}
         onDelete={(game) => setDialog({ kind: "delete", game })}

@@ -11,6 +11,8 @@ export type SearchPick = { kind: "provider"; meta: GameMetadata } | { kind: "lib
 
 interface Props {
   onPick(pick: SearchPick): void;
+  /** Take the first focus when the dialog opens. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * (read locally, no request), then IGDB results. Picking a result that is
  * already in the library hands back the library row instead of fetching.
  */
-export function GameSearch({ onPick }: Props) {
+export function GameSearch({ onPick, autoFocus = false }: Props) {
   const games = useStore((s) => s.games);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -100,6 +102,7 @@ export function GameSearch({ onPick }: Props) {
           value={query}
           placeholder={t.search.placeholder}
           autoComplete="off"
+          data-autofocus={autoFocus ? "true" : undefined}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);

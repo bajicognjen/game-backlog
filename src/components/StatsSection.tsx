@@ -3,6 +3,8 @@ import { formatHours } from "../domain/format";
 import { computeStats, type GroupStat, type MonthBucket } from "../domain/stats";
 import { genreLabels, monthLabels, t, typeLabels } from "../i18n/en";
 import { useStore } from "../state/store";
+import { Icon } from "./Icon";
+import { Stat } from "./TotalsBar";
 
 /** Finished games and logged hours per month, plus ratings by type and genre. Collapsed by default. */
 export function StatsSection() {
@@ -12,12 +14,12 @@ export function StatsSection() {
   const stats = useMemo(() => computeStats(games, sessions), [games, sessions]);
 
   return (
-    <section className="section">
+    <section className="section" aria-labelledby="stats-heading">
       <div className="section-head">
         <div className="section-title">
-          <h2>{t.stats.title}</h2>
-          <button type="button" className="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-            {open ? t.stats.hide : t.stats.show}
+          <h2 id="stats-heading">{t.stats.title}</h2>
+          <button type="button" className="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="stats-panel">
+            <Icon name={open ? "chevron-up" : "chevron-down"} /> {open ? t.stats.hide : t.stats.show}
           </button>
         </div>
         <dl className="totals">
@@ -29,7 +31,7 @@ export function StatsSection() {
       </div>
 
       {open && (
-        <div className="stats-grid">
+        <div id="stats-panel" className="stats-grid">
           <div className="card stats-card">
             <h3>{t.stats.finishedPerMonth}</h3>
             <Bars months={stats.months} value={(m) => m.finished} format={(v) => String(v)} />
@@ -53,7 +55,8 @@ export function StatsSection() {
 }
 
 function Bars({ months, value, format }: { months: MonthBucket[]; value(m: MonthBucket): number; format(v: number): string }) {
-  const max = Math.max(1, ...months.map(value));
+  const max = Math.max(...months.map(value), 0);
+  if (max === 0) return <p className="muted">{t.stats.empty}</p>;
   return (
     <div className="bars">
       {months.map((m) => {
@@ -95,14 +98,5 @@ function GroupTable<K extends string>({ rows, label }: { rows: GroupStat<K>[]; l
         ))}
       </tbody>
     </table>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
   );
 }

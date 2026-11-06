@@ -11,6 +11,7 @@ interface Props {
   onClose(): void;
 }
 
+/** Destructive confirmation. Focus lands on Cancel, so Enter never deletes by accident. */
 export function ConfirmDialog({ title, question, warning, confirmLabel, onConfirm, onClose }: Props) {
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +30,7 @@ export function ConfirmDialog({ title, question, warning, confirmLabel, onConfir
         <button type="button" className="button" onClick={onClose} disabled={busy}>
           {t.cancel}
         </button>
-        <button type="button" className="button button-danger" onClick={() => void confirm()} disabled={busy} autoFocus>
+        <button type="button" className="button button-danger" onClick={() => void confirm()} disabled={busy}>
           {confirmLabel}
         </button>
       </footer>

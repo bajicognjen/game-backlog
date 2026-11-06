@@ -5,11 +5,13 @@ import { sourceLabels, t } from "../i18n/en";
 interface Props {
   meta: Metadata;
   note: string | null;
+  /** A warning tone marks a pick that will create a duplicate. */
+  noteTone?: "hint" | "warn";
   onUnlink(): void;
 }
 
 /** Strip under the search box showing what came from the game database, with a way to drop the link. */
-export function ProviderLinked({ meta, note, onUnlink }: Props) {
+export function ProviderLinked({ meta, note, noteTone = "hint", onUnlink }: Props) {
   const [broken, setBroken] = useState(false);
   if (meta.externalId === null || meta.source === null) return null;
   const year = releaseYear(meta.releaseDate);
@@ -38,7 +40,7 @@ export function ProviderLinked({ meta, note, onUnlink }: Props) {
             ))}
           </div>
         )}
-        {note && <p className="field-hint">{note}</p>}
+        {note && <p className={noteTone === "warn" ? "field-note" : "field-hint"}>{note}</p>}
       </div>
     </div>
   );
