@@ -11,6 +11,8 @@ const KEYS: Record<keyof Settings, string> = {
   igdbClientSecret: "igdb_client_secret",
   igdbAccessToken: "igdb_access_token",
   igdbTokenExpiresAt: "igdb_token_expires_at",
+  steamApiKey: "steam_api_key",
+  steamId: "steam_id",
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -26,6 +28,8 @@ export async function loadSettings(): Promise<Settings> {
     igdbClientSecret: map.get(KEYS.igdbClientSecret) ?? "",
     igdbAccessToken: map.get(KEYS.igdbAccessToken) ?? "",
     igdbTokenExpiresAt: Number(map.get(KEYS.igdbTokenExpiresAt) ?? 0) || 0,
+    steamApiKey: map.get(KEYS.steamApiKey) ?? "",
+    steamId: map.get(KEYS.steamId) ?? "",
   };
 }
 

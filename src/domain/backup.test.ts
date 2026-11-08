@@ -106,11 +106,17 @@ describe("parseBackup normalisation", () => {
       providerGenres: ["Action", "Role-playing (RPG)"],
       providerTags: ["Singleplayer", "Open World"],
     };
-    const text = serializeBackup(createBackup(games, { ...SEED_SETTINGS, igdbClientSecret: "secret", igdbAccessToken: "tok" }));
+    const text = serializeBackup(
+      createBackup(games, { ...SEED_SETTINGS, igdbClientSecret: "secret", igdbAccessToken: "tok", steamApiKey: "steamkey", steamId: "76561198000000000" }),
+    );
     expect(text).not.toContain("secret");
     expect(text).not.toContain("tok");
+    expect(text).not.toContain("steamkey");
+    expect(text).not.toContain("76561198000000000");
     const parsed = parseBackup(text);
     expect(parsed.settings.igdbClientSecret).toBe("");
+    expect(parsed.settings.steamApiKey).toBe("");
+    expect(parsed.settings.steamId).toBe("");
     expect(parsed.games.find((g) => g.id === games[0].id)).toMatchObject({
       source: "igdb",
       externalId: 1942,

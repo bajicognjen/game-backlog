@@ -1384,6 +1384,56 @@ tr:focus-within .row-actions {
   box-shadow: none;
 }
 
+/* ---------- Steam import ---------- */
+
+.steam-table {
+  margin-top: 12px;
+}
+
+.steam-table thead th {
+  position: static;
+  background: transparent;
+}
+
+.steam-table th,
+.steam-table td {
+  padding: 5px 8px;
+}
+
+.steam-table th:first-child,
+.steam-table td:first-child {
+  width: 24px;
+  padding-left: 4px;
+}
+
+.steam-table input[type="checkbox"] {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.steam-table .title {
+  white-space: normal;
+}
+
+.steam-by {
+  font-weight: 400;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.steam-notes {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.steam-notes li + li {
+  margin-top: 4px;
+}
+
 .stats-table thead th {
   position: static;
 }

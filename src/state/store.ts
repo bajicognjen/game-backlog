@@ -64,6 +64,8 @@ export interface AppState {
   /** Log hours played on a game. */
   logSession(input: SessionInput): Promise<boolean>;
   removeSession(id: number): Promise<boolean>;
+  /** Log several sessions in one write (an import); the notice offers to take them back again. */
+  logSessions(inputs: readonly SessionInput[], notice: { done: string; undone: string }): Promise<boolean>;
   /** Drag-and-drop within one platform: put `activeId` where `overId` currently is. */
   moveGame(activeId: number, overId: number): Promise<void>;
   /** Drag-and-drop in the completed list: put `activeId` where `overId` currently is (finish order). */
@@ -337,6 +339,20 @@ export const useStore = create<AppState>((set, get) => {
 
     removeSession(id) {
       return persist(() => repository.deleteSession(id));
+    },
+
+    async logSessions(inputs, notice) {
+      if (inputs.length === 0) return true;
+      const before = new Set(get().sessions.map((s) => s.id));
+      const ok = await persist(() => repository.addSessions(inputs));
+      if (ok) {
+        // The reload after the write holds the new rows; they are the ones undo removes.
+        const added = get().sessions.filter((s) => !before.has(s.id)).map((s) => s.id);
+        offerUndo(notice.done, async () => {
+          if (await persist(() => repository.deleteSessions(added))) flashNotice(notice.undone);
+        });
+      }
+      return ok;
     },
 
     rateGame(id, rating, review) {

@@ -28,6 +28,19 @@ seed plan.
 an in-memory copy of the seed data. Handy for quick UI checks; nothing is
 saved.
 
+## Steam playtime
+
+Settings → Steam takes a Steam Web API key (steamcommunity.com/dev/apikey)
+and the profile link or SteamID64 to read; the profile's *Game details* must
+be public, because the key identifies the caller, not the account. "Import
+playtime from Steam" fetches the owned games, matches PC games by the Steam
+store link cached from IGDB (or by an identical title), and shows a preview:
+one session per game for the hours Steam has beyond what is logged, dated
+when Steam last saw the game played. Logged sessions are never changed or
+removed, and the notice after an import offers to undo it. The pure matching
+and delta logic lives in `src/domain/steam.ts`; the client in
+`src/platform/steam.ts`. Like IGDB, the key and account stay out of backups.
+
 ## Backup
 
 Export / Import in the top bar write and read a JSON file with all settings
