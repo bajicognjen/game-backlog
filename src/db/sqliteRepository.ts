@@ -23,6 +23,7 @@ import {
   DELETE_ALL_SESSIONS,
   deleteSessionStatement,
   deleteSessionsOfGameStatement,
+  deleteSessionsStatement,
   insertSessionStatement,
   insertSessionWithIdStatement,
   listSessions,
@@ -159,5 +160,17 @@ export const sqliteRepository: Repository = {
   async deleteSession(id) {
     const db = await initDb();
     await db.execute(deleteSessionStatement(id));
+  },
+
+  async addSessions(inputs) {
+    if (inputs.length === 0) return;
+    const db = await initDb();
+    await runBatch(db, inputs.map(insertSessionStatement));
+  },
+
+  async deleteSessions(ids) {
+    if (ids.length === 0) return;
+    const db = await initDb();
+    await db.execute(deleteSessionsStatement(ids));
   },
 };

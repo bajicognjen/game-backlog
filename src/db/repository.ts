@@ -86,6 +86,10 @@ export interface Repository {
   /** Log hours on a game. */
   addSession(input: SessionInput): Promise<void>;
   deleteSession(id: number): Promise<void>;
+  /** Log several sessions in one write (the Steam import). */
+  addSessions(inputs: readonly SessionInput[]): Promise<void>;
+  /** Remove several sessions in one write (undo of an import). */
+  deleteSessions(ids: readonly number[]): Promise<void>;
   /** Undo of delete: put the game and its sessions back with their ids, then rewrite the orders. */
   reinsertGame(game: Game, sessions: readonly PlaySession[], planOrder: PlanOrder | null, completedOrder: readonly number[] | null): Promise<void>;
   /** Undo of drop: the game exists; reset its status and finish fields, then rewrite the orders. */

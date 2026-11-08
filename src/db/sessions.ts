@@ -40,6 +40,11 @@ export function deleteSessionStatement(id: number): string {
   return `DELETE FROM play_sessions WHERE id = ${lit(id)}`;
 }
 
+/** Remove several sessions at once (undo of an import). */
+export function deleteSessionsStatement(ids: readonly number[]): string {
+  return `DELETE FROM play_sessions WHERE id IN (${ids.map((id) => lit(id)).join(", ")})`;
+}
+
 export function deleteSessionsOfGameStatement(gameId: number): string {
   return `DELETE FROM play_sessions WHERE game_id = ${lit(gameId)}`;
 }

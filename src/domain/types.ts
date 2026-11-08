@@ -127,6 +127,9 @@ export interface Settings {
   igdbAccessToken: string;
   /** Epoch milliseconds; 0 when there is no cached token. */
   igdbTokenExpiresAt: number;
+  /** Steam Web API key and the account to read playtime from (a SteamID64 or profile URL). Local, never exported. */
+  steamApiKey: string;
+  steamId: string;
 }
 
 export function isGameType(value: string): value is GameType {

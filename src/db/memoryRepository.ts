@@ -140,5 +140,13 @@ export function createMemoryRepository(): Repository {
     async deleteSession(id) {
       sessions = sessions.filter((s) => s.id !== id);
     },
+
+    async addSessions(inputs) {
+      sessions = [...sessions, ...inputs.map((input) => ({ id: nextSessionId++, ...input }))];
+    },
+
+    async deleteSessions(ids) {
+      sessions = sessions.filter((s) => !ids.includes(s.id));
+    },
   };
 }

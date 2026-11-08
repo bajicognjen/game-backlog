@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { isValidIsoDate } from "../domain/dates";
+import { parseSteamIdInput, steamConfigured } from "../domain/steam";
 import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
@@ -11,6 +12,7 @@ import { t } from "../i18n/en";
 import { DateField } from "./DateField";
 import { failureMessage } from "./GameSearch";
 import { Icon } from "./Icon";
+import { SteamImportDialog } from "./SteamImportDialog";
 
 /**
  * Plan settings, IGDB credentials, maintenance and app info. Each field keeps
@@ -24,6 +26,7 @@ interface Props {
 }
 
 const TWITCH_CONSOLE_URL = "https://dev.twitch.tv/console";
+const STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
 
 export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   const settings = useStore((s) => s.settings);
@@ -57,6 +60,9 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   const [hours, setHours] = useState(String(settings.hoursPerWeek));
   const [igdbClientId, setIgdbClientId] = useState(settings.igdbClientId);
   const [igdbClientSecret, setIgdbClientSecret] = useState(settings.igdbClientSecret);
+  const [steamApiKey, setSteamApiKey] = useState(settings.steamApiKey);
+  const [steamId, setSteamId] = useState(settings.steamId);
+  const [steamImportOpen, setSteamImportOpen] = useState(false);
   const [backupFolder, setBackupFolder] = useState<string | null>(null);
   useEffect(() => {
     void autoBackupFolder().then(setBackupFolder);
@@ -74,6 +80,8 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   useEffect(() => setHours(String(settings.hoursPerWeek)), [settings.hoursPerWeek]);
   useEffect(() => setIgdbClientId(settings.igdbClientId), [settings.igdbClientId]);
   useEffect(() => setIgdbClientSecret(settings.igdbClientSecret), [settings.igdbClientSecret]);
+  useEffect(() => setSteamApiKey(settings.steamApiKey), [settings.steamApiKey]);
+  useEffect(() => setSteamId(settings.steamId), [settings.steamId]);
 
   /** Save a credential on blur; a changed credential also forgets the cached token. */
   function commitCredential(field: "igdbClientId" | "igdbClientSecret", value: string) {
@@ -81,6 +89,15 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
     if (next === settings[field]) return;
     void updateSettings({ [field]: next, igdbAccessToken: "", igdbTokenExpiresAt: 0 });
   }
+
+  /** Save a Steam field on blur, trimmed. */
+  function commitSteam(field: "steamApiKey" | "steamId", value: string) {
+    const next = value.trim();
+    if (next !== settings[field]) void updateSettings({ [field]: next });
+  }
+
+  const steamIdInvalid = steamId.trim() !== "" && parseSteamIdInput(steamId) === null;
+  const steamReady = steamConfigured(settings);
 
   const startDateValid = isValidIsoDate(startDate);
   const hoursNumber = Number(hours.replace(",", "."));
@@ -210,6 +227,55 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         </div>
       </div>
 
+      <div className="settings-group">
+        <h3>{t.steam.title}</h3>
+        <p className="settings-group-note">{t.steam.note}</p>
+        <div className="settings-group-body">
+          <ol className="settings-steps">
+            {t.steam.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <div className="field-actions">
+            <button type="button" className="button button-small" onClick={() => void openExternal(STEAM_KEY_URL)}>
+              {t.steam.openKeyPage} <Icon name="external" size={14} />
+            </button>
+          </div>
+          <label className="field">
+            <span className="field-label">{t.steam.apiKey}</span>
+            <input
+              type="password"
+              value={steamApiKey}
+              autoComplete="off"
+              onChange={(e) => setSteamApiKey(e.target.value)}
+              onBlur={() => commitSteam("steamApiKey", steamApiKey)}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">{t.steam.account}</span>
+            <input
+              type="text"
+              value={steamId}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setSteamId(e.target.value)}
+              onBlur={() => commitSteam("steamId", steamId)}
+              aria-invalid={steamIdInvalid}
+            />
+            {steamIdInvalid && <span className="field-error">{t.steam.accountInvalid}</span>}
+          </label>
+          <p className="field-hint">{t.steam.hint}</p>
+          <div className="field">
+            <div className="field-actions">
+              <button type="button" className="button" onClick={() => setSteamImportOpen(true)} disabled={!steamReady}>
+                <Icon name="download" /> {t.steam.import}
+              </button>
+              {!steamReady && <span className="muted">{t.steam.setupFirst}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {backupFolder && (
         <div className="settings-group">
           <h3>{t.backup.autoTitle}</h3>
@@ -243,6 +309,8 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
           </div>
         </div>
       )}
+
+      {steamImportOpen && <SteamImportDialog onClose={() => setSteamImportOpen(false)} />}
     </section>
   );
 }

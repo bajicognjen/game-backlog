@@ -9,6 +9,8 @@ export const SEED_SETTINGS: Settings = {
   igdbClientSecret: "",
   igdbAccessToken: "",
   igdbTokenExpiresAt: 0,
+  steamApiKey: "",
+  steamId: "",
 };
 
 export interface SeedPlanEntry {
