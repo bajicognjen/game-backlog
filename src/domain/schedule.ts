@@ -1,5 +1,5 @@
 import { addDays, parseIsoDate } from "./dates";
-import { SCHEDULED_PLATFORM, isDone, type Game, type Platform, type Settings } from "./types";
+import { SCHEDULED_PLATFORM, isDone, type Game, type Platform, type PlaySession, type Settings } from "./types";
 
 export interface ScheduleRow {
   game: Game;
@@ -55,30 +55,43 @@ export function completedGames(games: readonly Game[]): Game[] {
 
 /**
  * Project start and end dates for every planned game on the scheduled
- * platform (PC), matching the spreadsheet exactly:
+ * platform (PC), as the spreadsheet did, plus the time already played:
  *
  *   weeks           = hours / hoursPerWeek
  *   cumulativeHours = running sum of hours
- *   end             = startDate + cumulativeHours / hoursPerWeek * 7 days
+ *   elapsedHours    = hours logged on planned games since startDate
+ *   end             = startDate + (elapsedHours + cumulativeHours) / hoursPerWeek * 7 days
  *   start           = previous game's end (first game starts on startDate)
+ *
+ * `hours` is what is left of each estimate. Hours played since the plan
+ * started took calendar time too, so the rest of the plan starts after them;
+ * without that, logging hours on the current game would pull its end back
+ * towards the start date, into the past. Hours logged before the start only
+ * shorten what is left.
  */
-export function computeSchedule(games: readonly Game[], settings: ScheduleSettings): Schedule {
+export function computeSchedule(games: readonly Game[], settings: ScheduleSettings, sessions: readonly PlaySession[] = []): Schedule {
   const { hoursPerWeek } = settings;
   if (!(hoursPerWeek > 0)) {
     throw new RangeError(`hoursPerWeek must be positive, got ${hoursPerWeek}`);
   }
   const startMs = parseIsoDate(settings.startDate);
+  const planned = plannedGames(games, SCHEDULED_PLATFORM);
+  const plannedIds = new Set(planned.map((game) => game.id));
+  const elapsedHours = sessions
+    .filter((session) => plannedIds.has(session.gameId) && session.playedOn >= settings.startDate)
+    .reduce((sum, session) => sum + session.hours, 0);
+  const originMs = addDays(startMs, (elapsedHours / hoursPerWeek) * 7);
 
   const rows: ScheduleRow[] = [];
   let cumulativeHours = 0;
   let hoursPlayed = 0;
   let previousEndMs = startMs;
 
-  for (const game of plannedGames(games, SCHEDULED_PLATFORM)) {
+  for (const game of planned) {
     const hours = planHours(game);
     cumulativeHours += hours;
     hoursPlayed += game.hoursPlayed;
-    const endMs = addDays(startMs, (cumulativeHours / hoursPerWeek) * 7);
+    const endMs = addDays(originMs, (cumulativeHours / hoursPerWeek) * 7);
     rows.push({
       game,
       index: rows.length + 1,

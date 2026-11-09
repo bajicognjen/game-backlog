@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MS_PER_DAY, formatDate, parseIsoDate } from "./dates";
 import { completedGames, computeSchedule, plannedGames } from "./schedule";
 import { NO_METADATA, SEED_SETTINGS, buildSeedGames } from "./seed";
-import type { Game } from "./types";
+import { todayStatus } from "./today";
+import type { Game, PlaySession } from "./types";
 
 const settings = { startDate: SEED_SETTINGS.startDate, hoursPerWeek: SEED_SETTINGS.hoursPerWeek };
 
@@ -133,6 +134,51 @@ describe("schedule rules", () => {
     const overplayed = computeSchedule([{ ...games[0], hoursPlayed: 40 }], settings);
     expect(overplayed.rows[0].hours).toBe(0);
     expect(overplayed.rows[0].endMs).toBe(overplayed.rows[0].startMs);
+  });
+
+  describe("hours logged since the plan started", () => {
+    const session = (gameId: number, playedOn: string, hours: number): PlaySession => ({ id: 0, gameId, playedOn, hours, note: null });
+
+    it("count as time already spent, so logging them never pulls the current game's end into the past", () => {
+      const games = buildSeedGames();
+      const batman = games[0]; // 25 h estimate, in progress since 02.11.2026 at 13 h per week
+      expect(formatDate(computeSchedule(games, settings).rows[0].endMs)).toBe("15.11.2026");
+
+      games[0] = { ...batman, hoursPlayed: 14.8 };
+      const sessions = [session(batman.id, "2026-11-05", 5.9), session(batman.id, "2026-11-09", 8.9)];
+      const { rows, totals } = computeSchedule(games, settings, sessions);
+      expect(rows[0].hours).toBeCloseTo(10.2, 10); // what is left of the estimate
+      expect(formatDate(rows[0].startMs)).toBe("02.11.2026");
+      expect(formatDate(rows[0].endMs)).toBe("15.11.2026"); // 14.8 h played + 10.2 h left = 25 h from the start
+      expect(formatDate(rows[1].startMs)).toBe("15.11.2026");
+      expect(totals.hours).toBeCloseTo(901 - 14.8, 10);
+      expect(todayStatus({ rows, totals }, Date.parse("2026-11-09T12:00:00Z")).daysToCurrentEnd).toBe(6);
+
+      // Without the dates, the same hours are taken as played before the start: the end would be 07.11, two days overdue.
+      expect(formatDate(computeSchedule(games, settings).rows[0].endMs)).toBe("07.11.2026");
+    });
+
+    it("only shorten what is left when they were played before the start", () => {
+      const games = buildSeedGames();
+      games[0] = { ...games[0], hoursPlayed: 12 };
+      const { rows } = computeSchedule(games, settings, [session(games[0].id, "2026-10-20", 12)]);
+      expect(formatDate(rows[0].endMs)).toBe("09.11.2026"); // 13 h left from 02.11
+    });
+
+    it("push the plan back when a game runs past its estimate", () => {
+      const games = buildSeedGames();
+      games[0] = { ...games[0], hoursPlayed: 40 };
+      const { rows } = computeSchedule(games, settings, [session(games[0].id, "2026-11-03", 40)]);
+      expect(rows[0].hours).toBe(0);
+      expect(formatDate(rows[0].endMs)).toBe("23.11.2026"); // 40 h at 13 h per week from 02.11
+    });
+
+    it("ignore sessions of games no longer in the plan", () => {
+      const games = buildSeedGames();
+      const finished = games.find((g) => g.status === "completed") as Game;
+      const { rows } = computeSchedule(games, settings, [session(finished.id, "2026-11-04", 30)]);
+      expect(formatDate(rows[0].endMs)).toBe("15.11.2026");
+    });
   });
 
   it("recalculates when the weekly budget changes", () => {
