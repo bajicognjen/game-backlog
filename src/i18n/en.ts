@@ -445,8 +445,9 @@ export const t = {
     upToDate: "Up to date: {titles}.",
     ahead: "More logged than Steam counts, kept as is: {titles}.",
     shared: "Steam counts {titles} as one game (“{steam}”); log those by hand.",
-    unmatched: "Not in your Steam library: {titles}.",
-    unmatchedHint: "Games linked to IGDB match through their Steam store link; others only when the titles are identical.",
+    unmatched: "No Steam game found for: {titles}.",
+    unmatchedHint:
+      "Games linked to IGDB match through their Steam store link (an edition through its base game's); others only when the titles are identical. Steam counts DLC and episodes as part of their main game, and lists a free game only once it was played.",
     statsNote:
       "Steam doesn't say when the hours were played, so Statistics counts each session in the month of its date. For a game with nothing logged yet, that is its whole Steam total in one month.",
     confirm: "Add {count} sessions ({hours} h)",

@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { formatDate } from "../domain/dates";
+import { formatDate, todayIso } from "../domain/dates";
 import { formatHours } from "../domain/format";
-import { STEAM_IMPORT_NOTE, excludedByDefault, importedHours, planSteamImport, type SteamImportPlan } from "../domain/steam";
+import {
+  STEAM_IMPORT_NOTE,
+  baseGameAppIds,
+  editionCandidates,
+  excludedByDefault,
+  importedHours,
+  planSteamImport,
+  type SteamImportPlan,
+} from "../domain/steam";
+import type { Game, Settings } from "../domain/types";
 import { t } from "../i18n/en";
 import { SteamError, fetchOwnedGames, resolveSteamId, steamFailureOf, type SteamFailure } from "../platform/steam";
+import { providers } from "../state/providers";
 import { useStore } from "../state/store";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
@@ -39,8 +49,9 @@ export function SteamImportDialog({ onClose }: Props) {
         if (apiKey === "") throw new SteamError("no-credentials");
         const steamId = await resolveSteamId(apiKey, settings.steamId, controller.signal);
         const owned = await fetchOwnedGames({ apiKey, steamId }, controller.signal);
+        const baseApps = await lookUpBaseApps(games, settings, controller.signal);
         if (controller.signal.aborted) return;
-        const plan = planSteamImport(games, sessions, owned);
+        const plan = planSteamImport(games, sessions, owned, todayIso(), baseApps);
         setExcluded(excludedByDefault(plan.items));
         setStage({ kind: "ready", plan });
       } catch (error) {
@@ -218,6 +229,22 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
       )}
     </>
   );
+}
+
+/**
+ * Steam apps of the base games behind editions whose cached details have no
+ * Steam link. Optional like all IGDB enrichment: without IGDB set up, or
+ * when it fails, those games just fall back to their titles.
+ */
+async function lookUpBaseApps(games: readonly Game[], settings: Settings, signal: AbortSignal): Promise<Map<number, number>> {
+  const ids = editionCandidates(games);
+  if (ids.length === 0 || !providers.igdb.configured(settings)) return new Map();
+  try {
+    return baseGameAppIds(games, await providers.igdb.editionBaseLinks(ids, signal));
+  } catch (error) {
+    if (signal.aborted) throw error;
+    return new Map();
+  }
 }
 
 /** The import button: what it will add, or what to do when nothing is ticked. */

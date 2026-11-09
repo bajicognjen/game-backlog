@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildSeedGames } from "./seed";
 import {
   MIN_IMPORT_HOURS,
+  baseGameAppIds,
+  editionCandidates,
   excludedByDefault,
   importedHours,
   lastPlayedOn,
@@ -158,6 +160,54 @@ describe("planSteamImport", () => {
     // The right app still matches through its link, and a game without a link still tries the title.
     expect(planSteamImport([original], [], ownsOriginal, TODAY).items.map((i) => [i.game.id, i.matchedBy])).toEqual([[15, "store"]]);
     expect(planSteamImport([unlinked], [], ownsOriginal, TODAY).items.map((i) => [i.game.id, i.matchedBy])).toEqual([[16, "title"]]);
+  });
+
+  describe("editions without a Steam link of their own", () => {
+    // Steam's API names these without the edition, and IGDB links only the base games.
+    const gtaV = game(20, "Grand Theft Auto V: Special Edition", { source: "igdb", externalId: 45131, details: details(null) });
+    const tombRaider = game(21, "Shadow of the Tomb Raider: Definitive Edition", { source: "igdb", externalId: 123051, details: details(null) });
+    const dyingLight = game(22, "Dying Light 2: Stay Human - Reloaded Edition", { source: "igdb", externalId: 322800, details: details(null) });
+    const linked = game(23, "The Witcher 3", { source: "igdb", externalId: 1942, details: details("https://store.steampowered.com/app/292030") });
+    const unlinked = game(24, "Cyberpunk 2077");
+    const onPs5 = game(25, "Spider-Man 2", { platform: "ps5", source: "igdb", externalId: 1 });
+    const steam = [
+      owned(271590, "Grand Theft Auto V Legacy", 2400),
+      owned(3240220, "Grand Theft Auto V Enhanced", 0),
+      owned(750920, "Shadow of the Tomb Raider", 0),
+      owned(534380, "Dying Light 2: Reloaded Edition", 90),
+    ];
+    const baseLinks = new Map([
+      [45131, [{ store: "Steam" as const, url: "https://store.steampowered.com/app/271590" }]],
+      [123051, [{ store: "Steam" as const, url: "https://store.steampowered.com/app/750920" }]],
+      [322800, [{ store: "GOG" as const, url: "https://www.gog.com/game/dl2" }, { store: "Steam" as const, url: "https://store.steampowered.com/app/534380" }]],
+    ]);
+
+    it("are the only games worth asking IGDB about", () => {
+      expect(editionCandidates([gtaV, tombRaider, dyingLight, linked, unlinked, onPs5])).toEqual([45131, 123051, 322800]);
+    });
+
+    it("match through their base game's Steam app", () => {
+      const baseApps = baseGameAppIds([gtaV, tombRaider, dyingLight, linked], baseLinks);
+      expect([...baseApps]).toEqual([
+        [20, 271590],
+        [21, 750920],
+        [22, 534380],
+      ]);
+      const plan = planSteamImport([gtaV, tombRaider, dyingLight], [], steam, TODAY, baseApps);
+      expect(plan.items.map((i) => [i.game.id, i.matchedBy, i.hours])).toEqual([
+        [20, "store", 40],
+        [22, "store", 1.5],
+      ]);
+      expect(plan.upToDate.map((m) => m.game.id)).toEqual([21]);
+      expect(plan.unmatched).toEqual([]);
+    });
+
+    it("stay unmatched without IGDB's help, and never fall back to the title when the base app is not owned", () => {
+      expect(planSteamImport([gtaV, tombRaider, dyingLight], [], steam, TODAY).unmatched.map((g) => g.id)).toEqual([20, 21, 22]);
+      const sameName = game(26, "Shadow of the Tomb Raider", { source: "igdb", externalId: 37777, details: details(null) });
+      const plan = planSteamImport([sameName], [], steam, TODAY, new Map([[26, 999999]]));
+      expect(plan.unmatched.map((g) => g.id)).toEqual([26]);
+    });
   });
 
   it("does not split one Steam app between two library games", () => {

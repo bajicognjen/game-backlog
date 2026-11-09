@@ -54,6 +54,8 @@ export interface IgdbGameDetails extends IgdbGame {
   franchises?: { name: string }[] | null;
   collection?: { name: string } | null;
   external_games?: { name?: string | null; uid?: string | null; url?: string | null }[] | null;
+  /** The game this record is an edition of, when it is one. */
+  version_parent?: { id?: number; external_games?: { url?: string | null }[] | null } | null;
   keywords?: { name?: string | null }[] | null;
 }
 
@@ -115,6 +117,8 @@ export const DETAIL_FIELDS = [
   "external_games.name",
   "external_games.uid",
   "external_games.url",
+  // An edition (Definitive, Special, …) often has no store pages of its own; its base game's stand in.
+  "version_parent.external_games.url",
   "keywords.name",
 ].join(",");
 
@@ -175,6 +179,15 @@ export function gameKindOf(game: Pick<IgdbGame, "game_type" | "category">): Game
 
 export function gameByIdQuery(id: number): string {
   return `fields ${DETAIL_FIELDS}; where id = ${Math.trunc(id)};`;
+}
+
+/** Most records one IGDB query returns. */
+export const IGDB_MAX_LIMIT = 500;
+
+/** The base game's external links of each id that is an edition (for games cached before editions borrowed them). */
+export function versionParentLinksQuery(ids: readonly number[]): string {
+  const list = ids.map((id) => Math.trunc(id)).join(",");
+  return `fields version_parent.external_games.url; where id = (${list}) & version_parent != null; limit ${Math.min(ids.length, IGDB_MAX_LIMIT)};`;
 }
 
 export function timeToBeatQuery(gameId: number): string {
@@ -346,7 +359,8 @@ export function mapIgdbDetails(game: IgdbGameDetails, now: Date = new Date()): G
     })),
     franchises: (game.franchises ?? []).map((f) => f.name),
     collection: game.collection?.name ?? null,
-    storeLinks: storeLinksFrom(game.external_games ?? []),
+    // The edition's own links come first, so the base game's only fill in stores it lacks.
+    storeLinks: storeLinksFrom([...(game.external_games ?? []), ...(game.version_parent?.external_games ?? [])]),
     keywords: keywordsOf(game),
     fetchedAt: now.toISOString(),
   };

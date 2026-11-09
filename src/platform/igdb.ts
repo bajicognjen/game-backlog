@@ -3,7 +3,17 @@
  * app access token obtained with the client-credentials grant from the
  * user's Twitch Client ID and Client Secret (Settings).
  */
-import { gameByIdQuery, searchQuery, timeToBeatQuery, type IgdbGame, type IgdbTimeToBeat, type SearchFilterVariant } from "../domain/igdb";
+import {
+  IGDB_MAX_LIMIT,
+  gameByIdQuery,
+  searchQuery,
+  timeToBeatQuery,
+  versionParentLinksQuery,
+  type IgdbGame,
+  type IgdbGameDetails,
+  type IgdbTimeToBeat,
+  type SearchFilterVariant,
+} from "../domain/igdb";
 import { ProviderError, fetchWithTimeout, statusToFailure } from "./http";
 
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
@@ -98,6 +108,20 @@ export async function searchIgdbGames(auth: IgdbAuth, query: string, includeAddo
 export async function getIgdbGame(auth: IgdbAuth, id: number, signal?: AbortSignal): Promise<IgdbGame | null> {
   const games = await igdbQuery<IgdbGame>(auth, "games", gameByIdQuery(id), signal);
   return games[0] ?? null;
+}
+
+/** For each id that is an edition, its base game's external link URLs; ids that are not editions are left out. */
+export async function getIgdbVersionParentLinks(auth: IgdbAuth, ids: readonly number[], signal?: AbortSignal): Promise<Map<number, string[]>> {
+  const links = new Map<number, string[]>();
+  for (let start = 0; start < ids.length; start += IGDB_MAX_LIMIT) {
+    const chunk = ids.slice(start, start + IGDB_MAX_LIMIT);
+    const rows = await igdbQuery<Pick<IgdbGameDetails, "id" | "version_parent">>(auth, "games", versionParentLinksQuery(chunk), signal);
+    for (const row of rows) {
+      const urls = (row.version_parent?.external_games ?? []).map((e) => e.url).filter((url): url is string => typeof url === "string" && url !== "");
+      if (urls.length > 0) links.set(row.id, urls);
+    }
+  }
+  return links;
 }
 
 /** Typical completion time in seconds ("normally"), or null when IGDB has none. */

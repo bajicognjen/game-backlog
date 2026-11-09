@@ -39,8 +39,12 @@ be public, because the key identifies the caller, not the account. "Import
 playtime from Steam" fetches the owned games, matches PC games by the Steam
 store link cached from IGDB, and shows a preview: one session per game for
 the hours Steam has beyond what is logged, dated when Steam last saw the game
-played. Only games without a Steam link fall back to an identical title, so a
-remake linked to its own Steam app never picks up the original's hours.
+played. An edition IGDB lists without a Steam app of its own (a Definitive
+or Reloaded Edition) matches through its base game's; for editions linked
+before that was cached, the import asks IGDB once, when IGDB is set up. Only
+games with no Steam link at all fall back to an identical title, so a remake
+linked to its own Steam app never picks up the original's hours. DLC and
+episodes stay unmatched, since Steam counts them under their main game.
 Steam's total is lifetime, so games not started yet with nothing logged come
 unticked: their hours are likely from earlier play and would shrink the
 game's slot in the plan. Logged sessions are never changed or removed, and
