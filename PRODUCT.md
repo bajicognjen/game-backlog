@@ -34,7 +34,7 @@ Live dates from one weekly-hours budget. Start and end dates for the whole plan 
 Confirmed functionality:
 
 - Plans per platform: PC (scheduled), PS5 (queue). Statuses: Not started, In progress, Paused, Completed, Dropped. Drag-and-drop reorder, a "Position in plan" field, filters by IGDB mode and platform.
-- Schedule: weeks = remaining hours ÷ hours per week; end = start + cumulative hours ÷ hours per week × 7 days; remaining hours = estimate − logged hours. "Today" status: on track, days ahead or behind, days left.
+- Schedule: weeks = remaining hours ÷ hours per week; end = start + (hours logged since the start + cumulative remaining hours) ÷ hours per week × 7 days; remaining hours = estimate − logged hours. Hours played since the start took calendar time, so logging them never pulls the current game's end into the past; hours logged before the start only shorten what is left. "Today" status: on track, days ahead or behind, days left.
 - Sessions (date, hours, note), the finish flow (finish date, next game's start, rating 1–10, short review, "put the next game in progress"), drop, undo for delete and drop.
 - Plan warnings: two long games (50 h+) in a row; a series played out of order.
 - IGDB: search with library matches first, link/unlink, derived "design" per game, details (developer, publisher, scores, platforms, screenshots, videos, store links, similar games, series and franchise).

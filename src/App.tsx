@@ -224,6 +224,8 @@ function hasIgdbData(games: readonly Game[]): boolean {
 function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
+  /** Dated sessions: hours played since the plan started count as time already spent. */
+  const sessions = useStore((s) => s.sessions);
   const updateSettings = useStore((s) => s.updateSettings);
   const addGame = useStore((s) => s.addGame);
   const editGame = useStore((s) => s.editGame);
@@ -247,8 +249,8 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
     }
   }, [editRequest, onEditHandled]);
 
-  // Recomputed on every change to games or settings: this is the "live" part.
-  const schedule = useMemo(() => computeSchedule(games, settings), [games, settings]);
+  // Recomputed on every change to games, settings or logged hours: this is the "live" part.
+  const schedule = useMemo(() => computeSchedule(games, settings, sessions), [games, settings, sessions]);
   const today = useMemo(() => todayStatus(schedule, Date.now()), [schedule]);
   const scheduled = platform === SCHEDULED_PLATFORM;
 
