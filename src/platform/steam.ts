@@ -4,7 +4,7 @@
  * profile's "Game details" must be public for its games to come back.
  */
 import { parseSteamIdInput, type SteamOwnedGame } from "../domain/steam";
-import { fetchWithTimeout } from "./http";
+import { ProviderError, fetchWithTimeout } from "./http";
 
 const BASE_URL = "https://api.steampowered.com";
 
@@ -28,6 +28,13 @@ export class SteamError extends Error {
     super(reason);
     this.name = "SteamError";
   }
+}
+
+/** Why a Steam request failed, for the message the import shows. */
+export function steamFailureOf(error: unknown): SteamFailure {
+  if (error instanceof SteamError) return error.reason;
+  if (error instanceof ProviderError && error.reason === "network") return "network";
+  return "other";
 }
 
 export interface SteamCredentials {

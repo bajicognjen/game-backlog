@@ -26,7 +26,10 @@ seed plan.
 
 `npm run dev` serves the UI at http://localhost:1420 in a normal browser with
 an in-memory copy of the seed data. Handy for quick UI checks; nothing is
-saved.
+saved. The Steam import does not work there: Steam's Web API sends no CORS
+headers, so the browser blocks the request and the import always reports
+"Can't reach Steam". Try it in `npm run tauri dev`, where requests go out
+from the Rust side.
 
 ## Steam playtime
 
@@ -34,12 +37,20 @@ Settings → Steam takes a Steam Web API key (steamcommunity.com/dev/apikey)
 and the profile link or SteamID64 to read; the profile's *Game details* must
 be public, because the key identifies the caller, not the account. "Import
 playtime from Steam" fetches the owned games, matches PC games by the Steam
-store link cached from IGDB (or by an identical title), and shows a preview:
-one session per game for the hours Steam has beyond what is logged, dated
-when Steam last saw the game played. Logged sessions are never changed or
-removed, and the notice after an import offers to undo it. The pure matching
-and delta logic lives in `src/domain/steam.ts`; the client in
-`src/platform/steam.ts`. Like IGDB, the key and account stay out of backups.
+store link cached from IGDB, and shows a preview: one session per game for
+the hours Steam has beyond what is logged, dated when Steam last saw the game
+played. An edition IGDB lists without a Steam app of its own (a Definitive
+or Reloaded Edition) matches through its base game's; for editions linked
+before that was cached, the import asks IGDB once, when IGDB is set up. Only
+games with no Steam link at all fall back to an identical title, so a remake
+linked to its own Steam app never picks up the original's hours. DLC and
+episodes stay unmatched, since Steam counts them under their main game.
+Steam's total is lifetime, so games not started yet with nothing logged come
+unticked: their hours are likely from earlier play and would shrink the
+game's slot in the plan. Logged sessions are never changed or removed, and
+the notice after an import offers to undo it. The pure matching and delta
+logic lives in `src/domain/steam.ts`; the client in `src/platform/steam.ts`.
+Like IGDB, the key and account stay out of backups.
 
 ## Backup
 

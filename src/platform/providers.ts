@@ -2,11 +2,21 @@
  * Game databases behind one interface. IGDB is the only one today; a new
  * source only needs a mapping module, a client and an entry in `createProviders`.
  */
+import { storeLinksFrom, type StoreLink } from "../domain/details";
 import { mapIgdbGame, mapIgdbSearchResult, rankSearchHits } from "../domain/igdb";
 import type { GameMetadata, SearchHit } from "../domain/provider";
 import type { GameSource, Settings } from "../domain/types";
 import { ProviderError } from "./http";
-import { fetchAppAccessToken, getIgdbGame, getIgdbTimeToBeat, searchIgdbGames, tokenIsValid, type IgdbAuth, type IgdbToken } from "./igdb";
+import {
+  fetchAppAccessToken,
+  getIgdbGame,
+  getIgdbTimeToBeat,
+  getIgdbVersionParentLinks,
+  searchIgdbGames,
+  tokenIsValid,
+  type IgdbAuth,
+  type IgdbToken,
+} from "./igdb";
 
 export interface GameProvider {
   source: GameSource;
@@ -14,6 +24,11 @@ export interface GameProvider {
   configured(settings: Settings): boolean;
   search(query: string, options?: SearchOptions, signal?: AbortSignal): Promise<SearchHit[]>;
   details(externalId: number, signal?: AbortSignal): Promise<GameMetadata>;
+  /**
+   * Store links of the base game behind each id that is an edition, for
+   * details cached before editions borrowed them; other ids are left out.
+   */
+  editionBaseLinks(externalIds: readonly number[], signal?: AbortSignal): Promise<Map<number, StoreLink[]>>;
 }
 
 export interface SearchOptions {
@@ -64,6 +79,11 @@ export function createIgdbProvider(deps: ProviderDeps): GameProvider {
       const [game, normally] = await Promise.all([getIgdbGame(a, externalId, signal), getIgdbTimeToBeat(a, externalId, signal)]);
       if (!game) throw new ProviderError("other", 404);
       return mapIgdbGame(game, normally);
+    },
+    async editionBaseLinks(externalIds, signal) {
+      if (externalIds.length === 0) return new Map();
+      const urls = await getIgdbVersionParentLinks(await auth(signal), externalIds, signal);
+      return new Map([...urls].map(([id, list]) => [id, storeLinksFrom(list.map((url) => ({ url })))]));
     },
   };
 }

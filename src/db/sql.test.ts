@@ -27,7 +27,13 @@ import {
   startGameStatement,
   updateGameQuery,
 } from "./games";
-import { deleteSessionStatement, deleteSessionsOfGameStatement, insertSessionStatement, insertSessionWithIdStatement } from "./sessions";
+import {
+  deleteSessionStatement,
+  deleteSessionsOfGameStatement,
+  deleteSessionsStatement,
+  insertSessionStatement,
+  insertSessionWithIdStatement,
+} from "./sessions";
 import { settingsStatements, upsertSetting } from "./settings";
 import { lit } from "./sql";
 
@@ -546,6 +552,27 @@ describe("play sessions", () => {
     db.exec(deleteSessionStatement(first));
     expect(hoursPlayed(batman)).toBe(3);
     expect(() => db.exec(insertSessionStatement({ gameId: batman, playedOn: "2026-11-05", hours: 0, note: null }))).toThrow(/CHECK/);
+  });
+
+  it("imports sessions in one batch and undoes exactly those", () => {
+    const [batman, re4] = plan().map((r) => r.id);
+    const ids = () => (db.prepare("SELECT id FROM play_sessions ORDER BY id").all() as unknown as { id: number }[]).map((r) => r.id);
+    db.exec(insertSessionStatement({ gameId: batman, playedOn: "2026-11-01", hours: 2, note: "by hand" }));
+    const before = new Set(ids());
+    batch([
+      insertSessionStatement({ gameId: batman, playedOn: "2026-11-02", hours: 5, note: "Imported from Steam" }),
+      insertSessionStatement({ gameId: re4, playedOn: "2026-11-03", hours: 1.5, note: "Imported from Steam" }),
+    ]);
+    const imported = ids().filter((id) => !before.has(id));
+    expect(imported).toHaveLength(2);
+    db.exec(insertSessionStatement({ gameId: re4, playedOn: "2026-11-04", hours: 1, note: "after" }));
+
+    db.exec(deleteSessionsStatement(imported));
+    expect(db.prepare("SELECT note FROM play_sessions ORDER BY id").all()).toEqual([{ note: "by hand" }, { note: "after" }]);
+    expect(hoursPlayed(batman)).toBe(2);
+    // Running it again (ids already gone) changes nothing.
+    db.exec(deleteSessionsStatement(imported));
+    expect(db.prepare("SELECT COUNT(*) AS n FROM play_sessions").get()).toMatchObject({ n: 2 });
   });
 
   it("removes a game's sessions with the game", () => {

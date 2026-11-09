@@ -12,6 +12,7 @@ import {
   searchQuery,
   timeToBeatQuery,
   unixToIsoDate,
+  versionParentLinksQuery,
   type IgdbGame,
   type IgdbGameDetails,
 } from "./igdb";
@@ -53,6 +54,7 @@ describe("Apicalypse queries", () => {
       "franchises.name",
       "collection.name",
       "external_games.url",
+      "version_parent.external_games.url",
       "platforms.name",
       "keywords.name",
     ]) {
@@ -64,6 +66,9 @@ describe("Apicalypse queries", () => {
   it("builds id lookups with integers only", () => {
     expect(gameByIdQuery(1942.7)).toContain("where id = 1942;");
     expect(timeToBeatQuery(1942)).toBe("fields game_id,normally,hastily,completely; where game_id = 1942;");
+    expect(versionParentLinksQuery([123051, 322800.9])).toBe(
+      "fields version_parent.external_games.url; where id = (123051,322800) & version_parent != null; limit 2;",
+    );
   });
 });
 
@@ -206,6 +211,19 @@ describe("mapIgdbDetails", () => {
     const meta = mapIgdbGame(full, null, new Date("2026-11-04T12:00:00Z"));
     expect(meta.seriesHint).toBe("The Witcher");
     expect(meta.details?.criticRating).toBe(91);
+  });
+
+  it("lets an edition borrow its base game's store links for stores it has none for", () => {
+    const edition = mapIgdbDetails({
+      id: 45131,
+      name: "Grand Theft Auto V: Special Edition",
+      external_games: [{ url: "https://www.gog.com/game/edition" }],
+      version_parent: { id: 1020, external_games: [{ url: "https://store.steampowered.com/app/271590" }, { url: "https://www.gog.com/game/base" }] },
+    });
+    expect(edition.storeLinks).toEqual([
+      { store: "Steam", url: "https://store.steampowered.com/app/271590" },
+      { store: "GOG", url: "https://www.gog.com/game/edition" },
+    ]);
   });
 
   it("gives empty details for a bare game", () => {

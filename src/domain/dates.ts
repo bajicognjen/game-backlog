@@ -66,9 +66,14 @@ export function addDays(ms: number, days: number): number {
   return ms + days * MS_PER_DAY;
 }
 
+/** The calendar date of a moment on this machine (local time), as 'YYYY-MM-DD'. */
+export function localIsoDate(moment: Date): string {
+  return `${moment.getFullYear()}-${pad2(moment.getMonth() + 1)}-${pad2(moment.getDate())}`;
+}
+
 /** Today's calendar date on this machine (local time), as 'YYYY-MM-DD'. */
 export function todayIso(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  return localIsoDate(now);
 }
 
 function pad2(n: number): string {
