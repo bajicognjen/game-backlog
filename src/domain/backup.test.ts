@@ -107,8 +107,18 @@ describe("parseBackup normalisation", () => {
       providerTags: ["Singleplayer", "Open World"],
     };
     const text = serializeBackup(
-      createBackup(games, { ...SEED_SETTINGS, igdbClientSecret: "secret", igdbAccessToken: "tok", steamApiKey: "steamkey", steamId: "76561198000000000" }),
+      createBackup(games, {
+        ...SEED_SETTINGS,
+        igdbClientSecret: "secret",
+        igdbAccessToken: "tok",
+        steamApiKey: "steamkey",
+        steamId: "76561198000000000",
+        steamHiddenApps: [987654321],
+        steamDismissedHints: ["idle:7:2026-09-20"],
+      }),
     );
+    expect(text).not.toContain("987654321");
+    expect(text).not.toContain("idle:7:2026-09-20");
     expect(text).not.toContain("secret");
     expect(text).not.toContain("tok");
     expect(text).not.toContain("steamkey");
@@ -117,6 +127,8 @@ describe("parseBackup normalisation", () => {
     expect(parsed.settings.igdbClientSecret).toBe("");
     expect(parsed.settings.steamApiKey).toBe("");
     expect(parsed.settings.steamId).toBe("");
+    expect(parsed.settings.steamHiddenApps).toEqual([]);
+    expect(parsed.settings.steamDismissedHints).toEqual([]);
     expect(parsed.games.find((g) => g.id === games[0].id)).toMatchObject({
       source: "igdb",
       externalId: 1942,

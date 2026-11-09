@@ -52,6 +52,44 @@ the notice after an import offers to undo it. The pure matching and delta
 logic lives in `src/domain/steam.ts`; the client in `src/platform/steam.ts`.
 Like IGDB, the key and account stay out of backups.
 
+With Steam set up, "From Steam" next to "Add game" lists the owned games
+that are not in the app yet (never played first, then played, all, hidden),
+matched on the same terms as the import. It is a triage list, not a sync:
+"Add to plan" opens the normal Add game form with the Steam name in the IGDB
+search, and "Hide" sets a game aside for good, so only undecided games stay
+listed. The hidden list stays on this computer and out of backups. Its
+Wishlist view lists the account's public wishlist the same way (ranked
+games first), with each game's release date, review summary and Steam Deck
+rating from Steam's store.
+
+Game details show Steam's own store data for a game on Steam, with no key
+needed for games linked through IGDB: the review summary, the Steam Deck
+rating, the Steam release date when IGDB has none, a Steam store button
+when IGDB gave no link, and Steam's portrait cover when there is no IGDB
+cover (`src/domain/steamStore.ts`).
+
+The Finish dialog, and a finished game's edit form, offer Steam's finish
+date for PC games on Steam: the unlock day of the achievement for beating
+the story ("Finish the main story", "Watched the ending credits"; harder
+variants such as New Game+ or a difficulty are skipped), or, when none is
+recognised (story achievements are often hidden, and Steam blanks their
+descriptions), the newest unlocked one, labelled as such. "Choose from your
+Steam achievements" lists every unlocked one. Nothing changes until "Use
+this date". The rules live in `src/domain/achievements.ts`.
+
+Settings → Steam shows who the saved key and account read as (name, avatar,
+a link to the profile) and warns when the profile is not public. Above the
+PC plan, "From your Steam play" suggests status changes: a game in progress
+or paused whose ending achievement was unlocked during this playthrough
+("Finish…", which opens the Finish dialog with that date; an ending from an
+earlier run or just the newest unlock does not count), a game not started
+or paused but played at least half an hour on Steam in the last two weeks
+("Mark in progress" / "Resume"), and a game in progress with no play on
+Steam or in the log for 30 days, counted from when it became current
+("Pause"). "Not now" hides a hint until the game is played again; those
+choices stay on this computer and out of backups. The rules live in
+`src/domain/steamHints.ts`.
+
 ## Backup
 
 Export / Import in the top bar write and read a JSON file with all settings

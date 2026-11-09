@@ -693,6 +693,60 @@ textarea {
   margin-top: -4px;
 }
 
+/* A connection's setup (steps, fields, links), shown until it is set up or while it is changed. */
+.settings-form {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.settings-form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+
+/* A set-up connection folded to one line: what it is, and "Change". */
+.settings-status {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 32px;
+  font-size: var(--text-md);
+}
+
+.settings-status-icon {
+  color: var(--text-muted);
+}
+
+/* One action with its result and a short explanation under it. */
+.settings-action {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.settings-form .field-hint,
+.settings-action .field-hint {
+  flex-basis: auto;
+  margin: 0;
+  max-width: 78ch;
+}
+
+.settings-form .settings-steps {
+  flex-basis: auto;
+}
+
+.settings-version {
+  font-variant-numeric: tabular-nums;
+}
+
 .field-wide {
   flex: 1 1 100%;
 }
@@ -1420,6 +1474,217 @@ tr:focus-within .row-actions {
 .steam-by {
   font-weight: 400;
   font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Status suggestions from recent Steam play, above the PC plan. */
+.steam-hints {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-panel);
+  background: var(--accent-soft);
+  font-size: var(--text-md);
+}
+
+.steam-hints-icon {
+  margin-top: 1px;
+  color: var(--accent-text);
+}
+
+.steam-hints-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.steam-hints ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steam-hints li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 3px 0;
+}
+
+.steam-hints li + li {
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.steam-hints-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* The connected Steam account in Settings. */
+.steam-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.settings-group-body > .steam-account {
+  flex-basis: 100%;
+}
+
+.steam-account-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.steam-account-name {
+  font-weight: 650;
+}
+
+.steam-account-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.steam-account-warn {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--warning-text);
+}
+
+/* Steam's finish date under a finish-date field. */
+.steam-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.form-row > .steam-hint {
+  grid-column: 1 / -1;
+}
+
+.steam-hint-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 4px;
+}
+
+.steam-hint-used {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.steam-hint-toggle {
+  font-size: var(--text-sm);
+}
+
+.steam-achievements {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.steam-achievements li + li {
+  border-top: 1px solid var(--border);
+}
+
+.steam-achievement {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.steam-achievement:hover {
+  background: var(--surface-hover);
+}
+
+.steam-achievement-used {
+  background: var(--surface-2);
+}
+
+.steam-achievement-date {
+  grid-row: span 2;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.steam-achievement-name {
+  font-weight: 600;
+}
+
+.steam-achievement-desc {
+  grid-column: 2;
+  color: var(--text-muted);
+}
+
+.steam-views {
+  margin-top: 12px;
+}
+
+.steam-library-scroll {
+  margin-top: 12px;
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+}
+
+.steam-library thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.steam-library th,
+.steam-library td {
+  padding: 5px 8px;
+}
+
+.steam-library .title {
+  white-space: normal;
+}
+
+.steam-library-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.steam-library-actions .button + .button {
+  margin-left: 6px;
+}
+
+.steam-library-empty {
+  margin-top: 14px;
+}
+
+.steam-library-hint {
+  margin: 12px 0 0;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 

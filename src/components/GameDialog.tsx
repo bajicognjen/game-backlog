@@ -34,6 +34,8 @@ interface Props {
   onClose(): void;
   /** Leave for the IGDB credentials in Settings. */
   onSetupIgdb?(): void;
+  /** Add mode only: a title to start from (a Steam game), searched on IGDB right away and kept if nothing is picked. */
+  initialQuery?: string;
 }
 
 interface Errors {
@@ -42,8 +44,8 @@ interface Errors {
   position?: string;
 }
 
-export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose, onSetupIgdb }: Props) {
-  const [title, setTitle] = useState(game?.title ?? "");
+export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose, onSetupIgdb, initialQuery }: Props) {
+  const [title, setTitle] = useState(game?.title ?? initialQuery ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
   const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
   const [platform, setPlatform] = useState<Platform>(game?.platform ?? defaultPlatform);
@@ -139,7 +141,7 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
   return (
     <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} autoFocus={mode === "add"} onSetupIgdb={onSetupIgdb} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add"} onSetupIgdb={onSetupIgdb} initialQuery={mode === "add" ? initialQuery : undefined} />
         <ProviderLinked
           meta={meta}
           note={pick?.note ?? null}

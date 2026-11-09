@@ -6,9 +6,15 @@ import {
   editionCandidates,
   excludedByDefault,
   importedHours,
+  lastPlayedDay,
   lastPlayedOn,
   minutesToHours,
+  parseHiddenApps,
   parseSteamIdInput,
+  steamLibrary,
+  steamSearchTitle,
+  steamWishlist,
+  type SteamWishlistEntry,
   planSteamImport,
   steamAppIdOf,
   type SteamOwnedGame,
@@ -295,5 +301,99 @@ describe("parseSteamIdInput", () => {
     expect(parseSteamIdInput("1234")).toBeNull();
     expect(parseSteamIdInput("https://example.com/profiles/76561198000000001")).toBeNull();
     expect(parseSteamIdInput("not a name")).toBeNull();
+  });
+});
+
+describe("steamLibrary", () => {
+  const DAY = 86_400;
+  const linked = game(1, "The Witcher 3", { source: "igdb", externalId: 1942, details: details("https://store.steampowered.com/app/292030") });
+  const edition = game(2, "Shadow of the Tomb Raider: Definitive Edition", { source: "igdb", externalId: 123051, details: details(null) });
+  const unlinked = game(3, "Cyberpunk 2077");
+  const onPs5 = game(4, "Marvel's Spider-Man", { platform: "ps5" });
+  const remake = game(5, "Resident Evil 4", { source: "igdb", externalId: 1, details: details("https://store.steampowered.com/app/2050650") });
+  const steam = [
+    owned(292030, "The Witcher® 3: Wild Hunt", 1230, NOV_1),
+    owned(750920, "Shadow of the Tomb Raider", 0),
+    owned(1091500, "Cyberpunk 2077", 600, NOV_1),
+    owned(1817070, "Marvel’s Spider-Man Remastered", 0),
+    owned(1817071, "Marvel's Spider-Man", 0),
+    owned(254700, "Resident Evil 4", 900, NOV_1 - 400 * DAY),
+    owned(239140, "Dying Light", 0),
+    owned(391220, "Rise of the Tomb Raider", 0),
+    owned(1546990, "Grand Theft Auto: Vice City - The Definitive Edition", 30, NOV_1 - 10 * DAY),
+    owned(431960, "Wallpaper Engine", 5000, NOV_1 + DAY),
+  ];
+
+  it("leaves out games already in the app, on the import's terms and on any platform", () => {
+    const library = steamLibrary([linked, edition, unlinked, onPs5, remake], steam, [], new Map([[2, 750920]]));
+    const all = [...library.notPlayed, ...library.played, ...library.hidden].map((g) => g.appid);
+    expect(all).not.toContain(292030); // through its store link
+    expect(all).not.toContain(750920); // an edition, through its base game's app
+    expect(all).not.toContain(1091500); // unlinked, through the title
+    expect(all).not.toContain(1817071); // the same title on another platform
+    expect(all).toContain(1817070); // a different title stays
+    expect(all).toContain(254700); // the original of a remake linked to its own app stays
+  });
+
+  it("splits never played from played, and keeps hidden games apart", () => {
+    const library = steamLibrary([linked, edition, unlinked, onPs5, remake], steam, [431960], new Map([[2, 750920]]));
+    expect(library.notPlayed.map((g) => g.name)).toEqual(["Dying Light", "Marvel’s Spider-Man Remastered", "Rise of the Tomb Raider"]);
+    // Most recently played first.
+    expect(library.played.map((g) => g.appid)).toEqual([1546990, 254700]);
+    expect(library.hidden.map((g) => g.appid)).toEqual([431960]);
+  });
+
+  it("brings a game back once it is no longer hidden", () => {
+    expect(steamLibrary([], steam, [], new Map()).played.map((g) => g.appid)).toContain(431960);
+  });
+});
+
+describe("steam helpers", () => {
+  it("cleans a Steam name for an IGDB search", () => {
+    expect(steamSearchTitle("Batman™: Arkham Knight")).toBe("Batman: Arkham Knight");
+    expect(steamSearchTitle("The Witcher® 3:  Wild Hunt ")).toBe("The Witcher 3: Wild Hunt");
+  });
+
+  it("gives the last-played day, or null without one", () => {
+    expect(lastPlayedDay({ rtime_last_played: NOV_1 })).toBe("2026-11-01");
+    expect(lastPlayedDay({ rtime_last_played: 0 })).toBeNull();
+    expect(lastPlayedDay({})).toBeNull();
+  });
+
+  it("reads the stored hidden list, dropping anything that is not an app id", () => {
+    expect(parseHiddenApps("[431960, 239140, 431960]")).toEqual([431960, 239140]);
+    expect(parseHiddenApps('[1, "2", -3, 4.5, null]')).toEqual([1]);
+    expect(parseHiddenApps('{"a": 1}')).toEqual([]);
+    expect(parseHiddenApps("not json")).toEqual([]);
+    expect(parseHiddenApps(undefined)).toEqual([]);
+  });
+});
+
+describe("steamWishlist", () => {
+  const entry = (appid: number, name: string, priority: number, added: string): SteamWishlistEntry => ({
+    appid,
+    name,
+    priority,
+    dateAdded: Date.parse(`${added}T12:00:00Z`) / 1000,
+    store: null,
+  });
+  const wishes = [
+    entry(620, "Portal 2", 0, "2024-01-10"),
+    entry(264710, "Subnautica", 2, "2023-05-01"),
+    entry(413150, "Stardew Valley", 1, "2022-02-02"),
+    entry(553850, "HELLDIVERS™ 2", 0, "2025-03-03"),
+    entry(292030, "The Witcher® 3: Wild Hunt", 0, "2021-01-01"),
+  ];
+  const witcher = game(1, "The Witcher 3", { source: "igdb", externalId: 1942, details: details("https://store.steampowered.com/app/292030") });
+
+  it("ranked wishes first in the owner's order, then the rest newest first, without games already in the app", () => {
+    const { wishlist } = steamWishlist([witcher], wishes, []);
+    expect(wishlist.map((e) => e.name)).toEqual(["Stardew Valley", "Subnautica", "HELLDIVERS™ 2", "Portal 2"]);
+  });
+
+  it("keeps hidden wishes apart", () => {
+    const { wishlist, hidden } = steamWishlist([], wishes, [620, 553850]);
+    expect(hidden.map((e) => e.name)).toEqual(["HELLDIVERS™ 2", "Portal 2"]);
+    expect(wishlist).toHaveLength(3);
   });
 });

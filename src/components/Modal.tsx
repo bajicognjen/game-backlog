@@ -36,6 +36,12 @@ export function Modal({ title, onClose, children, size = "md" }: Props) {
       dialog?.close();
       if (claimed) claimed.focus({ preventScroll: true });
       else if (opener?.isConnected) opener.focus();
+      else {
+        // The opener left with what it acted on (a Steam game's row once the game is added):
+        // stay in the dialog still open underneath, if there is one.
+        const below = Array.from(document.querySelectorAll<HTMLDialogElement>("dialog[open]")).pop();
+        below?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+      }
     };
   }, []);
 

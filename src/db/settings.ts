@@ -1,4 +1,6 @@
 import { SEED_SETTINGS } from "../domain/seed";
+import { parseHiddenApps } from "../domain/steam";
+import { parseDismissedHints } from "../domain/steamHints";
 import type { Settings, Theme } from "../domain/types";
 import { getDb } from "./client";
 import { lit } from "./sql";
@@ -13,6 +15,8 @@ const KEYS: Record<keyof Settings, string> = {
   igdbTokenExpiresAt: "igdb_token_expires_at",
   steamApiKey: "steam_api_key",
   steamId: "steam_id",
+  steamHiddenApps: "steam_hidden_apps",
+  steamDismissedHints: "steam_dismissed_hints",
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -30,13 +34,16 @@ export async function loadSettings(): Promise<Settings> {
     igdbTokenExpiresAt: Number(map.get(KEYS.igdbTokenExpiresAt) ?? 0) || 0,
     steamApiKey: map.get(KEYS.steamApiKey) ?? "",
     steamId: map.get(KEYS.steamId) ?? "",
+    steamHiddenApps: parseHiddenApps(map.get(KEYS.steamHiddenApps)),
+    steamDismissedHints: parseDismissedHints(map.get(KEYS.steamDismissedHints)),
   };
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   const db = await getDb();
   for (const [field, value] of Object.entries(patch) as [keyof Settings, Settings[keyof Settings]][]) {
-    await db.execute(upsertSetting(KEYS[field], String(value)));
+    // Lists are stored as JSON; everything else as its plain text.
+    await db.execute(upsertSetting(KEYS[field], Array.isArray(value) ? JSON.stringify(value) : String(value)));
   }
 }
 
