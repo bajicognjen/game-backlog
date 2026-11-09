@@ -1423,6 +1423,20 @@ tr:focus-within .row-actions {
   color: var(--text-muted);
 }
 
+.steam-stats-note {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.steam-why {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .steam-notes {
   margin: 14px 0 0;
   padding-left: 18px;

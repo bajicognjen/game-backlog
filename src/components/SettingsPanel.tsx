@@ -97,7 +97,9 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   }
 
   const steamIdInvalid = steamId.trim() !== "" && parseSteamIdInput(steamId) === null;
-  const steamReady = steamConfigured(settings);
+  // From what is typed, not what is saved: the fields save on blur, which the
+  // click on the button causes, and the save reaches the store at once.
+  const steamReady = steamConfigured({ steamApiKey, steamId });
 
   const startDateValid = isValidIsoDate(startDate);
   const hoursNumber = Number(hours.replace(",", "."));

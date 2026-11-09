@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildSeedGames } from "./seed";
 import {
   MIN_IMPORT_HOURS,
+  excludedByDefault,
   importedHours,
   lastPlayedOn,
   minutesToHours,
@@ -144,6 +145,21 @@ describe("planSteamImport", () => {
     expect(plan.items).toEqual([]);
   });
 
+  it("does not match a remake to its original by title when IGDB links another Steam app", () => {
+    const remake = game(14, "Resident Evil 4", { details: details("https://store.steampowered.com/app/2050650") });
+    const original = game(15, "Resident Evil 4", { details: details("https://store.steampowered.com/app/254700") });
+    const unlinked = game(16, "Resident Evil 4");
+    const ownsOriginal = [owned(254700, "Resident Evil 4", 900)];
+
+    const linked = planSteamImport([remake], [], ownsOriginal, TODAY);
+    expect(linked.items).toEqual([]);
+    expect(linked.unmatched.map((g) => g.id)).toEqual([14]);
+
+    // The right app still matches through its link, and a game without a link still tries the title.
+    expect(planSteamImport([original], [], ownsOriginal, TODAY).items.map((i) => [i.game.id, i.matchedBy])).toEqual([[15, "store"]]);
+    expect(planSteamImport([unlinked], [], ownsOriginal, TODAY).items.map((i) => [i.game.id, i.matchedBy])).toEqual([[16, "title"]]);
+  });
+
   it("does not split one Steam app between two library games", () => {
     const gta4 = game(7, "GTA IV", { details: details("https://store.steampowered.com/app/12210") });
     const episodes = game(8, "GTA IV: Episodes from Liberty City", { details: details("https://store.steampowered.com/app/12210") });
@@ -153,6 +169,31 @@ describe("planSteamImport", () => {
     expect(plan.shared[0].games.map((g) => g.title)).toEqual(["GTA IV", "GTA IV: Episodes from Liberty City"]);
     expect(plan.items.map((i) => i.game.title)).toEqual(["Cyberpunk 2077"]);
     expect(plan.unmatched).toEqual([]);
+  });
+
+  it("flags games not started with nothing logged, and only those start unticked", () => {
+    const replay = game(9, "Hollow Knight");
+    const loggedButPending = game(10, "Celeste");
+    const playing = game(11, "Hades", { status: "in_progress" });
+    const paused = game(12, "Disco Elysium", { status: "paused" });
+    const finished = game(13, "Inside", { status: "completed", position: null, completedOrder: 1 });
+    const sessions: PlaySession[] = [{ id: 1, gameId: 10, playedOn: "2026-11-02", hours: 1, note: null }];
+    const steam = [
+      owned(367520, "Hollow Knight", 2400),
+      owned(504230, "Celeste", 300),
+      owned(1145360, "Hades", 600),
+      owned(632470, "Disco Elysium", 600),
+      owned(304430, "INSIDE", 240),
+    ];
+    const plan = planSteamImport([replay, loggedButPending, playing, paused, finished], sessions, steam, TODAY);
+    expect(plan.items.map((i) => [i.game.title, i.notStarted])).toEqual([
+      ["Hollow Knight", true],
+      ["Celeste", false],
+      ["Hades", false],
+      ["Disco Elysium", false],
+      ["Inside", false],
+    ]);
+    expect([...excludedByDefault(plan.items)]).toEqual([9]);
   });
 
   it("works on the seed library without crashing and lists everything as unmatched", () => {
@@ -169,6 +210,22 @@ describe("lastPlayedOn", () => {
     expect(lastPlayedOn({ rtime_last_played: 0 }, TODAY)).toBe(TODAY);
     expect(lastPlayedOn({}, TODAY)).toBe(TODAY);
     expect(lastPlayedOn({ rtime_last_played: NOV_1 + 30 * 86_400 }, TODAY)).toBe(TODAY);
+  });
+
+  describe("on the local calendar", () => {
+    afterEach(() => vi.unstubAllEnvs());
+    // 23:30 on 7 November in UTC: past midnight east of Greenwich, still evening west of it.
+    const LATE_NOV_7_UTC = Date.UTC(2026, 10, 7, 23, 30) / 1000;
+
+    it("keeps a session played just after midnight on that day", () => {
+      vi.stubEnv("TZ", "Europe/Belgrade");
+      expect(lastPlayedOn({ rtime_last_played: LATE_NOV_7_UTC }, TODAY)).toBe("2026-11-08");
+    });
+
+    it("keeps a late-evening session on that evening", () => {
+      vi.stubEnv("TZ", "America/New_York");
+      expect(lastPlayedOn({ rtime_last_played: LATE_NOV_7_UTC }, TODAY)).toBe("2026-11-07");
+    });
   });
 });
 

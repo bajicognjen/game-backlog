@@ -6,8 +6,8 @@
  * sessions and nothing logged by hand is touched. This module is pure; the
  * network side lives in `platform/steam.ts`.
  */
-import { todayIso } from "./dates";
-import { normaliseTitle, unixToIsoDate } from "./igdb";
+import { localIsoDate, todayIso } from "./dates";
+import { normaliseTitle } from "./igdb";
 import { hoursPlayedOf } from "./sessions";
 import type { Game, PlaySession, Settings } from "./types";
 
@@ -46,6 +46,18 @@ export interface SteamImportItem extends SteamMatch {
   hours: number;
   /** When Steam last saw the game played; today when Steam has no date, or a future one. */
   playedOn: string;
+  /**
+   * Not started in the plan and nothing logged: Steam's total is lifetime,
+   * so these hours most likely come from earlier play (a first run before a
+   * replay, an abandoned attempt). Importing them would shrink the game's
+   * slot in the plan, so the preview leaves it out unless chosen.
+   */
+  notStarted: boolean;
+}
+
+/** Games the preview starts with unticked: those not started, whose Steam hours likely predate the plan. */
+export function excludedByDefault(items: readonly SteamImportItem[]): Set<number> {
+  return new Set(items.filter((item) => item.notStarted).map((item) => item.game.id));
 }
 
 /** Library games Steam counts under one app, so their hours cannot be split. */
@@ -63,7 +75,7 @@ export interface SteamImportPlan {
   ahead: SteamMatch[];
   /** Steam apps that several library games point at. */
   shared: SteamSharedApp[];
-  /** PC games Steam does not list: not on Steam, or not linked to IGDB and named differently. */
+  /** PC games Steam does not list: not owned there (IGDB's Steam app among them), or not linked and named differently. */
   unmatched: Game[];
 }
 
@@ -81,10 +93,11 @@ export function minutesToHours(minutes: number): number {
 }
 
 /**
- * Work out what an import would do. Only PC games can be on Steam. A game is
- * tied to a Steam app through its IGDB store link first, and otherwise by a
- * title that matches exactly one owned game once punctuation and case are
- * ignored; anything less certain stays unmatched rather than guessed.
+ * Work out what an import would do. Only PC games can be on Steam. A game
+ * whose IGDB details link a Steam app matches that app and nothing else; a
+ * game without such a link matches by a title that equals exactly one owned
+ * game once punctuation and case are ignored. Anything less certain stays
+ * unmatched rather than guessed.
  */
 export function planSteamImport(
   games: readonly Game[],
@@ -106,9 +119,13 @@ export function planSteamImport(
   const matches: { game: Game; steam: SteamOwnedGame; matchedBy: SteamMatchBy }[] = [];
   for (const game of candidates) {
     const appId = steamAppIdOf(game);
-    const byStore = appId === null ? undefined : byAppId.get(appId);
-    if (byStore) {
-      matches.push({ game, steam: byStore, matchedBy: "store" });
+    if (appId !== null) {
+      // IGDB names the exact Steam app. When it is not owned, an owned game with
+      // the same title is another release (the original of a remake, or the
+      // remake of an original), so the title is not tried.
+      const byStore = byAppId.get(appId);
+      if (byStore) matches.push({ game, steam: byStore, matchedBy: "store" });
+      else unmatched.push(game);
       continue;
     }
     const byName = byTitle.get(normaliseTitle(game.title));
@@ -137,7 +154,12 @@ export function planSteamImport(
     // Compared at two decimals so floating-point noise around six minutes does not decide.
     const gap = Math.round((steamHours - loggedHours) * 100) / 100;
     if (gap >= MIN_IMPORT_HOURS) {
-      plan.items.push({ ...full, hours: Math.round(gap * 10) / 10, playedOn: lastPlayedOn(match.steam, today) });
+      plan.items.push({
+        ...full,
+        hours: Math.round(gap * 10) / 10,
+        playedOn: lastPlayedOn(match.steam, today),
+        notStarted: match.game.status === "pending" && loggedHours === 0,
+      });
     } else if (gap <= -MIN_IMPORT_HOURS) {
       plan.ahead.push(full);
     } else {
@@ -147,10 +169,16 @@ export function planSteamImport(
   return plan;
 }
 
-/** Steam's last-played day, never later than today; today when Steam has none. */
+/**
+ * Steam's last-played day, never later than today; today when Steam has none.
+ * Steam records a moment, so it is read on the local calendar like `today`:
+ * in UTC, a game played just after midnight would land on the day before.
+ */
 export function lastPlayedOn(steam: Pick<SteamOwnedGame, "rtime_last_played">, today: string): string {
-  const iso = unixToIsoDate(steam.rtime_last_played);
-  return iso && iso <= today ? iso : today;
+  const seconds = steam.rtime_last_played;
+  if (!seconds || !Number.isFinite(seconds)) return today;
+  const iso = localIsoDate(new Date(seconds * 1000));
+  return iso <= today ? iso : today;
 }
 
 /** Total hours the chosen items would add. */

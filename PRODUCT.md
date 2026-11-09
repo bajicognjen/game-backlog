@@ -38,7 +38,7 @@ Confirmed functionality:
 - Sessions (date, hours, note), the finish flow (finish date, next game's start, rating 1–10, short review, "put the next game in progress"), drop, undo for delete and drop.
 - Plan warnings: two long games (50 h+) in a row; a series played out of order.
 - IGDB: search with library matches first, link/unlink, derived "design" per game, details (developer, publisher, scores, platforms, screenshots, videos, store links, similar games, series and franchise).
-- Steam: import of playtime for PC games as sessions, matched through IGDB's Steam store link or an identical title, previewed per game before anything is written, undoable from the notice; hand-logged sessions are never changed.
+- Steam: import of playtime for PC games as sessions, matched through IGDB's Steam store link or, for games without one, an identical title, previewed per game before anything is written (games not started yet come unticked, since Steam's lifetime total likely predates the plan), undoable from the notice; hand-logged sessions are never changed.
 - Statistics: finished games and hours per month, ratings by design and by genre.
 - Themes: system, light, dark.
 

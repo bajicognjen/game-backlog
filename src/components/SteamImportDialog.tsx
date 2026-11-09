@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDate } from "../domain/dates";
 import { formatHours } from "../domain/format";
-import { STEAM_IMPORT_NOTE, importedHours, planSteamImport, type SteamImportPlan } from "../domain/steam";
+import { STEAM_IMPORT_NOTE, excludedByDefault, importedHours, planSteamImport, type SteamImportPlan } from "../domain/steam";
 import { t } from "../i18n/en";
-import { ProviderError } from "../platform/http";
-import { SteamError, fetchOwnedGames, resolveSteamId, type SteamFailure } from "../platform/steam";
+import { SteamError, fetchOwnedGames, resolveSteamId, steamFailureOf, type SteamFailure } from "../platform/steam";
 import { useStore } from "../state/store";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
+import { StatusBadge } from "./StatusBadge";
 
 interface Props {
   onClose(): void;
@@ -25,7 +25,7 @@ export function SteamImportDialog({ onClose }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: "loading" });
   /** Bumped by "Try again"; the effect fetches once per value. */
   const [attempt, setAttempt] = useState(0);
-  /** Games the user unticked. */
+  /** Games left unticked: the not-started ones at first, then whatever the user changes. */
   const [excluded, setExcluded] = useState<ReadonlySet<number>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -40,11 +40,12 @@ export function SteamImportDialog({ onClose }: Props) {
         const steamId = await resolveSteamId(apiKey, settings.steamId, controller.signal);
         const owned = await fetchOwnedGames({ apiKey, steamId }, controller.signal);
         if (controller.signal.aborted) return;
-        setExcluded(new Set());
-        setStage({ kind: "ready", plan: planSteamImport(games, sessions, owned) });
+        const plan = planSteamImport(games, sessions, owned);
+        setExcluded(excludedByDefault(plan.items));
+        setStage({ kind: "ready", plan });
       } catch (error) {
         if (controller.signal.aborted) return;
-        setStage({ kind: "failed", reason: failureOf(error) });
+        setStage({ kind: "failed", reason: steamFailureOf(error) });
       }
     })();
     return () => controller.abort();
@@ -108,9 +109,7 @@ export function SteamImportDialog({ onClose }: Props) {
         )}
         {plan && plan.items.length > 0 && (
           <button type="button" className="button button-primary" onClick={() => void confirm()} disabled={busy || selected.length === 0}>
-            {(selected.length === 1 ? t.steam.confirmOne : t.steam.confirm)
-              .replace("{count}", String(selected.length))
-              .replace("{hours}", formatHours(hours))}
+            {confirmLabel(selected.length, hours)}
           </button>
         )}
       </footer>
@@ -131,6 +130,8 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
   const selectedCount = plan.items.filter((item) => !excluded.has(item.game.id)).length;
   const allSelected = selectedCount === plan.items.length;
   const titles = (games: readonly { title: string }[]) => games.map((g) => `“${g.title}”`).join(", ");
+  // A game with nothing logged brings its whole Steam total in one session.
+  const firstImport = plan.items.some((item) => item.loggedHours === 0);
 
   return (
     <>
@@ -155,6 +156,7 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
                 />
               </th>
               <th scope="col">{t.steam.colGame}</th>
+              <th scope="col">{t.steam.colStatus}</th>
               <th scope="col" className="num">
                 {t.steam.colLogged}
               </th>
@@ -183,6 +185,10 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
                 <td className="title">
                   {item.game.title}
                   {item.matchedBy === "title" && <span className="steam-by"> · {t.steam.byTitle}</span>}
+                  {item.notStarted && <span className="steam-why">{t.steam.notStartedHint}</span>}
+                </td>
+                <td>
+                  <StatusBadge status={item.game.status} />
                 </td>
                 <td className="num">{formatHours(item.loggedHours)} h</td>
                 <td className="num">{formatHours(item.steamHours)} h</td>
@@ -193,6 +199,8 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
           </tbody>
         </table>
       )}
+
+      {firstImport && <p className="steam-stats-note">{t.steam.statsNote}</p>}
 
       {(plan.upToDate.length > 0 || plan.ahead.length > 0 || plan.shared.length > 0 || plan.unmatched.length > 0) && (
         <ul className="steam-notes">
@@ -212,10 +220,10 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
   );
 }
 
-function failureOf(error: unknown): SteamFailure {
-  if (error instanceof SteamError) return error.reason;
-  if (error instanceof ProviderError && error.reason === "network") return "network";
-  return "other";
+/** The import button: what it will add, or what to do when nothing is ticked. */
+function confirmLabel(count: number, hours: number): string {
+  if (count === 0) return t.steam.confirmNone;
+  return (count === 1 ? t.steam.confirmOne : t.steam.confirm).replace("{count}", String(count)).replace("{hours}", formatHours(hours));
 }
 
 function failureMessage(reason: SteamFailure): string {
