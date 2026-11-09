@@ -8,6 +8,7 @@
  */
 import { localIsoDate, todayIso } from "./dates";
 import type { StoreLink } from "./details";
+import type { SteamStoreItem } from "./steamStore";
 import { normaliseTitle } from "./igdb";
 import { hoursPlayedOf } from "./sessions";
 import type { Game, PlaySession, Settings } from "./types";
@@ -20,6 +21,8 @@ export interface SteamOwnedGame {
   playtime_forever: number;
   /** Unix seconds of the last launch; 0 or missing when Steam has no record. */
   rtime_last_played?: number | null;
+  /** Minutes played in the last two weeks; missing when none. */
+  playtime_2weeks?: number | null;
 }
 
 /** The note every imported session carries, so they stand out in the log. */
@@ -241,4 +244,112 @@ export function parseSteamIdInput(text: string): SteamIdInput | null {
   if (custom) return { kind: "vanity", name: custom[1] };
   if (/^[A-Za-z0-9_-]{2,32}$/.test(trimmed)) return { kind: "vanity", name: trimmed };
   return null;
+}
+
+/** The Steam games the app does not have yet, for picking the ones worth planning. */
+export interface SteamLibrary {
+  /** Never played on Steam: the real backlog. By name. */
+  notPlayed: SteamOwnedGame[];
+  /** Started on Steam but never added to the app. Most recently played first. */
+  played: SteamOwnedGame[];
+  /** Set aside with "Hide" (not to be planned). By name. */
+  hidden: SteamOwnedGame[];
+}
+
+/**
+ * Owned Steam games that are not in the app yet, on any platform. A game is
+ * "in the app" on the same terms the import matches it: through its Steam
+ * store link (or its base game's, from `baseAppIds`) when it has one,
+ * otherwise through an identical title.
+ */
+export function steamLibrary(
+  games: readonly Game[],
+  owned: readonly SteamOwnedGame[],
+  hiddenAppIds: readonly number[],
+  baseAppIds: ReadonlyMap<number, number> = new Map(),
+): SteamLibrary {
+  const inApp = inAppTest(games, baseAppIds);
+  const hidden = new Set(hiddenAppIds);
+  const byName = (a: SteamOwnedGame, b: SteamOwnedGame) => a.name.localeCompare(b.name);
+  const library: SteamLibrary = { notPlayed: [], played: [], hidden: [] };
+  for (const steam of owned) {
+    if (inApp(steam.appid, steam.name)) continue;
+    if (hidden.has(steam.appid)) library.hidden.push(steam);
+    else if (steam.playtime_forever > 0) library.played.push(steam);
+    else library.notPlayed.push(steam);
+  }
+  library.notPlayed.sort(byName);
+  library.hidden.sort(byName);
+  library.played.sort((a, b) => (b.rtime_last_played ?? 0) - (a.rtime_last_played ?? 0) || b.playtime_forever - a.playtime_forever || byName(a, b));
+  return library;
+}
+
+/**
+ * Whether a Steam app is already in the app, on any platform: through a
+ * game's Steam store link (or its base game's) when it has one, otherwise
+ * through an identical title, as the import matches.
+ */
+function inAppTest(games: readonly Game[], baseAppIds: ReadonlyMap<number, number>): (appid: number, name: string) => boolean {
+  const linkedApps = new Set<number>();
+  const unlinkedTitles = new Set<string>();
+  for (const game of games) {
+    const appId = steamAppIdOf(game) ?? baseAppIds.get(game.id) ?? null;
+    if (appId !== null) linkedApps.add(appId);
+    else unlinkedTitles.add(normaliseTitle(game.title));
+  }
+  return (appid, name) => linkedApps.has(appid) || unlinkedTitles.has(normaliseTitle(name));
+}
+
+/** A wishlisted game with its store data (null when Steam has no store page for it any more). */
+export interface SteamWishlistEntry {
+  appid: number;
+  name: string;
+  /** The owner's own ranking; 0 when unranked. */
+  priority: number;
+  /** Unix seconds. */
+  dateAdded: number;
+  store: SteamStoreItem | null;
+}
+
+/**
+ * The wishlist minus games already in the app, split from the hidden ones.
+ * Ranked games first in the owner's order, then the rest newest first.
+ */
+export function steamWishlist(
+  games: readonly Game[],
+  entries: readonly SteamWishlistEntry[],
+  hiddenAppIds: readonly number[],
+  baseAppIds: ReadonlyMap<number, number> = new Map(),
+): { wishlist: SteamWishlistEntry[]; hidden: SteamWishlistEntry[] } {
+  const inApp = inAppTest(games, baseAppIds);
+  const hidden = new Set(hiddenAppIds);
+  const open = entries.filter((e) => !inApp(e.appid, e.name));
+  const rank = (e: SteamWishlistEntry) => (e.priority > 0 ? e.priority : Number.MAX_SAFE_INTEGER);
+  return {
+    wishlist: open.filter((e) => !hidden.has(e.appid)).sort((a, b) => rank(a) - rank(b) || b.dateAdded - a.dateAdded),
+    hidden: open.filter((e) => hidden.has(e.appid)).sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/** A Steam name made fit for an IGDB search: trademark signs dropped, spaces tidied. */
+export function steamSearchTitle(name: string): string {
+  return name.replace(/[™®©]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** The local day a Steam game was last played, or null when Steam has no date. */
+export function lastPlayedDay(steam: Pick<SteamOwnedGame, "rtime_last_played">): string | null {
+  const seconds = steam.rtime_last_played;
+  return seconds && Number.isFinite(seconds) ? localIsoDate(new Date(seconds * 1000)) : null;
+}
+
+/** The hidden list as stored in Settings (JSON); anything unreadable counts as an empty list. */
+export function parseHiddenApps(text: string | null | undefined): number[] {
+  if (!text) return [];
+  try {
+    const value: unknown = JSON.parse(text);
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value.filter((id): id is number => Number.isInteger(id) && id > 0))];
+  } catch {
+    return [];
+  }
 }

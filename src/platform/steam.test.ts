@@ -4,7 +4,7 @@
  * since the import dialog picks its message from that.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SteamError, fetchOwnedGames, resolveSteamId, steamFailureOf, type SteamFailure } from "./steam";
+import { SteamError, fetchOwnedGames, fetchPlayerAchievements, fetchPlayerSummary, fetchStoreItems, fetchWishlist, resolveSteamId, steamFailureOf, type SteamFailure } from "./steam";
 
 const KEY = "TESTKEY";
 const STEAM_ID = "76561197960287930";
@@ -124,5 +124,129 @@ describe("steamFailureOf", () => {
     expect(steamFailureOf(new SteamError("private"))).toBe("private");
     expect(steamFailureOf(new Error("boom"))).toBe("other");
     expect(steamFailureOf("not an error")).toBe("other");
+  });
+});
+
+describe("fetchPlayerAchievements", () => {
+  const credentials = { apiKey: KEY, steamId: STEAM_ID };
+
+  it("asks for one game's achievements in English and keeps well-formed rows", async () => {
+    const fetch = stubFetch(
+      json({
+        playerstats: {
+          steamID: STEAM_ID,
+          gameName: "Marvel's Spider-Man 2",
+          success: true,
+          achievements: [
+            { apiname: "HEAL", achieved: 1, unlocktime: 1_788_177_600, name: "Heal the World", description: "Finish the main story" },
+            { apiname: "BROKEN", achieved: 1 },
+          ],
+        },
+      }),
+    );
+    const list = await fetchPlayerAchievements(credentials, 2651280);
+    expect(list?.map((a) => a.apiname)).toEqual(["HEAL"]);
+    const url = requestedUrl(fetch);
+    expect(url.origin + url.pathname).toBe("https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ key: KEY, steamid: STEAM_ID, appid: "2651280", l: "english", format: "json" });
+  });
+
+  it("has nothing to show for a game without achievements, or one not owned", async () => {
+    stubFetch(
+      json({ playerstats: { error: "Requested app has no stats", success: false } }, 400),
+      json({ playerstats: { error: "Profile is not public", success: false } }, 403),
+      json({ playerstats: { steamID: STEAM_ID, gameName: "No Stats", success: true } }),
+    );
+    expect(await fetchPlayerAchievements(credentials, 228980)).toBeNull();
+    expect(await fetchPlayerAchievements(credentials, 220)).toBeNull();
+    expect(await fetchPlayerAchievements(credentials, 1)).toBeNull();
+  });
+
+  it("reports a rejected key and an unreachable Steam", async () => {
+    stubFetch(new Response("<html><body>Forbidden</body></html>", { status: 403 }), new TypeError("fetch failed"));
+    expect(await failureOf(fetchPlayerAchievements(credentials, 1))).toBe("unauthorized");
+    expect(await failureOf(fetchPlayerAchievements(credentials, 1))).toBe("network");
+  });
+});
+
+describe("fetchPlayerSummary", () => {
+  const credentials = { apiKey: KEY, steamId: STEAM_ID };
+  const player = (extra: Record<string, unknown>) =>
+    json({
+      response: {
+        players: [
+          {
+            steamid: STEAM_ID,
+            personaname: "Ognjen",
+            profileurl: `https://steamcommunity.com/profiles/${STEAM_ID}/`,
+            avatarmedium: "https://avatars.steamstatic.com/abc_medium.jpg",
+            communityvisibilitystate: 3,
+            ...extra,
+          },
+        ],
+      },
+    });
+
+  it("asks for the account's summary and reads name, avatar, visibility and the game being played", async () => {
+    const fetch = stubFetch(player({ gameextrainfo: "Hades" }));
+    expect(await fetchPlayerSummary(credentials)).toEqual({
+      steamid: STEAM_ID,
+      personaname: "Ognjen",
+      profileurl: `https://steamcommunity.com/profiles/${STEAM_ID}/`,
+      avatarmedium: "https://avatars.steamstatic.com/abc_medium.jpg",
+      isPublic: true,
+      playing: "Hades",
+    });
+    const url = requestedUrl(fetch);
+    expect(url.origin + url.pathname).toBe("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/");
+    expect(url.searchParams.get("steamids")).toBe(STEAM_ID);
+  });
+
+  it("marks private and friends-only profiles as not public, and drops a non-https avatar", async () => {
+    stubFetch(player({ communityvisibilitystate: 1, avatarmedium: "http://insecure/a.jpg" }), player({ communityvisibilitystate: 2 }));
+    expect(await fetchPlayerSummary(credentials)).toMatchObject({ isPublic: false, avatarmedium: null, playing: null });
+    expect(await fetchPlayerSummary(credentials)).toMatchObject({ isPublic: false });
+  });
+
+  it("returns null for an account Steam does not know, and reports a rejected key", async () => {
+    stubFetch(json({ response: { players: [] } }), json({}, 403));
+    expect(await fetchPlayerSummary(credentials)).toBeNull();
+    expect(await failureOf(fetchPlayerSummary(credentials))).toBe("unauthorized");
+  });
+});
+
+describe("fetchWishlist", () => {
+  it("asks for the account's wishlist without a key and reads ids, ranks and dates", async () => {
+    const fetch = stubFetch(
+      json({ response: { items: [{ appid: 620, priority: 0, date_added: 1700000000 }, { appid: 413150, priority: 1, date_added: 1600000000 }, { priority: 2 }] } }),
+    );
+    expect(await fetchWishlist(STEAM_ID)).toEqual([
+      { appid: 620, priority: 0, dateAdded: 1700000000 },
+      { appid: 413150, priority: 1, dateAdded: 1600000000 },
+    ]);
+    const url = requestedUrl(fetch);
+    expect(url.origin + url.pathname).toBe("https://api.steampowered.com/IWishlistService/GetWishlist/v1/");
+    expect(url.searchParams.get("steamid")).toBe(STEAM_ID);
+    expect(url.searchParams.has("key")).toBe(false);
+  });
+
+  it("reads a private or empty wishlist as empty", async () => {
+    stubFetch(json({ response: {} }));
+    expect(await fetchWishlist(STEAM_ID)).toEqual([]);
+  });
+});
+
+describe("fetchStoreItems", () => {
+  it("asks the store in batches of 50 and keys the answers by app id", async () => {
+    const ids = Array.from({ length: 60 }, (_, i) => i + 1);
+    const page = (from: number, to: number) => json({ response: { store_items: ids.slice(from, to).map((appid) => ({ appid, name: `Game ${appid}`, success: 1 })) } });
+    const fetch = stubFetch(page(0, 50), page(50, 60));
+    const items = await fetchStoreItems(ids);
+    expect(items.size).toBe(60);
+    expect(items.get(55)?.name).toBe("Game 55");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const input = JSON.parse(requestedUrl(fetch, 1).searchParams.get("input_json") ?? "{}") as { ids: { appid: number }[] };
+    expect(input.ids.map((i) => i.appid)).toEqual(ids.slice(50));
+    expect(requestedUrl(fetch).pathname).toBe("/IStoreBrowseService/GetItems/v1/");
   });
 });

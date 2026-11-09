@@ -54,7 +54,17 @@ export function createBackup(
     version: BACKUP_VERSION,
     exportedAt: now.toISOString(),
     // Credentials and tokens are local secrets and stay out of the file.
-    settings: { ...settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0, steamApiKey: "", steamId: "" },
+    settings: {
+      ...settings,
+      igdbClientId: "",
+      igdbClientSecret: "",
+      igdbAccessToken: "",
+      igdbTokenExpiresAt: 0,
+      steamApiKey: "",
+      steamId: "",
+      steamHiddenApps: [],
+      steamDismissedHints: [],
+    },
     games: [...PLATFORMS.flatMap((platform) => plannedGames(games, platform)), ...completedGames(games)].map((game) => ({
       ...game,
     })),
@@ -164,6 +174,8 @@ function parseSettings(obj: Record<string, unknown>): Settings {
     igdbTokenExpiresAt: 0,
     steamApiKey: "",
     steamId: "",
+    steamHiddenApps: [],
+    steamDismissedHints: [],
   };
 }
 

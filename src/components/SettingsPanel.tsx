@@ -12,6 +12,7 @@ import { t } from "../i18n/en";
 import { DateField } from "./DateField";
 import { failureMessage } from "./GameSearch";
 import { Icon } from "./Icon";
+import { SteamAccount } from "./SteamAccount";
 import { SteamImportDialog } from "./SteamImportDialog";
 
 /**
@@ -31,8 +32,18 @@ const STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
 export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   const settings = useStore((s) => s.settings);
   const clientIdRef = useRef<HTMLInputElement>(null);
+  /** A connection that is set up folds to one status line; its form opens again with "Change". */
+  const [igdbEditing, setIgdbEditing] = useState(false);
+  const [steamEditing, setSteamEditing] = useState(false);
+  const igdbReady = settings.igdbClientId !== "" && settings.igdbClientSecret !== "";
+  const steamSaved = steamConfigured(settings);
+  const showIgdbForm = !igdbReady || igdbEditing;
+  const showSteamForm = !steamSaved || steamEditing;
   useEffect(() => {
-    if (focusIgdb > 0) clientIdRef.current?.focus();
+    if (focusIgdb <= 0) return;
+    // A dialog sent the user here for IGDB: open the form and put them in the Client ID field.
+    setIgdbEditing(true);
+    requestAnimationFrame(() => clientIdRef.current?.focus());
   }, [focusIgdb]);
   const updateSettings = useStore((s) => s.updateSettings);
   const updateGames = useStore((s) => s.updateGames);
@@ -175,57 +186,77 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         <h3>{t.settings.igdb}</h3>
         <p className="settings-group-note">{t.settings.igdbNote}</p>
         <div className="settings-group-body">
-          <ol className="settings-steps">
-            {t.settings.igdbSteps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <div className="field-actions">
-            <button type="button" className="button button-small" onClick={() => void openExternal(TWITCH_CONSOLE_URL)}>
-              {t.settings.igdbConsole} <Icon name="external" size={14} />
-            </button>
-          </div>
-          <label className="field">
-            <span className="field-label">{t.search.igdbClientId}</span>
-            <input
-              ref={clientIdRef}
-              type="text"
-              value={igdbClientId}
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(e) => setIgdbClientId(e.target.value)}
-              onBlur={() => commitCredential("igdbClientId", igdbClientId)}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">{t.search.igdbClientSecret}</span>
-            <input
-              type="password"
-              value={igdbClientSecret}
-              autoComplete="off"
-              onChange={(e) => setIgdbClientSecret(e.target.value)}
-              onBlur={() => commitCredential("igdbClientSecret", igdbClientSecret)}
-            />
-          </label>
-          <p className="field-hint">{t.search.igdbHint}</p>
-        </div>
-      </div>
-
-      <div className="settings-group">
-        <h3>{t.settings.designsTitle}</h3>
-        <p className="settings-group-note">{t.settings.designsHint}</p>
-        <div className="settings-group-body">
-          <div className="field">
-            <div className="field-actions">
-              <button type="button" className="button" onClick={() => void refreshDesigns()} disabled={refresh !== null}>
-                <Icon name="refresh" />
-                {refresh === null
-                  ? t.settings.designsRefresh
-                  : t.settings.designsProgress.replace("{done}", String(refresh.done)).replace("{total}", String(refresh.total))}
+          {showIgdbForm ? (
+            // Focus inside keeps the form open, so it does not fold away the moment both fields are saved.
+            <div className="settings-form" onFocus={() => setIgdbEditing(true)}>
+              <ol className="settings-steps">
+                {t.settings.igdbSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              <div className="settings-form-fields">
+                <label className="field">
+                  <span className="field-label">{t.search.igdbClientId}</span>
+                  <input
+                    ref={clientIdRef}
+                    type="text"
+                    value={igdbClientId}
+                    autoComplete="off"
+                    spellCheck={false}
+                    onChange={(e) => setIgdbClientId(e.target.value)}
+                    onBlur={() => commitCredential("igdbClientId", igdbClientId)}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">{t.search.igdbClientSecret}</span>
+                  <input
+                    type="password"
+                    value={igdbClientSecret}
+                    autoComplete="off"
+                    onChange={(e) => setIgdbClientSecret(e.target.value)}
+                    onBlur={() => commitCredential("igdbClientSecret", igdbClientSecret)}
+                  />
+                </label>
+              </div>
+              <p className="field-hint">{t.search.igdbHint}</p>
+              <div className="field-actions">
+                <button type="button" className="button button-small" onClick={() => void openExternal(TWITCH_CONSOLE_URL)}>
+                  {t.settings.igdbConsole} <Icon name="external" size={14} />
+                </button>
+                {igdbReady && (
+                  <button type="button" className="button button-small" onClick={() => setIgdbEditing(false)}>
+                    {t.settings.done}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="settings-status">
+              <Icon name="check" size={16} className="settings-status-icon" />
+              <span>
+                {t.settings.igdbSaved}
+                <span className="muted"> · {t.settings.igdbIdTail.replace("{tail}", settings.igdbClientId.slice(-4))}</span>
+              </span>
+              <button type="button" className="button button-small button-ghost" onClick={() => setIgdbEditing(true)} aria-label={t.settings.changeIgdb}>
+                <Icon name="pencil" size={14} /> {t.settings.change}
               </button>
             </div>
-            {refreshError && <span className="field-error">{refreshError}</span>}
-          </div>
+          )}
+          {/* An IGDB action, so it waits until IGDB is set up. */}
+          {igdbReady && (
+            <div className="settings-action">
+              <div className="field-actions">
+                <button type="button" className="button" onClick={() => void refreshDesigns()} disabled={refresh !== null}>
+                  <Icon name="refresh" />
+                  {refresh === null
+                    ? t.settings.designsRefresh
+                    : t.settings.designsProgress.replace("{done}", String(refresh.done)).replace("{total}", String(refresh.total))}
+                </button>
+              </div>
+              {refreshError && <span className="field-error">{refreshError}</span>}
+              <p className="field-hint">{t.settings.designsHint}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -233,41 +264,60 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         <h3>{t.steam.title}</h3>
         <p className="settings-group-note">{t.steam.note}</p>
         <div className="settings-group-body">
-          <ol className="settings-steps">
-            {t.steam.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <div className="field-actions">
-            <button type="button" className="button button-small" onClick={() => void openExternal(STEAM_KEY_URL)}>
-              {t.steam.openKeyPage} <Icon name="external" size={14} />
-            </button>
-          </div>
-          <label className="field">
-            <span className="field-label">{t.steam.apiKey}</span>
-            <input
-              type="password"
-              value={steamApiKey}
-              autoComplete="off"
-              onChange={(e) => setSteamApiKey(e.target.value)}
-              onBlur={() => commitSteam("steamApiKey", steamApiKey)}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">{t.steam.account}</span>
-            <input
-              type="text"
-              value={steamId}
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(e) => setSteamId(e.target.value)}
-              onBlur={() => commitSteam("steamId", steamId)}
-              aria-invalid={steamIdInvalid}
-            />
-            {steamIdInvalid && <span className="field-error">{t.steam.accountInvalid}</span>}
-          </label>
-          <p className="field-hint">{t.steam.hint}</p>
-          <div className="field">
+          {showSteamForm ? (
+            <div className="settings-form" onFocus={() => setSteamEditing(true)}>
+              <ol className="settings-steps">
+                {t.steam.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              <div className="settings-form-fields">
+                <label className="field">
+                  <span className="field-label">{t.steam.apiKey}</span>
+                  <input
+                    type="password"
+                    value={steamApiKey}
+                    autoComplete="off"
+                    onChange={(e) => setSteamApiKey(e.target.value)}
+                    onBlur={() => commitSteam("steamApiKey", steamApiKey)}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">{t.steam.account}</span>
+                  <input
+                    type="text"
+                    value={steamId}
+                    autoComplete="off"
+                    spellCheck={false}
+                    onChange={(e) => setSteamId(e.target.value)}
+                    onBlur={() => commitSteam("steamId", steamId)}
+                    aria-invalid={steamIdInvalid}
+                  />
+                  {steamIdInvalid && <span className="field-error">{t.steam.accountInvalid}</span>}
+                </label>
+              </div>
+              <SteamAccount />
+              <p className="field-hint">{t.steam.hint}</p>
+              <div className="field-actions">
+                <button type="button" className="button button-small" onClick={() => void openExternal(STEAM_KEY_URL)}>
+                  {t.steam.openKeyPage} <Icon name="external" size={14} />
+                </button>
+                {steamSaved && (
+                  <button type="button" className="button button-small" onClick={() => setSteamEditing(false)}>
+                    {t.settings.done}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="settings-status">
+              <SteamAccount />
+              <button type="button" className="button button-small button-ghost" onClick={() => setSteamEditing(true)} aria-label={t.settings.changeSteam}>
+                <Icon name="pencil" size={14} /> {t.settings.change}
+              </button>
+            </div>
+          )}
+          <div className="settings-action">
             <div className="field-actions">
               <button type="button" className="button" onClick={() => setSteamImportOpen(true)} disabled={!steamReady}>
                 <Icon name="download" /> {t.steam.import}
@@ -278,36 +328,36 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         </div>
       </div>
 
-      {backupFolder && (
+      {(version || backupFolder) && (
         <div className="settings-group">
-          <h3>{t.backup.autoTitle}</h3>
-          <p className="settings-group-note">{t.backup.autoHint}</p>
+          <h3>{t.settings.appTitle}</h3>
+          <p className="settings-group-note">{t.settings.appNote}</p>
           <div className="settings-group-body">
-            <code className="path">{backupFolder}</code>
-          </div>
-        </div>
-      )}
-
-      {version && (
-        <div className="settings-group">
-          <h3>{t.updates.title}</h3>
-          <p className="settings-group-note">{t.updates.hint}</p>
-          <div className="settings-group-body">
-            <div className="field">
-              <div className="field-actions">
-                <span>{t.updates.version.replace("{version}", version)}</span>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => void checkUpdates()}
-                  disabled={updateStatus === "checking" || updateStatus === "installing"}
-                >
-                  {updateStatus === "checking" ? t.updates.checking : t.updates.check}
-                </button>
+            {version && (
+              <div className="settings-action">
+                <div className="field-actions">
+                  <span className="settings-version">{t.updates.version.replace("{version}", version)}</span>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() => void checkUpdates()}
+                    disabled={updateStatus === "checking" || updateStatus === "installing"}
+                  >
+                    {updateStatus === "checking" ? t.updates.checking : t.updates.check}
+                  </button>
+                </div>
+                {updateStatus === "upToDate" && <span className="field-hint">{t.updates.upToDate}</span>}
+                {updateStatus === "checkFailed" && <span className="field-error">{t.updates.checkFailed}</span>}
+                <p className="field-hint">{t.updates.hint}</p>
               </div>
-              {updateStatus === "upToDate" && <span className="field-hint">{t.updates.upToDate}</span>}
-              {updateStatus === "checkFailed" && <span className="field-error">{t.updates.checkFailed}</span>}
-            </div>
+            )}
+            {backupFolder && (
+              <div className="settings-action">
+                <span className="field-label">{t.backup.autoTitle}</span>
+                <code className="path">{backupFolder}</code>
+                <p className="field-hint">{t.backup.autoHint}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

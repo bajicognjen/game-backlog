@@ -10,6 +10,7 @@ import { genreLabels, platformLabels, statusLabels, t } from "../i18n/en";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
 import { providers } from "../state/providers";
+import { useSteamStoreItem } from "../state/steam";
 import { useStore } from "../state/store";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
@@ -42,9 +43,13 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
   const [playing, setPlaying] = useState<string | null>(null);
 
   const related = useMemo(() => (game ? relatedGames(games, game) : []), [games, game]);
+  /** Steam's own store data, when the game is on Steam: Deck rating, reviews, and a cover IGDB lacks. */
+  const store = useSteamStoreItem(game ?? null);
 
   if (!game) return null;
   const d = game.details;
+  const coverUrl = game.coverUrl ? thumbnailUrl(game.coverUrl, 200) : (store?.coverUrl ?? null);
+  const hasSteamLink = d?.storeLinks.some((link) => link.store === "Steam") ?? false;
   const linked = game.source === "igdb" && game.externalId !== null;
 
   async function refresh() {
@@ -94,7 +99,7 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
     <Modal title={game.title} onClose={onClose} size={d ? "xl" : "md"}>
       <div className="details">
         <header className="details-head">
-          {game.coverUrl && <img className="details-cover" src={thumbnailUrl(game.coverUrl, 200)} alt="" width={132} height={187} />}
+          {coverUrl && <img className="details-cover" src={coverUrl} alt="" width={132} height={187} />}
           <div className="details-summary">
             <div className="details-chips">
               <TypeChip type={game.type} />
@@ -139,6 +144,33 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
             {d && d.platforms.length > 0 && (
               <p className="details-line">
                 <span className="muted">{t.details.platforms}:</span> {d.platforms.join(", ")}
+              </p>
+            )}
+            {store && (
+              <p className="details-line">
+                <span className="muted">{t.steamStore.line}:</span>
+                {store.reviewLabel && (
+                  <span>
+                    {store.reviewLabel}
+                    {store.reviewPercent !== null && store.reviewCount !== null && (
+                      <span className="muted">
+                        {" · "}
+                        {t.steamStore.reviewShare
+                          .replace("{percent}", String(store.reviewPercent))
+                          .replace("{count}", store.reviewCount.toLocaleString("en-US"))}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {store.deck !== "unknown" && <span>{t.steamStore.deckLabel.replace("{deck}", t.steamStore.deck[store.deck])}</span>}
+                {!game.releaseDate && (store.releaseDate || store.comingSoon) && (
+                  <span>{store.comingSoon ? t.steamStore.comingSoon : t.steamStore.released.replace("{date}", formatDate(store.releaseDate as string))}</span>
+                )}
+                {!hasSteamLink && (
+                  <button type="button" className="button button-small" onClick={() => void openExternal(store.storeUrl)}>
+                    {t.steamStore.store} <Icon name="external" size={14} />
+                  </button>
+                )}
               </p>
             )}
             <p className="details-line">

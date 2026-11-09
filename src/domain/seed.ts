@@ -11,6 +11,8 @@ export const SEED_SETTINGS: Settings = {
   igdbTokenExpiresAt: 0,
   steamApiKey: "",
   steamId: "",
+  steamHiddenApps: [],
+  steamDismissedHints: [],
 };
 
 export interface SeedPlanEntry {

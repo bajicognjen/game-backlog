@@ -16,6 +16,8 @@ interface Props {
   autoFocus?: boolean;
   /** Jump to the IGDB credentials in Settings; shown while none are entered. */
   onSetupIgdb?(): void;
+  /** Text the box starts with, searched at once (a Steam game's name). */
+  initialQuery?: string;
 }
 
 /**
@@ -23,10 +25,10 @@ interface Props {
  * (read locally, no request), then IGDB results. Picking a result that is
  * already in the library hands back the library row instead of fetching.
  */
-export function GameSearch({ onPick, autoFocus = false, onSetupIgdb }: Props) {
+export function GameSearch({ onPick, autoFocus = false, onSetupIgdb, initialQuery }: Props) {
   const games = useStore((s) => s.games);
   const hasCredentials = useStore((s) => s.settings.igdbClientId !== "" && s.settings.igdbClientSecret !== "");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [open, setOpen] = useState(false);
   const [fetching, setFetching] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

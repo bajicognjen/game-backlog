@@ -9,6 +9,7 @@ import { DateField } from "./DateField";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 import { RatingPicker } from "./RatingPicker";
+import { SteamFinishHint } from "./SteamFinishHint";
 
 interface Props {
   game: Game;
@@ -16,12 +17,15 @@ interface Props {
   nextTitle: string | null;
   onSubmit(input: FinishInput): Promise<boolean>;
   onClose(): void;
+  /** The finish date to start from (Steam's, from the hints bar); today otherwise. */
+  initialDate?: string;
 }
 
-export function FinishDialog({ game, nextTitle, onSubmit, onClose }: Props) {
+export function FinishDialog({ game, nextTitle, onSubmit, onClose, initialDate }: Props) {
   const today = todayIso();
-  const [completedAt, setCompletedAt] = useState(today);
-  const [nextStartDate, setNextStartDate] = useState(today);
+  const [completedAt, setCompletedAt] = useState(initialDate ?? today);
+  // The next game starts where this one ended, as when the finish date is changed by hand.
+  const [nextStartDate, setNextStartDate] = useState(initialDate ?? today);
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState("");
   // The PC plan continues with the next game by default; a queue does not.
@@ -96,6 +100,7 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose }: Props) {
               )}
             </div>
           )}
+          <SteamFinishHint game={game} value={completedAt} onUse={changeCompletedAt} />
         </div>
 
         {nextTitle !== null && (

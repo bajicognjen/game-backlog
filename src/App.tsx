@@ -17,6 +17,8 @@ import { SessionDialog } from "./components/SessionDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SortControl } from "./components/SortControl";
 import { StatsSection } from "./components/StatsSection";
+import { SteamHintsBar } from "./components/SteamHintsBar";
+import { SteamLibraryDialog } from "./components/SteamLibraryDialog";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
 import { UpdateBanner } from "./components/UpdateBanner";
@@ -25,6 +27,7 @@ import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
 import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type GameFilter } from "./domain/filters";
 import { computeSchedule, plannedGames } from "./domain/schedule";
+import { steamConfigured, steamSearchTitle } from "./domain/steam";
 import { todayStatus } from "./domain/today";
 import { planWarnings } from "./domain/warnings";
 import { PLATFORMS, SCHEDULED_PLATFORM, isDone, type Game, type Platform } from "./domain/types";
@@ -191,10 +194,12 @@ export default function App() {
 }
 
 type PlanDialog =
-  | { kind: "add" }
+  /** `steamName` when adding from the Steam library: it goes into the search and the title. */
+  | { kind: "add"; steamName?: string }
   | { kind: "edit"; game: Game }
   | { kind: "delete"; game: Game }
-  | { kind: "finish"; game: Game }
+  /** `date` when Steam said when the game was finished (the hints bar). */
+  | { kind: "finish"; game: Game; date?: string }
   | { kind: "drop"; game: Game }
   | { kind: "log"; game: Game }
   | null;
@@ -228,6 +233,8 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
   const setGameStatus = useStore((s) => s.setGameStatus);
   const dropGame = useStore((s) => s.dropGame);
   const [dialog, setDialog] = useState<PlanDialog>(null);
+  /** The Steam library list stays open underneath while a game from it is being added. */
+  const [steamLibraryOpen, setSteamLibraryOpen] = useState(false);
   const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
   const platforms = useMemo(() => availablePlatforms(games), [games]);
   const filterable = useMemo(() => hasIgdbData(games), [games]);
@@ -296,6 +303,11 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
       <Icon name="plus" /> {t.actions.add}
     </button>
   );
+  const steamButton = steamConfigured(settings) && (
+    <button type="button" className="button" onClick={() => setSteamLibraryOpen(true)} title={t.steamLibrary.openTitle}>
+      <Icon name="download" /> {t.steamLibrary.open}
+    </button>
+  );
   const empty = filtering ? (
     <EmptyState
       title={t.emptyFiltered}
@@ -319,6 +331,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           <h2 id="plan-heading">{t.plan}</h2>
           <PlatformTabs active={platform} counts={counts} onChange={onPlatformChange} panelId={PLAN_PANEL_ID} />
           {addButton}
+          {steamButton}
           {!scheduled && <p className="section-hint">{t.queueHint}</p>}
         </div>
         {scheduled && <TotalsBar totals={schedule.totals} />}
@@ -336,6 +349,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           onStart={(game) => void setGameStatus(game.id, "in_progress")}
         />
         <WarningsBar messages={warnings.messages} />
+        {scheduled && <SteamHintsBar onFinish={(game, date) => setDialog({ kind: "finish", game, date })} />}
         {rows.length > 0 && filterable && (
           <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
         )}
@@ -358,10 +372,16 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
         />
       </div>
 
+      {/* Before the add form, so the form opens on top of the list. */}
+      {steamLibraryOpen && (
+        <SteamLibraryDialog onAdd={(steamName) => setDialog({ kind: "add", steamName })} onClose={() => setSteamLibraryOpen(false)} />
+      )}
+
       {dialog?.kind === "add" && (
         <GameDialog
           mode="add"
-          defaultPlatform={platform}
+          defaultPlatform={dialog.steamName ? SCHEDULED_PLATFORM : platform}
+          initialQuery={dialog.steamName ? steamSearchTitle(dialog.steamName) : undefined}
           planTitles={planTitles}
           onSubmit={(values, index) => addGame(values, index)}
           onClose={close}
@@ -404,6 +424,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
       {dialog?.kind === "finish" && (
         <FinishDialog
           game={dialog.game}
+          initialDate={dialog.date}
           nextTitle={rows.find((row) => row.game.id !== dialog.game.id)?.game.title ?? null}
           onSubmit={(input) => finishGame(dialog.game.id, input)}
           onClose={close}

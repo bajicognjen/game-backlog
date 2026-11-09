@@ -12,6 +12,7 @@ import { Modal } from "./Modal";
 import { ProviderLinked } from "./ProviderLinked";
 import { GameSearch, type SearchPick } from "./GameSearch";
 import { RatingPicker } from "./RatingPicker";
+import { SteamFinishHint } from "./SteamFinishHint";
 
 interface Props {
   mode: "add" | "edit";
@@ -180,6 +181,7 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
             {errors.completedAt && <span className="field-error">{errors.completedAt}</span>}
           </div>
         </div>
+        {game && <SteamFinishHint game={game} value={completedAt} onUse={setCompletedAt} />}
 
         <div className="field">
           <span className="field-label">{t.rating.label}</span>

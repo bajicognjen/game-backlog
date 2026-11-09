@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDate, todayIso } from "../domain/dates";
 import { formatHours } from "../domain/format";
-import {
-  STEAM_IMPORT_NOTE,
-  baseGameAppIds,
-  editionCandidates,
-  excludedByDefault,
-  importedHours,
-  planSteamImport,
-  type SteamImportPlan,
-} from "../domain/steam";
-import type { Game, Settings } from "../domain/types";
+import { STEAM_IMPORT_NOTE, excludedByDefault, importedHours, planSteamImport, type SteamImportPlan } from "../domain/steam";
 import { t } from "../i18n/en";
-import { SteamError, fetchOwnedGames, resolveSteamId, steamFailureOf, type SteamFailure } from "../platform/steam";
-import { providers } from "../state/providers";
+import { steamFailureOf, type SteamFailure } from "../platform/steam";
+import { loadSteam, steamFailureMessage } from "../state/steam";
 import { useStore } from "../state/store";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
@@ -44,13 +35,9 @@ export function SteamImportDialog({ onClose }: Props) {
     setStage({ kind: "loading" });
     void (async () => {
       try {
-        const { settings, games, sessions } = useStore.getState();
-        const apiKey = settings.steamApiKey.trim();
-        if (apiKey === "") throw new SteamError("no-credentials");
-        const steamId = await resolveSteamId(apiKey, settings.steamId, controller.signal);
-        const owned = await fetchOwnedGames({ apiKey, steamId }, controller.signal);
-        const baseApps = await lookUpBaseApps(games, settings, controller.signal);
+        const { owned, baseApps } = await loadSteam(controller.signal);
         if (controller.signal.aborted) return;
+        const { games, sessions } = useStore.getState();
         const plan = planSteamImport(games, sessions, owned, todayIso(), baseApps);
         setExcluded(excludedByDefault(plan.items));
         setStage({ kind: "ready", plan });
@@ -103,7 +90,7 @@ export function SteamImportDialog({ onClose }: Props) {
 
       {stage.kind === "failed" && (
         <p className="modal-text" role="alert">
-          {failureMessage(stage.reason)}
+          {steamFailureMessage(stage.reason)}
         </p>
       )}
 
@@ -231,41 +218,8 @@ function Preview({ plan, excluded, onToggle, onToggleAll }: PreviewProps) {
   );
 }
 
-/**
- * Steam apps of the base games behind editions whose cached details have no
- * Steam link. Optional like all IGDB enrichment: without IGDB set up, or
- * when it fails, those games just fall back to their titles.
- */
-async function lookUpBaseApps(games: readonly Game[], settings: Settings, signal: AbortSignal): Promise<Map<number, number>> {
-  const ids = editionCandidates(games);
-  if (ids.length === 0 || !providers.igdb.configured(settings)) return new Map();
-  try {
-    return baseGameAppIds(games, await providers.igdb.editionBaseLinks(ids, signal));
-  } catch (error) {
-    if (signal.aborted) throw error;
-    return new Map();
-  }
-}
-
 /** The import button: what it will add, or what to do when nothing is ticked. */
 function confirmLabel(count: number, hours: number): string {
   if (count === 0) return t.steam.confirmNone;
   return (count === 1 ? t.steam.confirmOne : t.steam.confirm).replace("{count}", String(count)).replace("{hours}", formatHours(hours));
-}
-
-function failureMessage(reason: SteamFailure): string {
-  switch (reason) {
-    case "no-credentials":
-      return t.steam.errors.noCredentials;
-    case "unauthorized":
-      return t.steam.errors.unauthorized;
-    case "unknown-account":
-      return t.steam.errors.unknownAccount;
-    case "private":
-      return t.steam.errors.private;
-    case "network":
-      return t.steam.errors.network;
-    default:
-      return t.steam.errors.other;
-  }
 }
