@@ -83,6 +83,8 @@ export interface AppState {
   resumeUndo(): void;
   dismissError(): void;
   dismissNotice(): void;
+  /** Show a routine confirmation that clears itself (used by sync after a pull). */
+  notify(notice: string): void;
 }
 
 /** How long an undo offer stays on screen (a thin line under it drains over this time). */
@@ -475,6 +477,10 @@ export const useStore = create<AppState>((set, get) => {
     dismissNotice() {
       clearTimers();
       set({ notice: null, undo: null, undoHeld: false, undoDeadline: null, recentlyFinishedId: null });
+    },
+
+    notify(notice) {
+      flashNotice(notice);
     },
   };
 });

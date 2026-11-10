@@ -1,0 +1,77 @@
+/**
+ * The sync engine for the UI (web build only). Owns one engine, mirrors
+ * its state into this store, and reloads the plan after a pull.
+ */
+import { isTauri } from "@tauri-apps/api/core";
+import { create } from "zustand";
+import { repository } from "../db";
+import { onWebStateSaved } from "../db/webRepository";
+import { hasIndexedDb } from "../db/webStorage";
+import { normaliseSyncKey } from "../domain/sync";
+import { t } from "../i18n/en";
+import { createSyncApi, createSyncEngine, type ConflictChoice, type SyncEngine, type SyncState } from "../platform/sync";
+import { describeError, useStore } from "./store";
+
+export interface SyncUiState {
+  /** False in the desktop app and in unit tests: the section is not shown. */
+  supported: boolean;
+  state: SyncState;
+  /** The last explicit action that failed outright (a network error on connect or delete). */
+  actionError: string | null;
+  start(): Promise<void>;
+  enable(inviteCode?: string): Promise<void>;
+  /** Resolves false when the input is not a key. */
+  connect(input: string, inviteCode?: string): Promise<boolean>;
+  disable(): Promise<void>;
+  deleteServerCopy(): Promise<void>;
+  resolve(choice: ConflictChoice): Promise<void>;
+  check(): Promise<void>;
+}
+
+let engine: SyncEngine | null = null;
+
+function getEngine(): SyncEngine {
+  if (!engine) {
+    engine = createSyncEngine({
+      repository,
+      api: createSyncApi(),
+      onChange: (state) => useSync.setState({ state }),
+      onPulled: async () => {
+        await useStore.getState().load();
+        useStore.getState().notify(t.sync.pulled);
+      },
+    });
+    const current = engine;
+    onWebStateSaved((state) => current.noteSaved(state));
+  }
+  return engine;
+}
+
+export const useSync = create<SyncUiState>((set) => {
+  /** Run an action; a failure thrown by the engine (network trouble on connect or delete) lands in `actionError`. */
+  async function attempt(action: (engine: SyncEngine) => Promise<void>): Promise<void> {
+    set({ actionError: null });
+    try {
+      await action(getEngine());
+    } catch (error) {
+      set({ actionError: describeError(error) });
+    }
+  }
+
+  return {
+    supported: !isTauri() && hasIndexedDb(),
+    state: { kind: "off" },
+    actionError: null,
+    start: () => attempt((e) => e.start()),
+    enable: (inviteCode) => attempt((e) => e.enable(inviteCode ?? null)),
+    async connect(input, inviteCode) {
+      if (!normaliseSyncKey(input)) return false;
+      await attempt((e) => e.connect(input, inviteCode ?? null));
+      return true;
+    },
+    disable: () => attempt((e) => e.disable()),
+    deleteServerCopy: () => attempt((e) => e.deleteServerCopy()),
+    resolve: (choice) => attempt((e) => e.resolve(choice)),
+    check: () => attempt((e) => e.check()),
+  };
+});

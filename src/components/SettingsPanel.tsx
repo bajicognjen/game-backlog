@@ -5,6 +5,7 @@ import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
 import { dataLocation, keepDataPersistent, type DataLocation } from "../platform/storage";
+import { SyncSettings } from "./SyncSettings";
 import { APP_VERSION, appVersion } from "../platform/updates";
 import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
@@ -334,6 +335,8 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
           </div>
         </div>
       </div>
+
+      {inBrowser && <SyncSettings />}
 
       {(version || backupFolder || inBrowser) && (
         <div className="settings-group">

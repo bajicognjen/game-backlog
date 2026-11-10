@@ -72,6 +72,15 @@ function counter(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : 1;
 }
 
+export type SaveListener = (state: SnapshotState) => void;
+const saveListeners = new Set<SaveListener>();
+
+/** Hear about every state the web store saved, after it is safely in IndexedDB; the sync engine mirrors it. */
+export function onWebStateSaved(listener: SaveListener): () => void {
+  saveListeners.add(listener);
+  return () => saveListeners.delete(listener);
+}
+
 export function createWebStore(): SnapshotStore {
   return {
     async load() {
@@ -81,6 +90,7 @@ export function createWebStore(): SnapshotStore {
     },
     async save(state) {
       await putDocument(STATE_KEY, toStoredState(state));
+      for (const listener of saveListeners) listener(state);
     },
   };
 }

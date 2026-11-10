@@ -21,6 +21,7 @@ import { SteamHintsBar } from "./components/SteamHintsBar";
 import { SteamLibraryDialog } from "./components/SteamLibraryDialog";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
+import { SyncBanner } from "./components/SyncBanner";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
@@ -34,6 +35,7 @@ import { PLATFORMS, SCHEDULED_PLATFORM, isDone, type Game, type Platform } from 
 import { platformLabels, t } from "./i18n/en";
 import { setStoreMessages, useStore } from "./state/store";
 import { applyTheme } from "./state/theme";
+import { useSync } from "./state/sync";
 import { useUpdates } from "./state/updates";
 import { watchForWebUpdate } from "./platform/pwa";
 import "./styles/app.css";
@@ -80,6 +82,22 @@ export default function App() {
     void useUpdates.getState().check(true);
     // Web build: a deployed new version is offered as a reload.
     watchForWebUpdate((apply) => useUpdates.getState().offerReload(apply));
+  }, []);
+
+  // Web build: compare with the server copy at start, when the tab comes back, and when the connection returns.
+  useEffect(() => {
+    if (!useSync.getState().supported) return;
+    void useSync.getState().start();
+    const check = () => void useSync.getState().check();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", check);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", check);
+    };
   }, []);
 
   useEffect(() => applyTheme(theme), [theme]);
@@ -146,6 +164,7 @@ export default function App() {
       <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
         <UpdateBanner />
+        <SyncBanner />
         <Banner />
         {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
         <PlanSection
