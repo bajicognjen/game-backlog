@@ -3,7 +3,7 @@ import { parseHiddenApps } from "../domain/steam";
 import { parseDismissedHints } from "../domain/steamHints";
 import type { Settings } from "../domain/types";
 import type { Repository } from "./repository";
-import { createSnapshotRepository, nextIdAfter, type SnapshotState, type SnapshotStore } from "./snapshotRepository";
+import { createSnapshotRepository, emptyState, nextIdAfter, type SnapshotState, type SnapshotStore } from "./snapshotRepository";
 import { getDocument, putDocument, requestPersistentStorage } from "./webStorage";
 
 /** The IndexedDB document that holds the whole app state (see `webStorage.ts`). */
@@ -85,7 +85,11 @@ export function createWebStore(): SnapshotStore {
   };
 }
 
-/** The repository of the web build: the snapshot repository saved to IndexedDB. */
+/**
+ * The repository of the web build: the snapshot repository saved to
+ * IndexedDB. A new user starts with an empty plan and adds their own games
+ * (or imports a backup); the seed plan is the desktop app's first run only.
+ */
 export function createWebRepository(): Repository {
-  return createSnapshotRepository(createWebStore());
+  return createSnapshotRepository(createWebStore(), { firstRun: emptyState });
 }
