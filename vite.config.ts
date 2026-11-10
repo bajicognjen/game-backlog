@@ -40,6 +40,10 @@ export default defineConfig(() => ({
               ],
             },
             workbox: {
+              // Take over as soon as a new build is installed, so the next load runs it;
+              // without these a new worker waits until every tab of the app is closed.
+              skipWaiting: true,
+              clientsClaim: true,
               globPatterns: ["**/*.{js,css,html,png,webmanifest}"],
               // The proxy is never a page; offline it must fail, not answer with index.html.
               navigateFallbackDenylist: [/^\/api\//],
