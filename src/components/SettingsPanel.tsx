@@ -4,7 +4,8 @@ import { parseSteamIdInput, steamConfigured } from "../domain/steam";
 import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
-import { appVersion } from "../platform/updates";
+import { dataLocation, keepDataPersistent, type DataLocation } from "../platform/storage";
+import { APP_VERSION, appVersion } from "../platform/updates";
 import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
 import { useUpdates } from "../state/updates";
@@ -78,11 +79,17 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   useEffect(() => {
     void autoBackupFolder().then(setBackupFolder);
   }, []);
-  /** Installed app version; null in the browser preview, which hides the update row. */
+  /** Installed app version; null in a browser, which shows the build's version in the data block instead. */
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     void appVersion().then(setVersion);
   }, []);
+  /** Where the data lives; the web build tells the user it is in this browser. */
+  const [data, setData] = useState<DataLocation | null>(null);
+  useEffect(() => {
+    void dataLocation().then(setData);
+  }, []);
+  const inBrowser = data?.kind === "browser";
   const updateStatus = useUpdates((s) => s.status);
   const checkUpdates = useUpdates((s) => s.check);
 
@@ -328,11 +335,29 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
         </div>
       </div>
 
-      {(version || backupFolder) && (
+      {(version || backupFolder || inBrowser) && (
         <div className="settings-group">
           <h3>{t.settings.appTitle}</h3>
-          <p className="settings-group-note">{t.settings.appNote}</p>
+          <p className="settings-group-note">{inBrowser ? t.settings.appNoteWeb : t.settings.appNote}</p>
           <div className="settings-group-body">
+            {data?.kind === "browser" && (
+              <div className="settings-action">
+                <span className="settings-version">{t.updates.version.replace("{version}", APP_VERSION)}</span>
+                <span className="field-label">{t.settings.dataTitle}</span>
+                <p className="field-hint">{t.settings.dataBrowser}</p>
+                <div className="field-actions">
+                  <span className={data.persisted === false ? "field-error" : "muted"}>
+                    {data.persisted === true ? t.settings.dataPersisted : data.persisted === false ? t.settings.dataNotPersisted : t.settings.dataUnknown}
+                  </span>
+                  {data.persisted !== true && (
+                    <button type="button" className="button" onClick={() => void keepDataPersistent().then(setData)}>
+                      {t.settings.dataKeep}
+                    </button>
+                  )}
+                </div>
+                <p className="field-hint">{t.settings.dataExportHint}</p>
+              </div>
+            )}
             {version && (
               <div className="settings-action">
                 <div className="field-actions">

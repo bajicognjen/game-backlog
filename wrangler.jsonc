@@ -1,0 +1,19 @@
+// The Cloudflare Worker that is the web version: the Vite build as static
+// assets, plus `/api/proxy` from worker/index.ts. `npm run dev:worker` runs
+// it locally, `npm run deploy:web` publishes it (README, "Web version").
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "game-backlog",
+  // The claimed account that holds this Worker and the spotty-opal.workers.dev subdomain.
+  "account_id": "ec73098f48dc215ff6bec0dc49d7e52c",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Any unknown path serves index.html, so a reload of a deep link still opens the app.
+    "not_found_handling": "single-page-application",
+    // Only the proxy reaches the Worker code; every other request is answered as a static asset.
+    "run_worker_first": ["/api/*"]
+  }
+}
