@@ -25,9 +25,10 @@ seed plan.
 ## Browser preview
 
 `npm run dev` serves the UI at http://localhost:1420 in a normal browser.
-There the data lives in the browser's IndexedDB (database `game-backlog`,
-seeded with the plan on first run), so it survives reloads; the same store
-backs the web version of the app. Clear the site data to start over. The
+There the data lives in the browser's IndexedDB (database `game-backlog`),
+so it survives reloads; the same store backs the web version of the app. A
+browser starts with an empty plan (the seed plan is the desktop app's first
+run only); import a backup or add games. Clear the site data to start over. The
 IGDB search and the Steam import work there only while the Worker runs
 (`npm run dev:worker`, see "Web version"): neither API sends CORS headers,
 so without the proxy the browser blocks the requests.

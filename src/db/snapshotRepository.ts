@@ -1,3 +1,4 @@
+import { todayIso } from "../domain/dates";
 import { withCompletedOrder, withPlanOrder } from "../domain/plan";
 import { SEED_SETTINGS, buildSeedGames } from "../domain/seed";
 import { withHoursPlayed } from "../domain/sessions";
@@ -30,8 +31,18 @@ export function seedState(): SnapshotState {
   return { settings: { ...SEED_SETTINGS }, games, sessions: [], nextGameId: nextIdAfter(games), nextSessionId: 1 };
 }
 
+/** A clean first run for a new user: no games, the plan starting today. */
+export function emptyState(now: Date = new Date()): SnapshotState {
+  return { settings: { ...SEED_SETTINGS, startDate: todayIso(now) }, games: [], sessions: [], nextGameId: 1, nextSessionId: 1 };
+}
+
 export function nextIdAfter(rows: ReadonlyArray<{ id: number }>): number {
   return Math.max(0, ...rows.map((row) => row.id)) + 1;
+}
+
+export interface SnapshotOptions {
+  /** The state of the first run, when the store holds nothing yet: the seed plan unless told otherwise. */
+  firstRun?: () => SnapshotState;
 }
 
 /**
@@ -41,7 +52,8 @@ export function nextIdAfter(rows: ReadonlyArray<{ id: number }>): number {
  * before it becomes current, so a failed save leaves the state as it was;
  * without one it is the throwaway repository the unit tests run against.
  */
-export function createSnapshotRepository(store: SnapshotStore | null = null): Repository {
+export function createSnapshotRepository(store: SnapshotStore | null = null, options: SnapshotOptions = {}): Repository {
+  const firstRun = options.firstRun ?? seedState;
   let state: SnapshotState | null = null;
   let initPromise: Promise<void> | null = null;
   /** Writes run one after another, in the order they were asked. */
@@ -55,9 +67,9 @@ export function createSnapshotRepository(store: SnapshotStore | null = null): Re
           state = saved;
           return;
         }
-        const seeded = seedState();
-        if (store) await store.save(seeded);
-        state = seeded;
+        const initial = firstRun();
+        if (store) await store.save(initial);
+        state = initial;
       })();
     }
     return initPromise;

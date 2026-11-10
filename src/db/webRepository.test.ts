@@ -6,9 +6,9 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BACKUP_VERSION, BackupError, createBackup } from "../domain/backup";
-import { plannedIds } from "../domain/plan";
-import { SEED_COMPLETED, SEED_PLAN } from "../domain/seed";
-import type { GameInput } from "./repository";
+import { todayIso } from "../domain/dates";
+import { buildSeedGames } from "../domain/seed";
+import type { GameInput, Repository } from "./repository";
 import { STATE_KEY, createWebRepository, type StoredState } from "./webRepository";
 import { getDocument, putDocument } from "./webStorage";
 
@@ -34,6 +34,14 @@ const gameInput = (title: string): GameInput => ({
   details: null,
 });
 
+/** Add a PC game at the end of the plan and return it. */
+async function addGame(repo: Repository, title: string) {
+  const { games } = await repo.load();
+  const ids = games.filter((g) => g.platform === "pc" && g.position !== null).sort((a, b) => a.position! - b.position!).map((g) => g.id);
+  await repo.addPlannedGame(gameInput(title), { platform: "pc", ids: [...ids, "new"] });
+  return (await repo.load()).games.find((g) => g.title === title)!;
+}
+
 const credentials = {
   igdbClientId: "client",
   igdbClientSecret: "secret",
@@ -46,50 +54,41 @@ const credentials = {
 };
 
 describe("web repository", () => {
-  it("seeds the plan on the first run and saves it as a current-version document", async () => {
-    const { games, settings } = await createWebRepository().load();
-    expect(games).toHaveLength(SEED_PLAN.length + SEED_COMPLETED.length);
+  it("starts a new user with an empty plan from today, and saves that as a current-version document", async () => {
+    const { games, sessions, settings } = await createWebRepository().load();
+    expect(games).toEqual([]);
+    expect(sessions).toEqual([]);
+    expect(settings.startDate).toBe(todayIso());
     expect(settings.hoursPerWeek).toBe(13);
 
     const saved = await getDocument<StoredState>(STATE_KEY);
     expect(saved?.app).toBe("game-backlog");
     expect(saved?.version).toBe(BACKUP_VERSION);
-    expect(saved?.games).toHaveLength(games.length);
-    expect(saved?.nextGameId).toBe(games.length + 1);
-  });
-
-  it("does not seed again when a document exists, even an empty plan", async () => {
-    const first = createWebRepository();
-    const { settings } = await first.load();
-    await first.replaceAll(createBackup([], settings, []));
-    expect((await first.load()).games).toHaveLength(0);
-
-    expect((await createWebRepository().load()).games).toHaveLength(0);
+    expect(saved?.games).toEqual([]);
+    expect(saved?.nextGameId).toBe(1);
   });
 
   it("keeps changes across sessions", async () => {
     const first = createWebRepository();
-    const pc = plannedIds((await first.load()).games, "pc");
-    await first.addPlannedGame(gameInput("Hades"), { platform: "pc", ids: [...pc, "new"] });
-    await first.addSession({ gameId: pc[0], playedOn: "2026-11-05", hours: 2.5, note: null });
+    const hades = await addGame(first, "Hades");
+    await addGame(first, "Celeste");
+    await first.addSession({ gameId: hades.id, playedOn: "2026-11-05", hours: 2.5, note: null });
 
     const again = await createWebRepository().load();
-    const hades = again.games.find((g) => g.title === "Hades");
-    expect(hades?.position).toBe(pc.length + 1);
-    expect(again.sessions).toEqual([{ id: 1, gameId: pc[0], playedOn: "2026-11-05", hours: 2.5, note: null }]);
-    expect(again.games.find((g) => g.id === pc[0])?.hoursPlayed).toBe(2.5);
+    expect(again.games.map((g) => [g.title, g.position])).toEqual([
+      ["Hades", 1],
+      ["Celeste", 2],
+    ]);
+    expect(again.sessions).toEqual([{ id: 1, gameId: hades.id, playedOn: "2026-11-05", hours: 2.5, note: null }]);
+    expect(again.games.find((g) => g.id === hades.id)?.hoursPlayed).toBe(2.5);
   });
 
   it("never hands out a game id twice, even after the newest game was deleted", async () => {
     const repo = createWebRepository();
-    const pc = plannedIds((await repo.load()).games, "pc");
-    await repo.addPlannedGame(gameInput("First"), { platform: "pc", ids: [...pc, "new"] });
-    const first = (await repo.load()).games.find((g) => g.title === "First")!;
-    await repo.deleteGame(first.id, { platform: "pc", ids: pc });
+    const first = await addGame(repo, "First");
+    await repo.deleteGame(first.id, { platform: "pc", ids: [] });
 
-    const later = createWebRepository();
-    await later.addPlannedGame(gameInput("Second"), { platform: "pc", ids: [...pc, "new"] });
-    const second = (await later.load()).games.find((g) => g.title === "Second")!;
+    const second = await addGame(createWebRepository(), "Second");
     expect(second.id).toBe(first.id + 1);
   });
 
@@ -104,10 +103,10 @@ describe("web repository", () => {
 
   it("imports a backup like the desktop app: plan settings from the file, credentials untouched", async () => {
     const repo = createWebRepository();
-    const { games, settings, sessions } = await repo.load();
+    const { settings } = await repo.load();
     await repo.saveSettings(credentials);
 
-    const backup = createBackup(games.slice(0, 2), { ...settings, startDate: "2026-12-01", hoursPerWeek: 7 }, sessions);
+    const backup = createBackup(buildSeedGames().slice(0, 2), { ...settings, startDate: "2026-12-01", hoursPerWeek: 7 }, []);
     expect(backup.settings.igdbClientSecret).toBe("");
     await repo.replaceAll(backup);
 
@@ -135,9 +134,8 @@ describe("web repository", () => {
     expect(settings.igdbClientId).toBe("kept");
 
     // Without saved counters the next id continues after the highest one in the file.
-    const repo = createWebRepository();
-    await repo.addPlannedGame(gameInput("Next"), { platform: "pc", ids: [7, "new"] });
-    expect((await repo.load()).games.find((g) => g.title === "Next")?.id).toBe(8);
+    const next = await addGame(createWebRepository(), "Next");
+    expect(next.id).toBe(8);
   });
 
   it("reports a corrupted document instead of silently starting over", async () => {

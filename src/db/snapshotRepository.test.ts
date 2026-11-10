@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { createBackup } from "../domain/backup";
 import { plannedIds } from "../domain/plan";
-import { createSnapshotRepository, type SnapshotState, type SnapshotStore } from "./snapshotRepository";
+import { createSnapshotRepository, emptyState, type SnapshotState, type SnapshotStore } from "./snapshotRepository";
 
 /** A store that remembers the last saved state, or refuses every save. */
 function fakeStore(failing = false): SnapshotStore & { saved: SnapshotState | null; saves: number } {
@@ -81,6 +81,17 @@ describe("snapshot repository", () => {
     const second = createSnapshotRepository(store);
     expect((await second.load()).settings.hoursPerWeek).toBe(5);
     expect(store.saves).toBe(2); // nothing to seed
+  });
+
+  it("starts from the seed plan by default and from nothing when told so", async () => {
+    expect((await createSnapshotRepository().load()).games.length).toBeGreaterThan(0);
+
+    const store = fakeStore();
+    const clean = createSnapshotRepository(store, { firstRun: () => emptyState(new Date(2026, 10, 10)) });
+    const { games, settings } = await clean.load();
+    expect(games).toEqual([]);
+    expect(settings.startDate).toBe("2026-11-10");
+    expect(store.saved?.nextGameId).toBe(1);
   });
 
   it("a failed save leaves the state as it was", async () => {
