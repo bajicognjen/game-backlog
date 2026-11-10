@@ -1,14 +1,31 @@
 import { t } from "../i18n/en";
 import { useUpdates } from "../state/updates";
 
-/** Offers a newer release found on GitHub, then shows the download until the app restarts. */
+/** Desktop: offers a newer release found on GitHub, then shows the download until the app restarts. Web: offers a reload into a new version. */
 export function UpdateBanner() {
   const status = useUpdates((s) => s.status);
   const version = useUpdates((s) => s.version);
   const progress = useUpdates((s) => s.progress);
   const detail = useUpdates((s) => s.detail);
   const install = useUpdates((s) => s.install);
+  const reload = useUpdates((s) => s.reload);
   const dismiss = useUpdates((s) => s.dismiss);
+
+  if (status === "reloadReady") {
+    return (
+      <div className="banner banner-info" role="status">
+        <span>{t.updates.webReady}</span>
+        <span className="banner-actions">
+          <button type="button" className="button button-primary button-small" onClick={reload}>
+            {t.updates.reload}
+          </button>
+          <button type="button" className="button button-ghost" onClick={dismiss}>
+            {t.updates.later}
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   if (status === "available") {
     return (

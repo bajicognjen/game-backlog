@@ -47,8 +47,9 @@ move it between the web and desktop apps. The free Workers plan covers a
 few users many times over. The web build is also an installable PWA
 (`vite-plugin-pwa` in `vite.config.ts`, switched off for Tauri builds): the
 browser's "Install app" puts it on the desktop or home screen, and once
-loaded it opens without a connection. A new deploy is picked up on the
-next load.
+loaded it opens without a connection. When a new version is deployed the
+app offers a Reload in a banner; it looks for one at start, every hour,
+and whenever the tab becomes visible again.
 
 Local check:
 

@@ -1,8 +1,10 @@
 import { create } from "zustand";
+import type { ApplyUpdate } from "../platform/pwa";
 import { checkForUpdate, installUpdate, type AvailableUpdate } from "../platform/updates";
 import { describeError } from "./store";
 
-export type UpdateStatus = "idle" | "checking" | "upToDate" | "available" | "installing" | "checkFailed" | "installFailed";
+/** `reloadReady` is the web build: a new version is installed and waits for a reload. */
+export type UpdateStatus = "idle" | "checking" | "upToDate" | "available" | "installing" | "checkFailed" | "installFailed" | "reloadReady";
 
 export interface UpdateState {
   status: UpdateStatus;
@@ -17,10 +19,15 @@ export interface UpdateState {
   install(): Promise<void>;
   /** Hide the offer until the next check. */
   dismiss(): void;
+  /** Web build: a new version waits; offer the reload that switches to it. */
+  offerReload(apply: ApplyUpdate): void;
+  reload(): void;
 }
 
 /** The release on offer, kept for `install`. */
 let pending: AvailableUpdate | null = null;
+/** The waiting web worker on offer, kept for `reload`. */
+let pendingReload: ApplyUpdate | null = null;
 
 export const useUpdates = create<UpdateState>((set, get) => ({
   status: "idle",
@@ -52,6 +59,16 @@ export const useUpdates = create<UpdateState>((set, get) => ({
   },
 
   dismiss() {
+    pendingReload = null;
     set({ status: "idle", detail: null });
+  },
+
+  offerReload(apply) {
+    pendingReload = apply;
+    set({ status: "reloadReady", detail: null });
+  },
+
+  reload() {
+    pendingReload?.();
   },
 }));
