@@ -74,7 +74,34 @@ into a real one, keeping the URL.
 `.github/workflows/deploy-web.yml` does the same on every `v*` tag (and by
 hand from the Actions tab) when the repository has the secrets
 `CLOUDFLARE_API_TOKEN` (an API token made from the "Edit Cloudflare Workers"
-template) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers overview page).
+template, which also covers D1) and `CLOUDFLARE_ACCOUNT_ID` (shown on the
+Workers overview page). The workflow first applies the sync database's
+schema (`worker/migrations`), then deploys.
+
+### Sync
+
+Settings → Sync keeps a copy of the plan on the server and lets another
+device use the same plan. "Turn on sync" makes a **sync key** (32 letters
+and digits) and pushes the plan; pasting that key on another device under
+"Use an existing key" pulls it. The key is the only identity: anyone who has
+it can read and change the plan, so share it like a password. The browser
+stays the working copy: every save is pushed in the background
+(`src/platform/sync.ts`), a push that fails is retried on the next save,
+when the tab becomes visible or when the connection returns, and the server
+copy is checked at start and on those occasions. Credentials never leave the
+browser; the synced document is the backup format, gzip-compressed by the
+browser and stored as opaque bytes.
+
+The server side is `/api/sync` in the Worker (`worker/sync.ts`), backed by
+the D1 database `game-backlog-sync` (one row per key, the key stored as a
+SHA-256 hash, a revision number per write). A write based on an old revision
+is refused, which is how a conflict is found: when this device and another
+both changed the plan since they last agreed, the app shows "Another device
+changed the plan" and asks which side to keep. Nothing is merged or
+overwritten silently. To stop strangers from filling the database, set the
+Worker secret `SYNC_INVITE_CODE` (`npx wrangler secret put SYNC_INVITE_CODE`);
+creating a new key then needs that code, existing keys are unaffected. On the
+free plan D1 allows 100,000 writes and 5 million reads a day.
 
 ## Steam playtime
 

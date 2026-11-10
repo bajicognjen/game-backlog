@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "vite build && wrangler dev",
+    "dev:worker": "vite build && wrangler d1 migrations apply game-backlog-sync --local && wrangler dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy:web": "npm run build && wrangler deploy",

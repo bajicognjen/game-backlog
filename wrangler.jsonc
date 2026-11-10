@@ -1,6 +1,7 @@
 // The Cloudflare Worker that is the web version: the Vite build as static
-// assets, plus `/api/proxy` from worker/index.ts. `npm run dev:worker` runs
-// it locally, `npm run deploy:web` publishes it (README, "Web version").
+// assets, plus `/api/proxy` and `/api/sync` from worker/index.ts. `npm run
+// dev:worker` runs it locally, `npm run deploy:web` publishes it (README,
+// "Web version").
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "game-backlog",
@@ -13,7 +14,18 @@
     "binding": "ASSETS",
     // Any unknown path serves index.html, so a reload of a deep link still opens the app.
     "not_found_handling": "single-page-application",
-    // Only the proxy reaches the Worker code; every other request is answered as a static asset.
+    // Only the API reaches the Worker code; every other request is answered as a static asset.
     "run_worker_first": ["/api/*"]
-  }
+  },
+  // The synced plans (worker/sync.ts). Local development uses a local copy of
+  // the database (`wrangler dev --remote` would use the real one); the schema in
+  // worker/migrations is applied by `npm run dev:worker` locally and by the deploy workflow remotely.
+  "d1_databases": [
+    {
+      "binding": "SYNC_DB",
+      "database_name": "game-backlog-sync",
+      "database_id": "f584dc83-b555-422d-bc4c-ca6a45eab707",
+      "migrations_dir": "worker/migrations"
+    }
+  ]
 }

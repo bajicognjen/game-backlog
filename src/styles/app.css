@@ -2101,6 +2101,7 @@ tr:focus-within .row-actions {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap; /* three choices (the sync conflict) still fit on a phone */
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
