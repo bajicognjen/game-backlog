@@ -276,6 +276,8 @@ export const t = {
     downloadingUnknown: "Downloading the update…",
     checkFailed: "Couldn't check for updates. Check your internet connection.",
     installFailed: "The update couldn't be installed ({detail}).",
+    webReady: "A new version of Game Backlog is ready.",
+    reload: "Reload",
     hint: "The app also asks GitHub for a newer release once at every start. Installing downloads that release's installer and runs it: click through it and the app opens again. Your games and settings stay where they are.",
   },
   emptyPlan: "The plan is empty.",

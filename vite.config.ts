@@ -19,9 +19,10 @@ export default defineConfig(() => ({
       ? []
       : [
           VitePWA({
-            // A new deploy takes over on the next load; no "update available" prompt needed.
+            // The app registers the worker itself and offers a reload once a new
+            // version has taken over (src/platform/pwa.ts); nothing is injected into index.html.
             registerType: "autoUpdate",
-            injectRegister: "inline",
+            injectRegister: false,
             includeAssets: ["favicon.png", "icons/*.png"],
             manifest: {
               name: "Game Backlog",
@@ -40,10 +41,13 @@ export default defineConfig(() => ({
               ],
             },
             workbox: {
-              // Take over as soon as a new build is installed, so the next load runs it;
-              // without these a new worker waits until every tab of the app is closed.
+              // A new worker takes over every open tab as soon as it is installed; the
+              // page then offers a reload. (A worker that waits for a SKIP_WAITING message
+              // was never activated by Chrome while the old one controlled the page.)
               skipWaiting: true,
               clientsClaim: true,
+              // One self-contained worker file instead of a loader plus a workbox file.
+              inlineWorkboxRuntime: true,
               globPatterns: ["**/*.{js,css,html,png,webmanifest}"],
               // The proxy is never a page; offline it must fail, not answer with index.html.
               navigateFallbackDenylist: [/^\/api\//],

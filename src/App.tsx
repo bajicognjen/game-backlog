@@ -35,6 +35,7 @@ import { platformLabels, t } from "./i18n/en";
 import { setStoreMessages, useStore } from "./state/store";
 import { applyTheme } from "./state/theme";
 import { useUpdates } from "./state/updates";
+import { watchForWebUpdate } from "./platform/pwa";
 import "./styles/app.css";
 
 setStoreMessages({
@@ -77,6 +78,8 @@ export default function App() {
   // Look for a newer release once per start; nothing shows unless there is one.
   useEffect(() => {
     void useUpdates.getState().check(true);
+    // Web build: a deployed new version is offered as a reload.
+    watchForWebUpdate((apply) => useUpdates.getState().offerReload(apply));
   }, []);
 
   useEffect(() => applyTheme(theme), [theme]);
