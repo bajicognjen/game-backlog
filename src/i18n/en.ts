@@ -252,6 +252,15 @@ export const t = {
     done: "Done",
     appTitle: "App",
     appNote: "Updates and the automatic backups.",
+    appNoteWeb: "This version and where your data lives.",
+    dataTitle: "Your data",
+    dataBrowser:
+      "Stored in this browser only, never on a server. Another browser or device starts empty: move the data with Export and Import.",
+    dataPersisted: "The browser has promised to keep it.",
+    dataNotPersisted: "The browser may clear it when disk space runs low.",
+    dataUnknown: "Whether the browser will keep it is unknown.",
+    dataKeep: "Ask the browser to keep it",
+    dataExportHint: "Export a backup now and then. The automatic daily backups live in the same browser storage, so they go with it.",
   },
   updates: {
     title: "App version",

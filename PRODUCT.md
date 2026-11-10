@@ -6,7 +6,7 @@
 
 web
 
-A Tauri 2 desktop shell around a web UI (React, TypeScript, Vite). The design language is web; the window ships at 1280×820 and can shrink to 900×600. Releases are Windows installers; development also happens on Linux.
+A Tauri 2 desktop shell around a web UI (React, TypeScript, Vite). The design language is web; the window ships at 1280×820 and can shrink to 900×600. Releases are Windows installers; development also happens on Linux. Since 0.9.0 the same UI also ships as a web app: one Cloudflare Worker serves the build and a small API proxy, installable as a PWA.
 
 ## Users
 
@@ -27,7 +27,7 @@ Live dates from one weekly-hours budget. Start and end dates for the whole plan 
 - IGDB search, covers and details need a Client ID and Secret from the Twitch developer console, entered in Settings; the token is cached locally and never exported.
 - Steam playtime import needs a Steam Web API key and the profile to read (link or SteamID64), entered in Settings, and that profile's game details set to public; both values stay local and never exported.
 - Updates: the app checks GitHub for a newer published release at start and from Settings and runs the installer.
-- Browser preview (`npm run dev`) serves the UI with an in-memory copy of the seed plan; nothing is saved there.
+- Web app: the same build at a workers.dev URL. Data lives in that browser's IndexedDB, never on a server; every browser and device is a separate copy, moved with Export and Import. Credentials stay in the browser; the Worker's `/api/proxy` forwards them per request to Twitch, IGDB and Steam (same-origin pages only, those three hosts only) and holds no keys. Installable as a PWA, opens offline once loaded, picks up a deploy on the next load. `npm run dev` in a browser uses the same IndexedDB store.
 
 ## Capabilities and Constraints
 
@@ -63,7 +63,7 @@ Terminology to keep: "Plan", "Finished games", "Log hours", "Finish game", "Drop
 ## Evidence on Hand
 
 - The seed plan in `src/domain/seed.ts` is the owner's real backlog (27 PC games, 10 finished).
-- IGDB data (covers, screenshots, scores) appears only once games are linked with credentials; the browser preview has none.
+- IGDB data (covers, screenshots, scores) appears only once games are linked with credentials; a fresh browser or install has none.
 - No testimonials, press, screenshots or marketing material exist. Future work must not fabricate any.
 
 ## Product Principles

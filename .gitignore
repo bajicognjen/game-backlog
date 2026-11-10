@@ -25,3 +25,10 @@ dist-ssr
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Impeccable engine binary (platform-specific, re-downloaded on first run)
+.claude/skills/impeccable/scripts/bin/
+
+# Wrangler's local state and secrets
+.wrangler
+.dev.vars*

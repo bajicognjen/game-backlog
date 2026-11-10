@@ -1,14 +1,20 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { viaProxy } from "./proxy";
 
 /**
- * Inside the app, requests go through Tauri's HTTP plugin (sent from the
- * Rust side, so no CORS restrictions; the allowed hosts are listed in
- * `src-tauri/capabilities/default.json`). In the browser preview the
- * normal `fetch` is used, which only works for APIs that send CORS headers.
+ * Inside the desktop app, requests go through Tauri's HTTP plugin (sent from
+ * the Rust side, so no CORS restrictions; the allowed hosts are listed in
+ * `src-tauri/capabilities/default.json`). In a browser page the APIs that
+ * send no CORS headers go through the web build's own Worker instead
+ * (`viaProxy`); everything else uses the normal `fetch`, as do the unit
+ * tests, which stub it and run without a page.
  */
 export function httpFetch(input: string, init?: RequestInit): Promise<Response> {
-  return isTauri() ? tauriFetch(input, init) : fetch(input, init);
+  if (isTauri()) return tauriFetch(input, init);
+  if (typeof window === "undefined") return fetch(input, init);
+  const proxied = viaProxy(input, init);
+  return fetch(proxied.url, proxied.init);
 }
 
 /** A request that takes longer than this is reported as a network problem. */

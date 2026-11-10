@@ -24,12 +24,55 @@ seed plan.
 
 ## Browser preview
 
-`npm run dev` serves the UI at http://localhost:1420 in a normal browser with
-an in-memory copy of the seed data. Handy for quick UI checks; nothing is
-saved. The Steam import does not work there: Steam's Web API sends no CORS
-headers, so the browser blocks the request and the import always reports
-"Can't reach Steam". Try it in `npm run tauri dev`, where requests go out
-from the Rust side.
+`npm run dev` serves the UI at http://localhost:1420 in a normal browser.
+There the data lives in the browser's IndexedDB (database `game-backlog`,
+seeded with the plan on first run), so it survives reloads; the same store
+backs the web version of the app. Clear the site data to start over. The
+IGDB search and the Steam import work there only while the Worker runs
+(`npm run dev:worker`, see "Web version"): neither API sends CORS headers,
+so without the proxy the browser blocks the requests.
+
+## Web version
+
+The same UI runs as a web app, served by one Cloudflare Worker
+(`wrangler.jsonc`, `worker/`): the Worker hands out the Vite build as static
+files and answers `/api/proxy`, through which the browser reaches Twitch,
+IGDB and Steam, since none of them sends CORS headers. The proxy forwards
+each user's own credentials from Settings exactly as the desktop app sends
+them, holds no keys of its own, serves only pages of its own origin and
+reaches only those three hosts (`src/platform/proxy.ts` lists them). Data
+lives in the browser's IndexedDB (see "Browser preview"); Export and Import
+move it between the web and desktop apps. The free Workers plan covers a
+few users many times over. The web build is also an installable PWA
+(`vite-plugin-pwa` in `vite.config.ts`, switched off for Tauri builds): the
+browser's "Install app" puts it on the desktop or home screen, and once
+loaded it opens without a connection. A new deploy is picked up on the
+next load.
+
+Local check:
+
+```bash
+npm run dev:worker   # builds the UI and serves app + proxy at http://localhost:8787
+```
+
+For hot reload keep `npm run dev:worker` running and use `npm run dev` in a
+second terminal: the Vite dev server forwards `/api` to the Worker.
+
+Deploy, once a free Cloudflare account exists:
+
+```bash
+npx wrangler login
+npm run deploy:web   # prints the workers.dev URL
+```
+
+Without an account yet, `npx wrangler deploy --temporary` deploys to a
+temporary account and prints a claim link (valid for an hour) that turns it
+into a real one, keeping the URL.
+
+`.github/workflows/deploy-web.yml` does the same on every `v*` tag (and by
+hand from the Actions tab) when the repository has the secrets
+`CLOUDFLARE_API_TOKEN` (an API token made from the "Edit Cloudflare Workers"
+template) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers overview page).
 
 ## Steam playtime
 
