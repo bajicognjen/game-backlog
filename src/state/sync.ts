@@ -9,7 +9,7 @@ import { onWebStateSaved } from "../db/webRepository";
 import { hasIndexedDb } from "../db/webStorage";
 import { normaliseSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
-import { createSyncApi, createSyncEngine, type ConflictChoice, type SyncEngine, type SyncState } from "../platform/sync";
+import { createSyncApi, createSyncEngine, type ConflictChoice, type ConnectResult, type SyncEngine, type SyncState } from "../platform/sync";
 import { describeError, useStore } from "./store";
 
 export interface SyncUiState {
@@ -20,8 +20,8 @@ export interface SyncUiState {
   actionError: string | null;
   start(): Promise<void>;
   enable(inviteCode?: string): Promise<void>;
-  /** Resolves false when the input is not a key. */
-  connect(input: string, inviteCode?: string): Promise<boolean>;
+  /** `invalid`: the input is not a key; `not-found`: nothing is stored under it; `failed`: see `actionError`. */
+  connect(input: string): Promise<"invalid" | ConnectResult | "failed">;
   disable(): Promise<void>;
   deleteServerCopy(): Promise<void>;
   resolve(choice: ConflictChoice): Promise<void>;
@@ -64,10 +64,13 @@ export const useSync = create<SyncUiState>((set) => {
     actionError: null,
     start: () => attempt((e) => e.start()),
     enable: (inviteCode) => attempt((e) => e.enable(inviteCode ?? null)),
-    async connect(input, inviteCode) {
-      if (!normaliseSyncKey(input)) return false;
-      await attempt((e) => e.connect(input, inviteCode ?? null));
-      return true;
+    async connect(input) {
+      if (!normaliseSyncKey(input)) return "invalid";
+      let result: ConnectResult | "failed" = "failed";
+      await attempt(async (e) => {
+        result = await e.connect(input);
+      });
+      return result;
     },
     disable: () => attempt((e) => e.disable()),
     deleteServerCopy: () => attempt((e) => e.deleteServerCopy()),

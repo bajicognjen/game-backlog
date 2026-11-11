@@ -267,6 +267,30 @@ describe("sync engine", () => {
     expect(await server.titles()).toEqual(["Local plan"]);
   });
 
+  it("joining a key with nothing stored under it saves nothing and creates nothing", async () => {
+    const server = fakeServer();
+    const { repository, engine } = browser(server);
+    await repository.load();
+    expect(await engine.connect("ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567")).toBe("not-found");
+    expect(engine.state().kind).toBe("off");
+    expect(server.puts).toBe(0);
+    expect((await getDocument<{ key: string }>(SYNC_META_KEY))?.key).not.toBe("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567");
+  });
+
+  it("giving up on a refused new key turns sync off again", async () => {
+    const server = fakeServer();
+    server.inviteCode = "friends-only";
+    const { repository, engine } = browser(server);
+    await repository.load();
+    await engine.enable();
+    const refusedKey = (engine.state() as { meta: { key: string } }).meta.key;
+    expect(engine.state().kind).toBe("invite-required");
+    await engine.disable();
+    expect(engine.state().kind).toBe("off");
+    expect((await getDocument<{ key: string }>(SYNC_META_KEY))?.key).not.toBe(refusedKey);
+    expect(server.remote).toBeNull();
+  });
+
   it("asks for the invite code when the server requires one for a new key", async () => {
     const server = fakeServer();
     server.inviteCode = "friends-only";

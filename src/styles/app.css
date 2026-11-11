@@ -739,6 +739,19 @@ textarea {
   max-width: 78ch;
 }
 
+/* Sync's invite and key fields: the hint may run the group's width, the input stops near a key's length. */
+.sync-field {
+  align-self: stretch;
+}
+
+.sync-field input {
+  max-width: 360px;
+}
+
+.sync-field + .field-actions {
+  margin-top: 4px;
+}
+
 .settings-form .settings-steps {
   flex-basis: auto;
 }

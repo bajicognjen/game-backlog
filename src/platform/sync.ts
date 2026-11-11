@@ -140,18 +140,24 @@ export type SyncState =
   | { kind: "pending"; meta: SyncMeta; reason: "offline" | "error" | "too-large"; detail: string | null }
   /** Both sides changed; the user picks a side with `resolve`. */
   | { kind: "conflict"; meta: SyncMeta; remote: RemoteDocument }
-  /** The server wants the invite code before it stores a new key; `enable` or `connect` again with it. */
+  /** The server wants the invite code before it stores a new key; `enable` again with it, or `disable` to give up. */
   | { kind: "invite-required"; meta: SyncMeta };
 
 export type ConflictChoice = "keep-mine" | "take-server";
+
+/** How joining a key went: `not-found` means nothing is stored under it, and nothing was saved on this device. */
+export type ConnectResult = "connected" | "not-found";
 
 export interface SyncEngine {
   /** Load what this browser knows and compare with the server once. */
   start(): Promise<void>;
   /** Make a new key and put this browser's plan on the server under it. */
   enable(inviteCode?: string | null): Promise<void>;
-  /** Join an existing key: take its plan when this browser has none, otherwise ask (a conflict) which side to keep. */
-  connect(key: string, inviteCode?: string | null): Promise<void>;
+  /**
+   * Join an existing key: take its plan when this browser has none, otherwise ask (a conflict) which side to keep.
+   * A key with nothing stored under it is most likely mistyped, so it is not saved and no new plan is created.
+   */
+  connect(key: string): Promise<ConnectResult>;
   /** Stop syncing on this browser; the server copy stays. */
   disable(): Promise<void>;
   /** Remove the server copy and stop syncing. */
@@ -310,16 +316,20 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         await push(current, 0, inviteCode);
       }),
 
-    connect: (input, inviteCode = null) =>
-      run(async () => {
+    connect: (input) =>
+      run(async (): Promise<ConnectResult> => {
         const key = normaliseSyncKey(input);
         if (!key) throw new Error("Not a sync key");
-        const current = await saveMeta({ key, revision: 0, dirty: true, lastSyncedAt: null });
         const remote = await fetchRemote(key);
-        if (!remote) return push(current, 0, inviteCode);
+        if (!remote) return "not-found";
+        const current = await saveMeta({ key, revision: 0, dirty: true, lastSyncedAt: null });
         const local = await deps.repository.load();
-        if (local.games.length === 0 && local.sessions.length === 0) return pull(current, remote);
+        if (local.games.length === 0 && local.sessions.length === 0) {
+          await pull(current, remote);
+          return "connected";
+        }
         set({ kind: "conflict", meta: current, remote });
+        return "connected";
       }),
 
     disable: () =>
