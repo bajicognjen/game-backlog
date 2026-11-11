@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-06T12:44:25Z",
+  "generatedAt": "2026-11-11T14:06:42Z",
   "title": "Design System: Game Backlog",
   "extensions": {
     "colorMeta": {
@@ -506,13 +506,33 @@
       },
       {
         "name": "drop-derived",
-        "value": "1100px",
-        "purpose": "Max-width: derived schedule columns leave; stats grid goes single-column."
+        "value": "1240px",
+        "purpose": "Max-width 1239px: the running-total column leaves (The One Window Rule)."
       },
       {
         "name": "drop-secondary",
+        "value": "1160px",
+        "purpose": "Max-width 1159px: genre and note columns leave; both stay in the details view."
+      },
+      {
+        "name": "stats-single",
+        "value": "1100px",
+        "purpose": "Max-width: the stats grid goes single-column."
+      },
+      {
+        "name": "settings-single",
         "value": "1000px",
-        "purpose": "Max-width: genre and note columns leave; the settings grid collapses to one column."
+        "purpose": "Max-width: the Settings card's two columns become one."
+      },
+      {
+        "name": "phone",
+        "value": "899px",
+        "purpose": "Max-width: one column, stacked table rows (The Folded Ledger Rule), icon-only top bar, full-width dialogs."
+      },
+      {
+        "name": "touch",
+        "value": "(max-width: 899px) and (pointer: coarse)",
+        "purpose": "Touch phones: 40px controls and taller hit areas for inline links (The Fingertip Rule)."
       },
       {
         "name": "window-ship",
@@ -522,7 +542,7 @@
       {
         "name": "window-min",
         "value": "900x600",
-        "purpose": "The smallest window the layout must survive."
+        "purpose": "The smallest desktop window; below it is the web app's phone layout."
       }
     ]
   },
@@ -610,14 +630,15 @@
   ],
   "narrative": {
     "northStar": "The Planner's Desk",
-    "overview": "Game Backlog is a calm desk where the plan sits. The surfaces are quiet paper on a cool grey desk, the lines between them are thin rules, and the numbers line up like a ledger: tabular figures, right-aligned hours, dates as dd.mm.yyyy. One blue says what is current and what moves the plan; everything else stays in ink and grey. The product replaced a spreadsheet, and the system keeps that honesty: density serves scanning, and nothing animates for show.\n\nThe mood is calm, precise, unhurried. This is a restrained Operate-mode product UI: a sticky top bar, a Now playing card at the peak of the page, then tables that hold the whole plan in view at 1280×820 and still work at 900×600. The accent is rare, hover is a tint rather than a lift, and depth is ambient (a soft shadow under cards, a popover shadow for things that float) rather than structural. Light and dark themes share one grammar; in dark the washes deepen and the accents lighten so dark ink can sit on them.\n\nThe confirmed anti-reference is \"a generic admin table\": grey chrome with no point of view. The build answers it with the Now playing hero (an accent wash, the cover at full weight, the title at full strength), the six Design chips, the dotted status words and the ledger numbers; these are what make the system read as this product rather than any dashboard.",
+    "overview": "Game Backlog is a calm desk where the plan sits. The surfaces are quiet paper on a cool grey desk, the lines between them are thin rules, and the numbers line up like a ledger: tabular figures, right-aligned hours, dates as dd.mm.yyyy. One blue says what is current and what moves the plan; everything else stays in ink and grey. The product replaced a spreadsheet, and the system keeps that honesty: density serves scanning, and nothing animates for show.\n\nThe mood is calm, precise, unhurried. This is a restrained Operate-mode product UI: a sticky top bar, a Now playing card at the peak of the page, then tables that hold the whole plan in view at 1280×820 and still work at 900×600. Below 900px, the web app on a phone, the same page folds into one column: the tables become stacked rows and every control grows to a fingertip's size, with no second visual language. The accent is rare, hover is a tint rather than a lift, and depth is ambient (a soft shadow under cards, a popover shadow for things that float) rather than structural. Light and dark themes share one grammar; in dark the washes deepen and the accents lighten so dark ink can sit on them.\n\nThe confirmed anti-reference is \"a generic admin table\": grey chrome with no point of view. The build answers it with the Now playing hero (an accent wash, the cover at full weight, the title at full strength), the six Design chips, the dotted status words and the ledger numbers; these are what make the system read as this product rather than any dashboard.",
     "keyCharacteristics": [
       "One accent, Plan Blue, reserved for action, selection and the current game.",
       "Paper surfaces on a cool grey desk with 1px rules; no colored stripes or side borders.",
       "One family (system-ui), six fixed pixel steps, tabular numerals everywhere a number is compared.",
       "Ambient elevation: a soft shadow at rest on cards and the Now playing card, a popover shadow only for things that float, flat tables.",
       "Nested radii: 12px containers, 8px controls, 6px small controls, 14px dialogs, pills for chips and counts.",
-      "The only entrance animation is the Now playing handover, and it never runs on first paint."
+      "The only entrance animation is the Now playing handover, and it never runs on first paint.",
+      "One page at every width: columns leave as the window narrows, below 900px the tables fold into stacked rows, and nothing ever scrolls sideways."
     ],
     "rules": [
       {
@@ -652,12 +673,32 @@
       },
       {
         "name": "The One Window Rule",
-        "body": "There is no max-width container and no mobile layout; the plan table is the page. Shrinking the window drops columns at 1100px and 1000px instead of wrapping cells.",
+        "body": "There is no max-width container and no sidebar; the plan table is the page at every width. Narrowing drops columns (at 1240px and 1160px) instead of wrapping cells, below 900px the tables fold into stacked rows, and at no width does the page scroll sideways.",
+        "section": "layout"
+      },
+      {
+        "name": "The Folded Ledger Rule",
+        "body": "Below 900px each game is one stacked row: line one holds the drag handle, number, title and actions; line two the Design chip, status word and hours (with \"h\"); line three the date range (on a finished game, its review). What a narrow window hides stays hidden. The header row is hidden from view only, and the tables carry explicit table, row, header and cell roles, so a screen reader still hears each cell's column.",
+        "section": "layout"
+      },
+      {
+        "name": "The Fingertip Rule",
+        "body": "On a touch phone (below 900px with a coarse pointer) every control is at least 40px tall: icon buttons are 40px square with 6px between a row's actions, small buttons become full buttons, the drag handle and the theme options are 32×40, and a link inside a line of text (a title, Rate, the plan's two values) answers 10px above and below instead of making the line taller. A narrow window with a mouse keeps desktop density.",
+        "section": "layout"
+      },
+      {
+        "name": "The Short Window Rule",
+        "body": "Under 700px of window height the Now playing card gives rows back: `12px 16px` padding, a 56×75 cover, a Headline title, and no meta line or explanation note; nothing else changes.",
         "section": "layout"
       },
       {
         "name": "The Sticky Ledger Rule",
-        "body": "The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky.",
+        "body": "The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky. (Below 900px the header row is out of view, so only the top bar stays.)",
+        "section": "layout"
+      },
+      {
+        "name": "The One Stop Rule",
+        "body": "A composite control is one Tab stop. A table row lands on its title and the theme switch on its chosen option; Left/Right (and Home/End) move inside, and a row remembers the control it left. The skip links sit before the top bar, so the first Tab on the page reaches the finished games or the stats.",
         "section": "layout"
       },
       {
@@ -681,26 +722,6 @@
         "section": "shapes"
       },
       {
-        "name": "The Handover Rule",
-        "body": "When the current game changes after mount, the cover and body enter with `now-enter`: 400ms `cubic-bezier(0.16, 1, 0.3, 1)`, opacity 0→1 and an 8px rise. The first paint never animates. Under `prefers-reduced-motion` the entrance is a 200ms fade; the finished-row settle shortens from 1600ms to 800ms and control transitions are removed.",
-        "section": "components"
-      },
-      {
-        "name": "The Dot Not Pill Rule",
-        "body": "Status is a word with a dot. Only \"Dropped\" and the \"Today\" marker are pills, and no status gets a colored border.",
-        "section": "components"
-      },
-      {
-        "name": "The Short Window Rule",
-        "body": "Under 700px of window height the Now playing card gives rows back: `12px 16px` padding, a 56×75 cover, a Headline title, and no meta line or explanation note; nothing else changes.",
-        "section": "layout"
-      },
-      {
-        "name": "The One Stop Rule",
-        "body": "A composite control is one Tab stop. A table row lands on its title and the theme switch on its chosen option; Left/Right (and Home/End) move inside, and a row remembers the control it left. The skip links sit before the top bar, so the first Tab on the page reaches the finished games or the stats.",
-        "section": "layout"
-      },
-      {
         "name": "The Typed Date Rule",
         "body": "A date is read and written the same way everywhere: dd.mm.yyyy text with the picker one click away. No surface shows a bare native date input or a month-first order.",
         "section": "components"
@@ -708,6 +729,21 @@
       {
         "name": "The Second Chance Rule",
         "body": "An undo offer lasts 20 seconds and says so. The clock is a draining track and a count, not a toast that vanishes; it waits while the pointer or focus is on the notice, and the notice takes focus when it appears so the offer is the next thing a keyboard reaches.",
+        "section": "components"
+      },
+      {
+        "name": "The Edit Where You Read Rule",
+        "body": "A number that moves the plan is edited where its effect is read. Settings keeps the same field, but the card owns the moment, and saving there recalculates every date at once.",
+        "section": "components"
+      },
+      {
+        "name": "The Handover Rule",
+        "body": "When the current game changes after mount, the cover and body enter with `now-enter`: 400ms `cubic-bezier(0.16, 1, 0.3, 1)`, opacity 0→1 and an 8px rise. The first paint never animates. Under `prefers-reduced-motion` the entrance is a 200ms fade; the finished-row settle shortens from 1600ms to 800ms and control transitions are removed.",
+        "section": "components"
+      },
+      {
+        "name": "The Dot Not Pill Rule",
+        "body": "Status is a word with a dot. Only \"Dropped\" and the \"Today\" marker are pills, and no status gets a colored border.",
         "section": "components"
       }
     ],
@@ -723,7 +759,9 @@
       "Do name the empty state's fact and its next step in a dashed 12px panel with one button.",
       "Do make a row and a segmented control one Tab stop, with Left/Right moving inside, and keep the skip links before the top bar.",
       "Do take every date as dd.mm.yyyy text through `DateField`, with the native picker behind its calendar button.",
-      "Do show an undo offer's clock (a draining track and a count) and pause it while the notice is hovered or focused."
+      "Do show an undo offer's clock (a draining track and a count) and pause it while the notice is hovered or focused.",
+      "Do give every control on a touch phone at least 40px, or a 10px taller hit area for a link inside a line of text (The Fingertip Rule); keep desktop density for a mouse.",
+      "Do keep a restyled table a table for screen readers: a header row hidden from view only, and explicit table, row, header and cell roles."
     ],
     "donts": [
       "Don't use Unicode glyphs or emoji as icons; every icon is an inline SVG from the set.",
@@ -735,7 +773,7 @@
       "Don't hard-code white text on an accent or semantic fill; use the `--on-*` token.",
       "Don't render status as a colored pill or badge (except \"Dropped\"); it is a word with a dot.",
       "Don't rename the \"Design\" chips or their six fixed color pairs.",
-      "Don't add a max-width container, a sidebar or a mobile layout; the window is the page and columns drop at 1100px and 1000px.",
+      "Don't add a max-width container or a sidebar, and never let the page scroll sideways: columns drop at 1240px and 1160px, and below 900px the tables fold into stacked rows.",
       "Don't show a bare native date input or let a date read month-first; `DateField` wraps the picker.",
       "Don't make every row action its own Tab stop; the row is the stop and arrows move inside it."
     ]

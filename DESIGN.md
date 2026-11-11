@@ -166,6 +166,11 @@ components:
     padding: "0"
     width: "28px"
     height: "28px"
+  button-icon-touch:
+    rounded: "{rounded.sm}"
+    padding: "0"
+    width: "40px"
+    height: "40px"
   input:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
@@ -282,7 +287,7 @@ components:
 
 Game Backlog is a calm desk where the plan sits. The surfaces are quiet paper on a cool grey desk, the lines between them are thin rules, and the numbers line up like a ledger: tabular figures, right-aligned hours, dates as dd.mm.yyyy. One blue says what is current and what moves the plan; everything else stays in ink and grey. The product replaced a spreadsheet, and the system keeps that honesty: density serves scanning, and nothing animates for show.
 
-The mood is calm, precise, unhurried. This is a restrained Operate-mode product UI: a sticky top bar, a Now playing card at the peak of the page, then tables that hold the whole plan in view at 1280×820 and still work at 900×600. The accent is rare, hover is a tint rather than a lift, and depth is ambient (a soft shadow under cards, a popover shadow for things that float) rather than structural. Light and dark themes share one grammar; in dark the washes deepen and the accents lighten so dark ink can sit on them.
+The mood is calm, precise, unhurried. This is a restrained Operate-mode product UI: a sticky top bar, a Now playing card at the peak of the page, then tables that hold the whole plan in view at 1280×820 and still work at 900×600. Below 900px, the web app on a phone, the same page folds into one column: the tables become stacked rows and every control grows to a fingertip's size, with no second visual language. The accent is rare, hover is a tint rather than a lift, and depth is ambient (a soft shadow under cards, a popover shadow for things that float) rather than structural. Light and dark themes share one grammar; in dark the washes deepen and the accents lighten so dark ink can sit on them.
 
 The confirmed anti-reference is "a generic admin table": grey chrome with no point of view. The build answers it with the Now playing hero (an accent wash, the cover at full weight, the title at full strength), the six Design chips, the dotted status words and the ledger numbers; these are what make the system read as this product rather than any dashboard.
 
@@ -293,6 +298,7 @@ The confirmed anti-reference is "a generic admin table": grey chrome with no poi
 - Ambient elevation: a soft shadow at rest on cards and the Now playing card, a popover shadow only for things that float, flat tables.
 - Nested radii: 12px containers, 8px controls, 6px small controls, 14px dialogs, pills for chips and counts.
 - The only entrance animation is the Now playing handover, and it never runs on first paint.
+- One page at every width: columns leave as the window narrows, below 900px the tables fold into stacked rows, and nothing ever scrolls sideways.
 
 ## Colors
 
@@ -359,20 +365,26 @@ Dark is a full second set under `prefers-color-scheme: dark` and `[data-theme="d
 
 ## Layout
 
-One window, no page container. `main` spans the full width at `20px 28px 56px` padding (`16px 16px 48px` under 1400px); the sticky top bar is 52px tall with 24px side padding, and sticky table headers lock in beneath it. The page sets `overflow-anchor: none` so panels opening above the plan do not scroll the reader away.
+One window, no page container. `main` spans the full width at `20px 28px 56px` padding (`16px 16px 48px` under 1400px, `12px 12px 40px` below 900px); the sticky top bar is 52px tall with 24px side padding, and sticky table headers lock in beneath it. The page sets `overflow-anchor: none` so panels opening above the plan do not scroll the reader away.
 
 The reading order is fixed: top bar, optional Settings card (24px below), banners and warnings, the Now playing card (16px below), platform tabs with the section tools, filter bar (10px above the table), then the plan table; 40px separates the Plan and Finished games sections, 14px separates a section head from its content.
 
 Rhythm comes from a small set of gaps rather than a grid: 2–4px inside controls, 6px between sibling actions, 8px between chips, stats and dialog buttons, 10–12px inside bars and forms, 14–16px between fields and groups, 20–24px of card padding, 32px between the settings label column (240px) and its body, 40px between sections. Form rows are 1-, 2- or 3-column grids with 12px gaps; the Settings card is a two-column grid that collapses to one under 1000px.
 
-Density: table cells are `7px 10px` (`6px 8px` under 1400px), rows carry a 40×24 cover thumbnail, and the Now playing cover is 96×128. The window ships at 1280×820 and can shrink to 900×600. Responsive changes remove rather than reflow: under 1400px titles wrap to 190–280px and the derived-column headers take two lines; under 1100px the derived schedule columns leave and the stats grid goes single-column; under 1000px the genre and note columns leave too (both remain in the details view).
+Density: table cells are `7px 10px` (`6px 8px` under 1400px), rows carry a 40×24 cover thumbnail, and the Now playing cover is 96×128. The window ships at 1280×820 and can shrink to 900×600. Responsive changes remove rather than reflow: under 1400px titles wrap at 200–300px and the running-total header takes two lines; under 1240px the running-total column leaves; under 1160px the genre and note columns leave too (both remain in the details view); under 1100px the stats grid goes single-column, and under 1000px the Settings card's two columns become one. The two column breakpoints sit where the owner's full plan (27 games, notes, the Today marker) stops fitting, so the page never scrolls sideways.
+
+Below 900px (the web app on a phone, or a narrow browser window) the page is one column. The top bar keeps the app name and turns its controls icon-only; the version tag and divider leave. Section heads and the two headline tiles wrap, the tiles sharing a row; the Now playing card stacks, with a 56×75 cover and wrapping actions; forms take one field per line; dialogs run the viewport's width less 16px; a banner's buttons drop under its message when they no longer fit beside it. The tables fold as The Folded Ledger Rule describes, and touch screens get The Fingertip Rule.
 
 ### Named Rules
-**The One Window Rule.** There is no max-width container and no mobile layout; the plan table is the page. Shrinking the window drops columns at 1100px and 1000px instead of wrapping cells.
+**The One Window Rule.** There is no max-width container and no sidebar; the plan table is the page at every width. Narrowing drops columns (at 1240px and 1160px) instead of wrapping cells, below 900px the tables fold into stacked rows, and at no width does the page scroll sideways.
+
+**The Folded Ledger Rule.** Below 900px each game is one stacked row: line one holds the drag handle, number, title and actions; line two the Design chip, status word and hours (with "h"); line three the date range (on a finished game, its review). What a narrow window hides stays hidden. The header row is hidden from view only, and the tables carry explicit table, row, header and cell roles, so a screen reader still hears each cell's column.
+
+**The Fingertip Rule.** On a touch phone (below 900px with a coarse pointer) every control is at least 40px tall: icon buttons are 40px square with 6px between a row's actions, small buttons become full buttons, the drag handle and the theme options are 32×40, and a link inside a line of text (a title, Rate, the plan's two values) answers 10px above and below instead of making the line taller. A narrow window with a mouse keeps desktop density.
 
 **The Short Window Rule.** Under 700px of window height the Now playing card gives rows back: `12px 16px` padding, a 56×75 cover, a Headline title, and no meta line or explanation note; nothing else changes.
 
-**The Sticky Ledger Rule.** The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky.
+**The Sticky Ledger Rule.** The top bar (52px) and the table headers stay fixed while rows scroll; nothing else is sticky. (Below 900px the header row is out of view, so only the top bar stays.)
 
 **The One Stop Rule.** A composite control is one Tab stop. A table row lands on its title and the theme switch on its chosen option; Left/Right (and Home/End) move inside, and a row remembers the control it left. The skip links sit before the top bar, so the first Tab on the page reaches the finished games or the stats.
 
@@ -413,6 +425,7 @@ Refined and restrained: paper tiles with a thin strong rule, text at 500, an opt
 - **Active:** Plan Blue border on Plan Blue Wash with Plan Blue Ink text (the open Settings button).
 - **Icon (`button-icon-sm`):** 28×28 transparent, inherits the row's muted color, Paper Shade on hover; row actions brighten from Ink Muted to Ink when the row is hovered or focused. Success icon variant keeps Finish Green text with its wash on hover.
 - **Hover / Focus:** background, border and color transition 120ms ease (disabled under reduced motion); focus-visible is a 2px Plan Blue outline offset 2px. Disabled is 55% opacity.
+- **Touch:** on a touch phone every button is at least 40px tall, icon buttons grow to 40px square (`button-icon-touch`) and small buttons take the full size (The Fingertip Rule).
 
 ### Inputs / Fields
 - **Style:** Field fill (`field`: Paper in light, Paper Shade one step above the dialog surface in dark, so a border is never the only cue), 1px Rule Strong, 8px corners, `6px 10px`, body size, 160px minimum width for text/number/date/password; the search field is `8px 12px`. Textareas resize vertically from 56px.
@@ -425,7 +438,7 @@ Refined and restrained: paper tiles with a thin strong rule, text at 500, an opt
 
 ### Navigation
 - **Skip links:** two links before the top bar, "Skip to finished games" and "Skip to stats", hidden until focused; the focused one slides in under the top bar's left edge as an 8px Plan Blue tile with on-accent 600 text at `6px 12px`, and Enter lands focus on the section's heading.
-- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit; a radio group that is a single Tab stop, where Left/Right move and select), and the Settings button that turns Active while open.
+- **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit; a radio group that is a single Tab stop, where Left/Right move and select), and the Settings button that turns Active while open. Below 900px the bar keeps the app name, which truncates only under 360px, and turns every control icon-only; the words stay in the page, hidden from view only, as each button's name.
 - **Platform tabs:** a segmented control on a Paper Shade track (10px, 3px padding, 2px gaps); tabs are 8px, `5px 14px`, 600 weight in Ink Muted. The active tab lifts to Paper with the Ambient shadow and Ink text, and its count pill turns Plan Blue Wash / Plan Blue Ink. Arrow keys move between tabs.
 - **Row menu:** a 28px "more" icon button opens a fixed-position Paper popover (8px, 4px padding, Popover shadow, 150px minimum); items are 13px at `6px 10px` with 6px corners, Paper Shade on hover and focus (outline inset 2px), danger items in Drop Red. The popover follows its button when the page scrolls or the window resizes rather than closing.
 
@@ -447,7 +460,7 @@ A word, not a pill: 12px Ink Muted. "In progress" is Ink at 650 with a filled 8p
 - **Border:** 1px Rule.
 - **Internal Padding:** Settings `16px 22px 4px`, stats cards `14px 18px 12px`, empty state `28px 24px` with a dashed Rule Strong border and centered Ink Muted text (title in Ink at 600, hint capped at 48ch, actions 14px below).
 - **Stat cards:** 8px corners, `8px 14px 9px`, 118px minimum; an 11px Ink Muted label over an 18px/650 tabular figure with an optional 11px detail.
-- **Banners / warnings:** 10px panels at `10px 14px` on the role's wash with a 30–55% role-mixed border; warnings carry a 16px alert icon in Caution Amber. The finished notice adds a ghost "Show in finished games" link that scrolls to the row and focuses its title, and an Undo offer that shows its own clock: a 3px Plan Blue track under the notice drains over 20 seconds while an Ink Muted tabular `N s` count sits beside the button; hovering or focusing the notice pauses it, and when it runs out focus returns to the card.
+- **Banners / warnings:** 10px panels at `10px 14px` on the role's wash with a 30–55% role-mixed border; warnings carry a 16px alert icon in Caution Amber. The finished notice adds a ghost "Show in finished games" link that scrolls to the row and focuses its title, and an Undo offer that shows its own clock: a 3px Plan Blue track under the notice drains over 20 seconds while an Ink Muted tabular `N s` count sits beside the button; hovering or focusing the notice pauses it, and when it runs out focus returns to the card. The web app's reload and sync-conflict banners sit in live regions that are always on the page, so a screen reader reads them as they appear; a choice in the sync conflict gets the same Undo offer.
 
 **The Second Chance Rule.** An undo offer lasts 20 seconds and says so. The clock is a draining track and a count, not a toast that vanishes; it waits while the pointer or focus is on the notice, and the notice takes focus when it appears so the offer is the next thing a keyboard reaches.
 
@@ -455,7 +468,9 @@ A word, not a pill: 12px Ink Muted. "In progress" is Ink at 650 with a filled 8p
 Flat inside a 12px Paper wrapper with the Ambient shadow. Headers are sticky under the top bar on Paper Shade, 11px/600 uppercase tracked Ink Muted; cells are `7px 10px` with a Rule bottom edge, the last row rounding into the wrapper. Rows tint to Paper Hover on hover; the current game's row holds Current Row Wash even under hover; paused titles go muted; a dragged row's cells take Paper Shade and the Popover shadow. Numbers and dates are tabular and right-aligned; titles are 550 with a 40×24 cover; notes are Ink Muted, clamped to two lines, 160–340px wide. A 22×24 grip handle in Ink Muted starts each reorderable row. Each row is one Tab stop that lands on the title; Left/Right (Home/End) move across the row's cover link and action buttons, and the row remembers the control it left.
 
 ### Dialogs
-Native `<dialog>` at 14px with a 1px Rule, Paper fill, the Dialog shadow and scrim, widths `min(560px, 100vw − 32px)` (lg 680, xl 880). Content padding `20px 24px 22px`; the Headline title keeps 36px clear for the ghost icon close button at `14px 14px`; actions are right-aligned with 8px gaps, 12px below the form. Focus moves to the first control and returns to the opener on close. Details opens at md for a game with no IGDB link and at xl once covers and screenshots exist; the unlinked footer states what IGDB adds, offers "Set up in Settings" while no credentials are saved, and makes Edit game the primary action (Close is primary once linked).
+Native `<dialog>` at 14px with a 1px Rule, Paper fill, the Dialog shadow and scrim, widths `min(560px, 100vw − 32px)` (lg 680, xl 880). Content padding `20px 24px 22px`; the Headline title keeps 36px clear for the ghost icon close button at `14px 14px`; actions are right-aligned with 8px gaps, 12px below the form. Focus moves to the first control and returns to the opener on close. Details opens at md for a game with no IGDB link and at xl once covers and screenshots exist; the unlinked footer states what IGDB adds, offers "Set up in Settings" while no credentials are saved, and makes Edit game the primary action (Close is primary once linked). Below 900px every size runs the viewport's width less 16px, and choices too long to share a row stack full width in reading order, the way out last.
+
+A choice between two copies of the plan (the sync conflict) is made from evidence, not on trust: a small ledger in the dialog compares games in the plan, finished games, hours logged and when each copy last changed (13px Ink Muted row labels, tabular right-aligned values, differing counts and the newer time at 650), a line names what each choice replaces, neither choice takes the primary style, and the dialog's text is its accessible description.
 
 ### Now playing (signature)
 The screen's peak. A 12px card washed with Plan Blue Wash at 45% into Paper, a 22%-accent border and the Ambient shadow; `20px 24px` padding, a 22px gap between the 96×128 cover (8px, Popover shadow) and the body. The title is Display with a 450-weight year; a 13px Ink Muted meta line holds the status word, Design chip, genre chip and start date; actions (Log hours, Pause, Finish game) sit to the right. An 8px Plan Blue progress bar on a 14%-accent track (520px max) is followed by 13px/600 tabular hours text; a status line carries an 8px drift dot (Finish Green "on track" or "ahead", Drop Red "behind"), days left and end date, and the next game. With nothing in progress the card goes quiet: Paper fill, Rule border, Headline title "Nothing in progress", and one primary Start button for the next game.
@@ -483,6 +498,8 @@ The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week
 - **Do** make a row and a segmented control one Tab stop, with Left/Right moving inside, and keep the skip links before the top bar.
 - **Do** take every date as dd.mm.yyyy text through `DateField`, with the native picker behind its calendar button.
 - **Do** show an undo offer's clock (a draining track and a count) and pause it while the notice is hovered or focused.
+- **Do** give every control on a touch phone at least 40px, or a 10px taller hit area for a link inside a line of text (The Fingertip Rule); keep desktop density for a mouse.
+- **Do** keep a restyled table a table for screen readers: a header row hidden from view only, and explicit table, row, header and cell roles.
 
 ### Don't:
 - **Don't** use Unicode glyphs or emoji as icons; every icon is an inline SVG from the set.
@@ -494,6 +511,6 @@ The status line ends with the plan's two inputs, `started dd.mm.yyyy · N h/week
 - **Don't** hard-code white text on an accent or semantic fill; use the `--on-*` token.
 - **Don't** render status as a colored pill or badge (except "Dropped"); it is a word with a dot.
 - **Don't** rename the "Design" chips or their six fixed color pairs.
-- **Don't** add a max-width container, a sidebar or a mobile layout; the window is the page and columns drop at 1100px and 1000px.
+- **Don't** add a max-width container or a sidebar, and never let the page scroll sideways: columns drop at 1240px and 1160px, and below 900px the tables fold into stacked rows.
 - **Don't** show a bare native date input or let a date read month-first; `DateField` wraps the picker.
 - **Don't** make every row action its own Tab stop; the row is the stop and arrows move inside it.
