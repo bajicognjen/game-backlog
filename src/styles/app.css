@@ -2803,9 +2803,17 @@ h2[tabindex="-1"]:focus {
     gap: 8px;
   }
 
+  .topbar-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .topbar-brand h1 {
     font-size: var(--text-base);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .version-tag,
@@ -2821,14 +2829,28 @@ h2[tabindex="-1"]:focus {
     display: none;
   }
 
-  .topbar-actions .button,
+  .topbar-actions {
+    flex: none;
+  }
+
+  .topbar-actions .button {
+    padding: 6px 7px;
+  }
+
   .topbar-actions .tab {
-    padding: 6px 8px;
+    padding: 4px 6px;
   }
 
   /* Section heads and tiles wrap; the two headline tiles share a row. */
   .section-head {
     gap: 10px 12px;
+  }
+
+  .section-title,
+  .section-tools {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    max-width: 100%;
   }
 
   .totals {
@@ -2853,6 +2875,8 @@ h2[tabindex="-1"]:focus {
   }
 
   .now-actions {
+    flex: 1 1 100%;
+    min-width: 0;
     flex-wrap: wrap;
   }
 
@@ -2936,6 +2960,8 @@ h2[tabindex="-1"]:focus {
   .plan-table td.actions-col,
   .completed-table td.actions-col {
     order: 4;
+    flex: none;
+    width: auto;
     margin-left: auto;
   }
 
