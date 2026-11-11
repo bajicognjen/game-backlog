@@ -21,7 +21,9 @@ import {
   UPDATED_AT_HEADER,
   normaliseSyncKey,
   reconcile,
+  summarizePlan,
   syncKeyFromBytes,
+  type PlanSummary,
   type SyncMeta,
 } from "../domain/sync";
 import type { Repository } from "../db/repository";
@@ -52,6 +54,27 @@ export async function encodeDocument(document: StoredState): Promise<Uint8Array>
 export async function decodeDocument(bytes: Uint8Array): Promise<SnapshotState> {
   const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
   return fromStoredState(JSON.parse(await new Response(stream).text()));
+}
+
+// --- a conflict, side by side ----------------------------------------------------------
+
+/** One copy of the plan as the conflict dialog shows it; `changedAt` is when that copy was last written (ISO). */
+export interface ConflictSide extends PlanSummary {
+  changedAt: string | null;
+}
+
+export interface ConflictSides {
+  device: ConflictSide;
+  server: ConflictSide;
+}
+
+/** This browser's saved plan (the stored document, stamped at every save) against the server's copy. */
+export async function describeConflict(local: StoredState | undefined, remote: RemoteDocument): Promise<ConflictSides> {
+  const server = await decodeDocument(remote.bytes);
+  return {
+    device: { ...summarizePlan(local?.games ?? [], local?.sessions ?? []), changedAt: local?.exportedAt ?? null },
+    server: { ...summarizePlan(server.games, server.sessions), changedAt: remote.updatedAt },
+  };
 }
 
 // --- the server ---------------------------------------------------------------------

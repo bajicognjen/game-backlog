@@ -48,6 +48,13 @@ export function formatDate(value: number | string): string {
   return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 }
 
+/** A moment (a server timestamp) as people read it here: local `dd.mm.yyyy, HH:mm`. Not a date: the input unchanged. */
+export function formatDateTime(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return String(value);
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 /**
  * Parse a typed date, 'dd.mm.yyyy' as the app shows them (single digits and a
  * trailing dot allowed) or ISO, into 'YYYY-MM-DD'. Null when it is not a real date.

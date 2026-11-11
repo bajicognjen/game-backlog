@@ -4,6 +4,7 @@ import {
   addDays,
   floorToDay,
   formatDate,
+  formatDateTime,
   isValidIsoDate,
   parseDisplayDate,
   parseIsoDate,
@@ -42,6 +43,17 @@ describe("formatDate", () => {
     expect(formatDate(day + 0.01 * MS_PER_DAY)).toBe("15.11.2026");
     expect(formatDate(day + 0.999 * MS_PER_DAY)).toBe("15.11.2026");
     expect(formatDate(day + 1.0 * MS_PER_DAY)).toBe("16.11.2026");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("shows a moment in local time as dd.mm.yyyy, HH:mm", () => {
+    expect(formatDateTime(new Date(2026, 10, 11, 9, 5))).toBe("11.11.2026, 09:05");
+    expect(formatDateTime(new Date(2026, 0, 2, 23, 59).toISOString())).toBe("02.01.2026, 23:59");
+  });
+
+  it("leaves something that is not a date as it is", () => {
+    expect(formatDateTime("soon")).toBe("soon");
   });
 });
 

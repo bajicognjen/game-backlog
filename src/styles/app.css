@@ -2114,10 +2114,49 @@ tr:focus-within .row-actions {
 
 .modal-actions {
   display: flex;
-  flex-wrap: wrap; /* three choices (the sync conflict) still fit on a phone */
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* The sync conflict's two copies side by side: a small ledger with tabular, right-aligned values. */
+.sync-compare {
+  width: 100%;
+  margin: 2px 0 14px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-compare th,
+.sync-compare td {
+  padding: 6px 0 6px 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  vertical-align: baseline;
+}
+
+.sync-compare thead th {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.sync-compare tbody th,
+.sync-compare thead td {
+  padding-left: 0;
+  text-align: left;
+  font-size: var(--text-md);
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap; /* the labels hold their line; a time wraps after its date instead */
+}
+
+.sync-compare tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.sync-compare-strong {
+  font-weight: 650;
 }
 
 /* ---------- Rating ---------- */
@@ -3053,6 +3092,17 @@ h2[tabindex="-1"]:focus {
   .modal-xl {
     width: calc(100vw - 16px);
     max-height: calc(100dvh - 16px);
+  }
+
+  /* Choices too long to share a row (the sync conflict) stack full width, in reading order. */
+  .modal-actions-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* The way out ("Decide later") goes under the choices, where a thumb ends up. */
+  .modal-actions-stack .button-ghost {
+    order: 1;
   }
 
   .settings-group-body .input,

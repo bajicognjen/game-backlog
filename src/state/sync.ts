@@ -5,11 +5,20 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { repository } from "../db";
-import { onWebStateSaved } from "../db/webRepository";
-import { hasIndexedDb } from "../db/webStorage";
+import { STATE_KEY, onWebStateSaved, type StoredState } from "../db/webRepository";
+import { getDocument, hasIndexedDb } from "../db/webStorage";
 import { normaliseSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
-import { createSyncApi, createSyncEngine, type ConflictChoice, type ConnectResult, type SyncEngine, type SyncState } from "../platform/sync";
+import {
+  createSyncApi,
+  createSyncEngine,
+  describeConflict,
+  type ConflictChoice,
+  type ConflictSides,
+  type ConnectResult,
+  type SyncEngine,
+  type SyncState,
+} from "../platform/sync";
 import { describeError, useStore } from "./store";
 
 export interface SyncUiState {
@@ -25,6 +34,8 @@ export interface SyncUiState {
   disable(): Promise<void>;
   deleteServerCopy(): Promise<void>;
   resolve(choice: ConflictChoice): Promise<void>;
+  /** The two copies in a conflict, summed up for the dialog; null outside a conflict or when the server copy can't be read. */
+  conflictSides(): Promise<ConflictSides | null>;
   check(): Promise<void>;
 }
 
@@ -47,7 +58,7 @@ function getEngine(): SyncEngine {
   return engine;
 }
 
-export const useSync = create<SyncUiState>((set) => {
+export const useSync = create<SyncUiState>((set, get) => {
   /** Run an action; a failure thrown by the engine (network trouble on connect or delete) lands in `actionError`. */
   async function attempt(action: (engine: SyncEngine) => Promise<void>): Promise<void> {
     set({ actionError: null });
@@ -75,6 +86,15 @@ export const useSync = create<SyncUiState>((set) => {
     disable: () => attempt((e) => e.disable()),
     deleteServerCopy: () => attempt((e) => e.deleteServerCopy()),
     resolve: (choice) => attempt((e) => e.resolve(choice)),
+    async conflictSides() {
+      const current = get().state;
+      if (current.kind !== "conflict") return null;
+      try {
+        return await describeConflict(await getDocument<StoredState>(STATE_KEY), current.remote);
+      } catch {
+        return null; // an unreadable server copy: the dialog still offers the choice, without the numbers
+      }
+    },
     check: () => attempt((e) => e.check()),
   };
 });

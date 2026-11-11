@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { formatDateTime } from "../domain/dates";
 import { formatSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import { useSync } from "../state/sync";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { SyncConflictDialog, formatWhen } from "./SyncConflictDialog";
+import { SyncConflictDialog } from "./SyncConflictDialog";
 
 /** The Settings group for sync (web build only): turn it on, join a key, see the state, turn it off. */
 export function SyncSettings() {
@@ -227,11 +228,13 @@ export function SyncSettings() {
 function statusText(state: ReturnType<typeof useSync.getState>["state"]): string {
   switch (state.kind) {
     case "idle":
-      return state.meta.lastSyncedAt ? t.sync.statusIdle.replace("{time}", formatWhen(state.meta.lastSyncedAt)) : t.sync.statusNever;
+      return state.meta.lastSyncedAt ? t.sync.statusIdle.replace("{time}", formatDateTime(state.meta.lastSyncedAt)) : t.sync.statusNever;
     case "syncing":
       return t.sync.statusSyncing;
     case "pending":
-      return state.reason === "offline" ? t.sync.statusOffline : state.reason === "too-large" ? t.sync.statusTooLarge : t.sync.statusError.replace("{detail}", state.detail ?? "error");
+      if (state.reason === "offline") return t.sync.statusOffline;
+      if (state.reason === "too-large") return t.sync.statusTooLarge;
+      return state.detail ? t.sync.statusError.replace("{detail}", state.detail) : t.sync.statusErrorPlain;
     case "conflict":
       return t.sync.statusConflict;
     default:

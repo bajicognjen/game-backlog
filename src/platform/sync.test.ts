@@ -9,13 +9,14 @@ import { buildSeedGames } from "../domain/seed";
 import type { SyncMeta } from "../domain/sync";
 import type { GameInput, Repository } from "../db/repository";
 import { createSnapshotRepository, emptyState, type SnapshotState, type SnapshotStore } from "../db/snapshotRepository";
-import { createWebRepository, onWebStateSaved, type StoredState } from "../db/webRepository";
+import { STATE_KEY, createWebRepository, onWebStateSaved, type StoredState } from "../db/webRepository";
 import { getDocument } from "../db/webStorage";
 import {
   SYNC_META_KEY,
   SyncError,
   createSyncEngine,
   decodeDocument,
+  describeConflict,
   encodeDocument,
   toRemoteDocument,
   type FetchResult,
@@ -265,6 +266,26 @@ describe("sync engine", () => {
     expect(b.engine.state().kind).toBe("conflict");
     await b.engine.resolve("keep-mine");
     expect(await server.titles()).toEqual(["Local plan"]);
+  });
+
+  it("sums up both copies of a conflict for the dialog", async () => {
+    const { repository } = browser(fakeServer());
+    await repository.load();
+    await addGame(repository, "Mine");
+    const local = await getDocument<StoredState>(STATE_KEY);
+    const state = await repository.load();
+    const theirs: SnapshotState = {
+      ...state,
+      games: [...state.games, { ...state.games[0], id: 99, title: "Theirs", status: "completed" }],
+      sessions: [{ id: 1, gameId: 99, playedOn: "2026-11-10", hours: 2.5, note: null }],
+      nextGameId: 100,
+      nextSessionId: 2,
+    };
+    const remote = { revision: 3, updatedAt: "2026-11-11T12:00:00.000Z", bytes: await encodeDocument(toRemoteDocument(theirs)) };
+
+    const sides = await describeConflict(local, remote);
+    expect(sides.device).toEqual({ inPlan: 1, finished: 0, hoursLogged: 0, changedAt: local!.exportedAt });
+    expect(sides.server).toEqual({ inPlan: 1, finished: 1, hoursLogged: 2.5, changedAt: "2026-11-11T12:00:00.000Z" });
   });
 
   it("joining a key with nothing stored under it saves nothing and creates nothing", async () => {
