@@ -2785,3 +2785,249 @@ h2[tabindex="-1"]:focus {
     grid-row: auto;
   }
 }
+
+/* ---------- Below the desktop window's minimum (900): one column, tables as stacked rows ---------- */
+
+@media (max-width: 899px) {
+  main {
+    padding: 12px 12px 40px;
+  }
+
+  .app {
+    overflow-x: clip; /* nothing may widen the page; what does not fit wraps or stacks */
+  }
+
+  /* Top bar: brand and icon-only controls on one line. */
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .topbar-brand h1 {
+    font-size: var(--text-base);
+    white-space: nowrap;
+  }
+
+  .version-tag,
+  .topbar-divider {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+
+  .topbar-actions .label {
+    display: none;
+  }
+
+  .topbar-actions .button,
+  .topbar-actions .tab {
+    padding: 6px 8px;
+  }
+
+  /* Section heads and tiles wrap; the two headline tiles share a row. */
+  .section-head {
+    gap: 10px 12px;
+  }
+
+  .totals {
+    width: 100%;
+  }
+
+  .stat {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  /* The current game: no side-by-side cover, buttons wrap. */
+  .now {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .now-cover {
+    width: 56px;
+    height: 75px;
+  }
+
+  .now-actions {
+    flex-wrap: wrap;
+  }
+
+  .now-title {
+    font-size: var(--text-lg);
+  }
+
+  /* Plan and finished tables: no columns, one stacked row per game. */
+  .plan-table thead,
+  .completed-table thead {
+    display: none;
+  }
+
+  .plan-table,
+  .plan-table tbody,
+  .completed-table,
+  .completed-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .plan-table tr,
+  .completed-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .plan-table tbody tr:last-child,
+  .completed-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .plan-table td,
+  .completed-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  /* What a narrow desktop window hides stays hidden here too (genre, running total, plan notes). */
+  .plan-table td.col-opt,
+  .plan-table td.col-opt-2,
+  .completed-table td.col-opt-2 {
+    display: none;
+  }
+
+  /* Line one: handle, number, title, actions; then a break. */
+  .plan-table td.drag-col,
+  .completed-table td.drag-col {
+    order: 1;
+  }
+
+  .plan-table td.index,
+  .completed-table td.index {
+    order: 2;
+    font-size: var(--text-sm);
+  }
+
+  .plan-table td.title,
+  .completed-table td.title {
+    order: 3;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+    font-weight: 600;
+  }
+
+  .plan-table td.title > *,
+  .completed-table td.title > * {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .plan-table td.actions-col,
+  .completed-table td.actions-col {
+    order: 4;
+    margin-left: auto;
+  }
+
+  .plan-table tr::after,
+  .completed-table tr::after {
+    content: "";
+    order: 5;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  /* Line two and on: chips, hours, dates, notes; indented past the handle. (`:where` keeps this
+     rule light, so the date and note rules below can move their cells to later lines.) */
+  .plan-table td:where(:not(.drag-col):not(.index):not(.title):not(.actions-col)),
+  .completed-table td:where(:not(.drag-col):not(.index):not(.title):not(.actions-col)) {
+    order: 6;
+    font-size: var(--text-sm);
+  }
+
+  .plan-table td.design,
+  .completed-table td:nth-child(4) {
+    margin-left: 28px;
+  }
+
+  .plan-table td.hours::after {
+    content: " h";
+    color: var(--text-muted);
+  }
+
+  /* Line three: the dates, together. */
+  .plan-table tr::before {
+    content: "";
+    order: 7;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  .plan-table td.date {
+    order: 8;
+  }
+
+  .plan-table td.date {
+    margin-left: 28px;
+  }
+
+  .plan-table td.date + td.date {
+    margin-left: 0;
+  }
+
+  .plan-table td.date + td.date::before {
+    content: "– ";
+    color: var(--text-muted);
+  }
+
+  .completed-table td.note {
+    order: 7;
+    flex-basis: 100%;
+    margin-left: 28px;
+    max-width: none;
+  }
+
+  .row-actions {
+    color: var(--text); /* no hover on a phone: the actions stay visible */
+  }
+
+  /* Forms: one field per line. */
+  .form-row,
+  .form-row-2,
+  .form-row-series,
+  .form-row-session {
+    grid-template-columns: 1fr;
+  }
+
+  .modal,
+  .modal-lg,
+  .modal-xl {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .settings-group-body .input,
+  .settings-group-body input,
+  .settings-group-body select {
+    max-width: 100%;
+  }
+
+  .field-actions {
+    flex-wrap: wrap;
+  }
+
+  code.path {
+    word-break: break-all;
+    white-space: normal;
+  }
+}

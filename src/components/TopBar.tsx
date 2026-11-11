@@ -33,10 +33,10 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
       </div>
       <div className="topbar-actions">
         <button type="button" className="button button-ghost" onClick={onExport} title={t.backup.exportTitle}>
-          <Icon name="download" /> {t.backup.export}
+          <Icon name="download" /> <span className="label">{t.backup.export}</span>
         </button>
         <button type="button" className="button button-ghost" onClick={onImport} title={t.backup.importTitle}>
-          <Icon name="upload" /> {t.backup.import}
+          <Icon name="upload" /> <span className="label">{t.backup.import}</span>
         </button>
         <span className="topbar-divider" aria-hidden="true" />
         {/* All three themes are visible; the chosen one is lit, so the next click is never a guess. */}
@@ -52,7 +52,7 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
               className={`tab ${theme === option ? "tab-active" : ""}`}
               onClick={() => void updateSettings({ theme: option })}
             >
-              <Icon name={THEME_ICON[option]} /> {themeShort[option]}
+              <Icon name={THEME_ICON[option]} /> <span className="label">{themeShort[option]}</span>
             </button>
           ))}
         </div>
@@ -63,7 +63,7 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
           aria-expanded={settingsOpen}
           aria-controls="settings-panel"
         >
-          <Icon name="sliders" /> {t.settings.open}
+          <Icon name="sliders" /> <span className="label">{t.settings.open}</span>
         </button>
       </div>
     </header>
