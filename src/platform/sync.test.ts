@@ -103,6 +103,26 @@ function browser(server: ReturnType<typeof fakeServer>) {
 }
 
 /**
+ * An engine whose `SyncMeta` lives in memory, for tests that assert what was (not) saved: every engine
+ * here makes the same key from `randomBytes`, and ones left from earlier tests still write the shared document.
+ */
+function browserWithOwnMeta(server: ReturnType<typeof fakeServer>) {
+  const saved: { meta: SyncMeta | null } = { meta: null };
+  const metaStore = {
+    load: async () => saved.meta,
+    save: async (meta: SyncMeta) => {
+      saved.meta = meta;
+    },
+    clear: async () => {
+      saved.meta = null;
+    },
+  };
+  const repository = createWebRepository();
+  const engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled: vi.fn(), randomBytes, metaStore });
+  return { repository, engine, saved };
+}
+
+/**
  * A separate device: its own plan store and its own sync record, so two of
  * them share nothing but the fake server (fake-indexeddb is one browser).
  */
@@ -314,25 +334,25 @@ describe("sync engine", () => {
 
   it("joining a key with nothing stored under it saves nothing and creates nothing", async () => {
     const server = fakeServer();
-    const { repository, engine } = browser(server);
+    const { repository, engine, saved } = browserWithOwnMeta(server);
     await repository.load();
     expect(await engine.connect("ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567")).toBe("not-found");
     expect(engine.state().kind).toBe("off");
     expect(server.puts).toBe(0);
-    expect((await getDocument<{ key: string }>(SYNC_META_KEY))?.key).not.toBe("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567");
+    expect(saved.meta).toBeNull();
   });
 
   it("giving up on a refused new key turns sync off again", async () => {
     const server = fakeServer();
     server.inviteCode = "friends-only";
-    const { repository, engine } = browser(server);
+    const { repository, engine, saved } = browserWithOwnMeta(server);
     await repository.load();
     await engine.enable();
-    const refusedKey = (engine.state() as { meta: { key: string } }).meta.key;
     expect(engine.state().kind).toBe("invite-required");
+    expect(saved.meta).not.toBeNull(); // the new key was kept while waiting for the code
     await engine.disable();
     expect(engine.state().kind).toBe("off");
-    expect((await getDocument<{ key: string }>(SYNC_META_KEY))?.key).not.toBe(refusedKey);
+    expect(saved.meta).toBeNull();
     expect(server.remote).toBeNull();
   });
 

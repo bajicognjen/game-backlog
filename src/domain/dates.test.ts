@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MS_PER_DAY,
   addDays,
+  elapsedSince,
   floorToDay,
   formatDate,
   formatDateTime,
@@ -54,6 +55,24 @@ describe("formatDateTime", () => {
 
   it("leaves something that is not a date as it is", () => {
     expect(formatDateTime("soon")).toBe("soon");
+  });
+});
+
+describe("elapsedSince", () => {
+  const now = new Date("2026-11-11T12:00:00.000Z");
+  const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+
+  it("says now, minutes, then hours up to a day", () => {
+    expect(elapsedSince(ago(20_000), now)).toEqual({ unit: "now" });
+    expect(elapsedSince(ago(-90_000), now)).toEqual({ unit: "now" }); // a clock a little ahead
+    expect(elapsedSince(ago(5 * 60_000 + 59_000), now)).toEqual({ unit: "min", n: 5 });
+    expect(elapsedSince(ago(59 * 60_000), now)).toEqual({ unit: "min", n: 59 });
+    expect(elapsedSince(ago(3 * 3_600_000), now)).toEqual({ unit: "h", n: 3 });
+  });
+
+  it("gives up after a day, and on something that is not a date", () => {
+    expect(elapsedSince(ago(25 * 3_600_000), now)).toBeNull();
+    expect(elapsedSince("soon", now)).toBeNull();
   });
 });
 

@@ -48,6 +48,20 @@ export function formatDate(value: number | string): string {
   return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 }
 
+/**
+ * How long ago a moment was, for a status line: under a minute is "now" (a clock a little ahead
+ * counts too), then whole minutes, then whole hours up to a day; null after that, or for something
+ * that is not a date, so the caller shows the moment itself.
+ */
+export function elapsedSince(value: string, now: Date): { unit: "now" } | { unit: "min" | "h"; n: number } | null {
+  const ms = now.getTime() - new Date(value).getTime();
+  if (Number.isNaN(ms)) return null;
+  if (ms < 60_000) return { unit: "now" };
+  if (ms < 3_600_000) return { unit: "min", n: Math.floor(ms / 60_000) };
+  if (ms < 86_400_000) return { unit: "h", n: Math.floor(ms / 3_600_000) };
+  return null;
+}
+
 /** A moment (a server timestamp) as people read it here: local `dd.mm.yyyy, HH:mm`. Not a date: the input unchanged. */
 export function formatDateTime(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;

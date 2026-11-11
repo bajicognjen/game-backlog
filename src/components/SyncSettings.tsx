@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { formatDateTime } from "../domain/dates";
+import { elapsedSince, formatDateTime } from "../domain/dates";
 import { formatSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import { useSync } from "../state/sync";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
 
 /** The Settings group for sync (web build only): turn it on, join a key, see the state, turn it off. */
@@ -39,6 +40,19 @@ export function SyncSettings() {
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  /** Change is open: Turn off and Delete server copy are shown. Folded again whenever sync goes off. */
+  const [managing, setManaging] = useState(false);
+  const manageId = useId();
+  useEffect(() => {
+    if (state.kind === "off") setManaging(false);
+  }, [state.kind]);
+  // "5 min ago" keeps up while Settings stays open.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const status = statusOf(state);
 
   const groupRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLInputElement>(null);
@@ -189,43 +203,83 @@ export function SyncSettings() {
         )}
 
         {state.kind !== "off" && !refused && (
-          <div className="settings-action">
-            {/* Read out as it changes (synced, waiting, failed, a conflict) while Settings is open. */}
-            <span className={state.kind === "pending" || state.kind === "conflict" ? "field-error" : "muted"} role="status">
-              {statusText(state)}
-            </span>
-            {state.kind === "conflict" && (
+          <>
+            {/* Folded like IGDB and Steam once set up: the state, the one action it calls for, and Change. */}
+            <div className="settings-status">
+              {/* Read out as it changes (synced, waiting, failed, a conflict) while Settings is open. */}
+              <div className="sync-status" role="status">
+                <span className="sync-status-line">
+                  <span className={`sync-state sync-state-${status.tone}`}>{status.word}</span>
+                  {status.when && (
+                    <time className="muted" dateTime={status.when} title={formatDateTime(status.when)}>
+                      {sinceText(status.when, now)}
+                    </time>
+                  )}
+                </span>
+                {status.detail && <span className="sync-status-detail">{status.detail}</span>}
+              </div>
+              <span className="field-actions">
+                {state.kind === "conflict" ? (
+                  <button type="button" className="button button-primary button-small" onClick={() => setConflictOpen(true)}>
+                    {t.sync.resolve}
+                  </button>
+                ) : (
+                  <button type="button" className="button button-small" disabled={busy || state.kind === "syncing"} onClick={() => void run(check)}>
+                    {t.sync.checkNow}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button button-small button-ghost"
+                  aria-expanded={managing}
+                  aria-controls={managing ? manageId : undefined}
+                  aria-label={managing ? undefined : t.sync.changeSync}
+                  onClick={() => setManaging((open) => !open)}
+                >
+                  {managing ? (
+                    t.settings.done
+                  ) : (
+                    <>
+                      <Icon name="pencil" size={14} /> {t.settings.change}
+                    </>
+                  )}
+                </button>
+              </span>
+            </div>
+
+            {/* The key stays in view: setting up another device is what people come back here for. */}
+            <div className="settings-action">
+              <span className="field-label">{t.sync.keyLabel}</span>
               <div className="field-actions">
-                <button type="button" className="button button-primary" onClick={() => setConflictOpen(true)}>
-                  {t.sync.resolve}
+                <code className="path sync-key">{showKey ? formatSyncKey(state.meta.key) : "••••-••••-••••-••••-••••-••••-••••-••••"}</code>
+                <button type="button" className="button button-small" onClick={() => setShowKey((v) => !v)}>
+                  {showKey ? t.sync.hide : t.sync.show}
+                </button>
+                <button type="button" className="button button-small" onClick={() => void copyKey(state.meta.key)}>
+                  {copied ? t.sync.copied : t.sync.copy}
                 </button>
               </div>
+              <p className="field-hint">{t.sync.keyHint}</p>
+            </div>
+
+            {/* Behind Change: the two ways to stop, each with what it does right under it. */}
+            {managing && (
+              <div className="sync-manage" id={manageId}>
+                <div className="settings-action">
+                  <button type="button" className="button" disabled={busy} onClick={() => void run(disable)}>
+                    {t.sync.turnOff}
+                  </button>
+                  <p className="field-hint">{t.sync.turnOffHint}</p>
+                </div>
+                <div className="settings-action">
+                  <button type="button" className="button button-ghost button-danger-ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>
+                    {t.sync.deleteServer}
+                  </button>
+                  <p className="field-hint">{t.sync.deleteHint}</p>
+                </div>
+              </div>
             )}
-            <span className="field-label">{t.sync.keyLabel}</span>
-            <div className="field-actions">
-              <code className="path">{showKey ? formatSyncKey(state.meta.key) : "••••-••••-••••-••••-••••-••••-••••-••••"}</code>
-              <button type="button" className="button button-small" onClick={() => setShowKey((v) => !v)}>
-                {showKey ? t.sync.hide : t.sync.show}
-              </button>
-              <button type="button" className="button button-small" onClick={() => void copyKey(state.meta.key)}>
-                {copied ? t.sync.copied : t.sync.copy}
-              </button>
-            </div>
-            <p className="field-hint">{t.sync.keyHint}</p>
-            <div className="field-actions">
-              {/* In a conflict nothing syncs until a side is chosen, so a check would do nothing. */}
-              <button type="button" className="button" disabled={busy || state.kind === "syncing" || state.kind === "conflict"} onClick={() => void run(check)}>
-                {t.sync.checkNow}
-              </button>
-              <button type="button" className="button" disabled={busy} onClick={() => void run(disable)}>
-                {t.sync.turnOff}
-              </button>
-              <button type="button" className="button button-ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>
-                {t.sync.deleteServer}
-              </button>
-            </div>
-            <p className="field-hint">{t.sync.turnOffHint}</p>
-          </div>
+          </>
         )}
 
         {actionError && (
@@ -257,19 +311,39 @@ export function SyncSettings() {
   );
 }
 
-function statusText(state: ReturnType<typeof useSync.getState>["state"]): string {
+interface SyncStatus {
+  /** The state as a word with a dot (The Dot Not Pill Rule). */
+  word: string;
+  /** Green when synced, amber while a change waits for the connection, red when sync stopped or needs a choice, a hollow ring while nothing is settled. */
+  tone: "ok" | "warn" | "bad" | "quiet";
+  /** When the server last confirmed this device's plan, shown as time since. */
+  when: string | null;
+  /** What the state means, when there is more to say than the word. */
+  detail: string | null;
+}
+
+function statusOf(state: ReturnType<typeof useSync.getState>["state"]): SyncStatus {
+  const status = (word: string, tone: SyncStatus["tone"], detail: string | null = null, when: string | null = null): SyncStatus => ({ word, tone, detail, when });
   switch (state.kind) {
     case "idle":
-      return state.meta.lastSyncedAt ? t.sync.statusIdle.replace("{time}", formatDateTime(state.meta.lastSyncedAt)) : t.sync.statusNever;
+      return state.meta.lastSyncedAt ? status(t.sync.stateSynced, "ok", null, state.meta.lastSyncedAt) : status(t.sync.stateOn, "quiet", t.sync.detailNever);
     case "syncing":
-      return t.sync.statusSyncing;
+      return status(t.sync.stateSyncing, "quiet");
     case "pending":
-      if (state.reason === "offline") return t.sync.statusOffline;
-      if (state.reason === "too-large") return t.sync.statusTooLarge;
-      return state.detail ? t.sync.statusError.replace("{detail}", state.detail) : t.sync.statusErrorPlain;
+      if (state.reason === "offline") return status(t.sync.stateWaiting, "warn", t.sync.detailOffline);
+      if (state.reason === "too-large") return status(t.sync.stateStopped, "bad", t.sync.detailTooLarge);
+      return status(t.sync.stateFailed, "bad", state.detail ? t.sync.detailError.replace("{detail}", state.detail) : t.sync.detailErrorPlain);
     case "conflict":
-      return t.sync.statusConflict;
+      return status(t.sync.stateConflict, "bad", t.sync.detailConflict);
     default:
-      return "";
+      return status("", "quiet");
   }
+}
+
+/** "just now", "5 min ago", "3 h ago", then the date and time. */
+function sinceText(iso: string, now: Date): string {
+  const elapsed = elapsedSince(iso, now);
+  if (!elapsed) return formatDateTime(iso);
+  if (elapsed.unit === "now") return t.sync.justNow;
+  return (elapsed.unit === "min" ? t.sync.minutesAgo : t.sync.hoursAgo).replace("{n}", String(elapsed.n));
 }

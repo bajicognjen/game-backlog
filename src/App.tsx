@@ -163,8 +163,9 @@ export default function App() {
       </nav>
       <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
-        <UpdateBanner />
+        {/* A choice about the plan comes before news about the app. */}
         <SyncBanner />
+        <UpdateBanner />
         <Banner />
         {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
         <PlanSection

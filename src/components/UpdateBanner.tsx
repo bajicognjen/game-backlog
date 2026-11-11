@@ -30,7 +30,7 @@ function UpdateBannerContent() {
           <button type="button" className="button button-primary button-small" onClick={reload}>
             {t.updates.reload}
           </button>
-          <button type="button" className="button button-ghost" onClick={dismiss}>
+          <button type="button" className="button button-ghost button-small" onClick={dismiss}>
             {t.updates.later}
           </button>
         </span>
@@ -46,7 +46,7 @@ function UpdateBannerContent() {
           <button type="button" className="button button-primary button-small" onClick={() => void install()}>
             {t.updates.install}
           </button>
-          <button type="button" className="button button-ghost" onClick={dismiss}>
+          <button type="button" className="button button-ghost button-small" onClick={dismiss}>
             {t.updates.later}
           </button>
         </span>
@@ -66,7 +66,7 @@ function UpdateBannerContent() {
     return (
       <div className="banner banner-error" role="alert">
         <span>{t.updates.installFailed.replace("{detail}", detail ?? "")}</span>
-        <button type="button" className="button button-ghost" onClick={dismiss}>
+        <button type="button" className="button button-ghost button-small" onClick={dismiss}>
           {t.dismiss}
         </button>
       </div>

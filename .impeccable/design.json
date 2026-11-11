@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T14:06:42Z",
+  "generatedAt": "2026-11-11T14:18:31Z",
   "title": "Design System: Game Backlog",
   "extensions": {
     "colorMeta": {
@@ -678,7 +678,7 @@
       },
       {
         "name": "The Folded Ledger Rule",
-        "body": "Below 900px each game is one stacked row: line one holds the drag handle, number, title and actions; line two the Design chip, status word and hours (with \"h\"); line three the date range (on a finished game, its review). What a narrow window hides stays hidden. The header row is hidden from view only, and the tables carry explicit table, row, header and cell roles, so a screen reader still hears each cell's column.",
+        "body": "Below 900px each game is one stacked row: line one holds the drag handle, number, title and actions; line two the Design chip, status word and hours (with \"h\"); line three the date range (on a finished game, its review). The handle's cell is the handle and the number sits in a fixed 14px slot, so the title and the lines under it share one left edge. What a narrow window hides stays hidden. The header row is hidden from view only, and the tables carry explicit table, row, header and cell roles, so a screen reader still hears each cell's column.",
         "section": "layout"
       },
       {
