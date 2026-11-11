@@ -237,7 +237,7 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
           <Icon name="grip" />
         </button>
       </td>
-      <td className="num muted">{row.index}</td>
+      <td className="num muted index">{row.index}</td>
       <td className="title">
         <TitleCell game={game} onOpen={onOpen} />
         {warning && (
@@ -246,18 +246,18 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
           </span>
         )}
       </td>
-      <td>
+      <td className="design">
         <TypeChip type={game.type} />
       </td>
       <td className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
-      <td>
+      <td className="status">
         <StatusBadge status={game.status} />
       </td>
       {showSchedule && schedule && (
         <>
-          <td className="num">
+          <td className="num hours">
             {game.hoursPlayed > 0 ? (
               <span className="hours-cell" title={hoursTitle(game, schedule.hours)}>
                 <span>

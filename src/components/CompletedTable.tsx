@@ -156,7 +156,7 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
           <Icon name="grip" />
         </button>
       </td>
-      <td className="num muted">{game.completedOrder ?? t.none}</td>
+      <td className="num muted index">{game.completedOrder ?? t.none}</td>
       <td className="title">
         <TitleCell game={game} onOpen={onOpen} />
       </td>
