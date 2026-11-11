@@ -26,8 +26,11 @@ dist-ssr
 # TypeScript build info
 *.tsbuildinfo
 
-# Impeccable engine binary (platform-specific, re-downloaded on first run)
-.claude/skills/impeccable/scripts/bin/
+# Claude Code: personal settings and the locally installed Impeccable skill
+# and agents (its engine binary is platform-specific and re-downloaded)
+.claude/settings.local.json
+.claude/agents/
+.claude/skills/
 
 # Wrangler's local state and secrets
 .wrangler

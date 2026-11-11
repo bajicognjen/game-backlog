@@ -44,7 +44,7 @@ Confirmed functionality:
 
 Durable constraints (confirmed):
 
-- Offline, a single SQLite file, no accounts, no cloud.
+- No accounts, offline-first. The desktop app keeps everything in one local SQLite file and never talks to a server of its own; the web app keeps its copy in the browser's IndexedDB. The only server copy is the web app's opt-in sync: a random sync key, no sign-up, the device stays the working copy and nothing needs the server to work.
 - English-only UI; copy can assume English.
 
 Open, not confirmed as constraints (current behavior, not a commitment):
@@ -69,7 +69,7 @@ Terminology to keep: "Plan", "Finished games", "Log hours", "Finish game", "Drop
 ## Product Principles
 
 1. The plan is alive: any change to order, hours or status recalculates the dates at once, visibly.
-2. The owner's file is the truth: no accounts, no sync; everything can be exported and imported as one JSON.
+2. The owner's copy is the truth: no accounts; sync (web app only, opt-in) mirrors that copy and asks rather than merging or overwriting silently; everything can be exported and imported as one JSON.
 3. Plain words: product terms stay short and literal, consequences are stated before they happen.
 4. Enrichment is optional: IGDB adds covers, estimates and details, Steam adds played hours, but neither gates planning (today's behavior; see open items).
 5. Honest numbers: estimates are casual play-time, drift from the plan is shown rather than hidden.
