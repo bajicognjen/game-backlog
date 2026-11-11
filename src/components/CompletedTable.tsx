@@ -58,33 +58,34 @@ export function CompletedTable({ games, canReorder, empty, arrivedId = null, onR
   return (
     <div className="table-wrap">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <table className="table completed-table" aria-label={t.completed}>
-          <thead>
-            <tr>
-              <th scope="col" className="drag-col" aria-label={t.actions.drag} />
-              <th scope="col" className="num">
+        {/* Explicit roles throughout: on a phone the rows become flex boxes, and browsers then stop exposing a table. */}
+        <table role="table" className="table completed-table" aria-label={t.completed}>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader" className="drag-col" aria-label={t.actions.drag} />
+              <th scope="col" role="columnheader" className="num">
                 {t.columns.index}
               </th>
-              <th scope="col">{t.columns.title}</th>
-              <th scope="col" title={t.columns.typeHint}>
+              <th scope="col" role="columnheader">{t.columns.title}</th>
+              <th scope="col" role="columnheader" title={t.columns.typeHint}>
                 {t.columns.type}
               </th>
-              <th scope="col" className="col-opt-2">
+              <th scope="col" role="columnheader" className="col-opt-2">
                 {t.columns.genre}
               </th>
-              <th scope="col">{t.columns.platform}</th>
-              <th scope="col" className="date">
+              <th scope="col" role="columnheader">{t.columns.platform}</th>
+              <th scope="col" role="columnheader" className="date">
                 {t.columns.completedAt}
               </th>
-              <th scope="col" className="num">
+              <th scope="col" role="columnheader" className="num">
                 {t.columns.rating}
               </th>
-              <th scope="col">{t.columns.reviewNote}</th>
-              <th scope="col" className="actions-col" aria-label={t.actions.more} />
+              <th scope="col" role="columnheader">{t.columns.reviewNote}</th>
+              <th scope="col" role="columnheader" className="actions-col" aria-label={t.actions.more} />
             </tr>
           </thead>
           <SortableContext items={games.map((g) => g.id)} strategy={verticalListSortingStrategy}>
-            <tbody>
+            <tbody role="rowgroup">
               {games.map((game) => (
                 <CompletedRow
                   key={game.id}
@@ -134,7 +135,7 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
   };
 
   return (
-    <tr
+    <tr role="row"
       ref={setRowRef}
       id={`game-${game.id}`}
       style={style}
@@ -142,7 +143,7 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
       onFocus={roving.onFocus}
       onKeyDown={roving.onKeyDown}
     >
-      <td className="drag-col">
+      <td role="cell" className="drag-col">
         <button
           ref={setActivatorNodeRef}
           type="button"
@@ -156,21 +157,21 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
           <Icon name="grip" />
         </button>
       </td>
-      <td className="num muted index">{game.completedOrder ?? t.none}</td>
-      <td className="title">
+      <td role="cell" className="num muted index">{game.completedOrder ?? t.none}</td>
+      <td role="cell" className="title">
         <TitleCell game={game} onOpen={onOpen} />
       </td>
-      <td>
+      <td role="cell">
         <TypeChip type={game.type} />
       </td>
-      <td className="col-opt-2">
+      <td role="cell" className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
-      <td>
+      <td role="cell">
         <PlatformChip platform={game.platform} />
       </td>
-      <td className="date">{game.completedAt ? formatDate(game.completedAt) : t.none}</td>
-      <td className="num">
+      <td role="cell" className="date">{game.completedAt ? formatDate(game.completedAt) : t.none}</td>
+      <td role="cell" className="num">
         {game.rating === null ? (
           <button type="button" className="link-button rating-link" onClick={() => onRate(game)}>
             {t.actions.rate}
@@ -188,7 +189,7 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
           </button>
         )}
       </td>
-      <td className="note">
+      <td role="cell" className="note">
         {(game.review || game.note) && (
           <span className="note-stack">
             {game.review && (
@@ -204,7 +205,7 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
           </span>
         )}
       </td>
-      <td className="actions-col">
+      <td role="cell" className="actions-col">
         <div className="row-actions">
           <IconButton label={t.actions.edit} icon="pencil" onClick={() => onEdit(game)} />
           <RowMenu
