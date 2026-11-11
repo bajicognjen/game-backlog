@@ -1,8 +1,19 @@
 import { t } from "../i18n/en";
 import { useUpdates } from "../state/updates";
 
-/** Desktop: offers a newer release found on GitHub, then shows the download until the app restarts. Web: offers a reload into a new version. */
+/**
+ * Desktop: offers a newer release found on GitHub, then shows the download until the app restarts. Web: offers a reload into a new version.
+ * The live region is always on the page, so a screen reader reads a banner when it appears, not only when it changes.
+ */
 export function UpdateBanner() {
+  return (
+    <div aria-live="polite">
+      <UpdateBannerContent />
+    </div>
+  );
+}
+
+function UpdateBannerContent() {
   const status = useUpdates((s) => s.status);
   const version = useUpdates((s) => s.version);
   const progress = useUpdates((s) => s.progress);
@@ -13,7 +24,7 @@ export function UpdateBanner() {
 
   if (status === "reloadReady") {
     return (
-      <div className="banner banner-info" role="status">
+      <div className="banner banner-info">
         <span>{t.updates.webReady}</span>
         <span className="banner-actions">
           <button type="button" className="button button-primary button-small" onClick={reload}>
@@ -29,7 +40,7 @@ export function UpdateBanner() {
 
   if (status === "available") {
     return (
-      <div className="banner banner-info" role="status">
+      <div className="banner banner-info">
         <span>{t.updates.available.replace("{version}", version ?? "")}</span>
         <span className="banner-actions">
           <button type="button" className="button button-primary button-small" onClick={() => void install()}>
@@ -44,7 +55,7 @@ export function UpdateBanner() {
   }
   if (status === "installing") {
     return (
-      <div className="banner banner-info" role="status">
+      <div className="banner banner-info">
         <span>
           {progress === null ? t.updates.downloadingUnknown : t.updates.downloading.replace("{percent}", String(Math.round(progress * 100)))}
         </span>

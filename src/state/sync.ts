@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { repository } from "../db";
 import { STATE_KEY, onWebStateSaved, type StoredState } from "../db/webRepository";
 import { getDocument, hasIndexedDb } from "../db/webStorage";
+import type { Backup } from "../domain/backup";
 import { normaliseSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import {
@@ -85,7 +86,20 @@ export const useSync = create<SyncUiState>((set, get) => {
     },
     disable: () => attempt((e) => e.disable()),
     deleteServerCopy: () => attempt((e) => e.deleteServerCopy()),
-    resolve: (choice) => attempt((e) => e.resolve(choice)),
+    async resolve(choice) {
+      const outcome: { replaced: Backup | null } = { replaced: null };
+      await attempt(async (e) => {
+        outcome.replaced = await e.resolve(choice);
+      });
+      const replaced = outcome.replaced;
+      if (!replaced) return;
+      // The Second Chance Rule: for 20 seconds the replaced plan can come back. Applying it is a
+      // local save, so sync sends it to the server too: undo ends with both sides on the other plan.
+      const keptMine = choice === "keep-mine";
+      useStore.getState().offerUndo(keptMine ? t.sync.keptMine : t.sync.tookServer, async () => {
+        if (await useStore.getState().applyBackup(replaced)) useStore.getState().notify(keptMine ? t.sync.undoKeptMine : t.sync.undoTookServer);
+      });
+    },
     async conflictSides() {
       const current = get().state;
       if (current.kind !== "conflict") return null;

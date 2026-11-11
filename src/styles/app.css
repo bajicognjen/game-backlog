@@ -2877,8 +2877,14 @@ h2[tabindex="-1"]:focus {
     gap: 4px;
   }
 
+  /* Icons only on a phone, but the words stay for screen readers: they are each button's name. */
   .topbar-actions .label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .topbar-actions {

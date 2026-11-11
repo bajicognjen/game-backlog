@@ -85,6 +85,8 @@ export interface AppState {
   dismissNotice(): void;
   /** Show a routine confirmation that clears itself (used by sync after a pull). */
   notify(notice: string): void;
+  /** Show a notice with a 20-second undo offer for something done outside the store (sync's conflict choice). */
+  offerUndo(notice: string, undo: () => Promise<void>): void;
 }
 
 /** How long an undo offer stays on screen (a thin line under it drains over this time). */
@@ -482,6 +484,8 @@ export const useStore = create<AppState>((set, get) => {
     notify(notice) {
       flashNotice(notice);
     },
+
+    offerUndo: (notice, undo) => offerUndo(notice, undo),
   };
 });
 

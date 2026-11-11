@@ -12,6 +12,8 @@ interface Props {
   children: ReactNode;
   /** md for confirmations and short forms, lg for the game forms, xl for content-heavy views. */
   size?: "md" | "lg" | "xl";
+  /** Ids of the text that explains the dialog (a consequence), read out with its title when it opens. */
+  describedBy?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ interface Props {
  * Focus goes to the element marked `data-autofocus` (else the first control)
  * and returns to whatever opened the dialog when it closes.
  */
-export function Modal({ title, onClose, children, size = "md" }: Props) {
+export function Modal({ title, onClose, children, size = "md", describedBy }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function Modal({ title, onClose, children, size = "md" }: Props) {
       ref={ref}
       className={`modal modal-${size}`}
       aria-labelledby="modal-title"
+      aria-describedby={describedBy}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

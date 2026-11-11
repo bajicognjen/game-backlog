@@ -40,7 +40,13 @@ export function SyncSettings() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
 
+  const groupRef = useRef<HTMLDivElement>(null);
+  const inviteRef = useRef<HTMLInputElement>(null);
+  /** Set when an action starts here (or the delete dialog closes): where focus was, to give it back afterwards. */
+  const returnFocus = useRef<{ to: Element | null } | null>(null);
+
   async function run(action: () => Promise<unknown>) {
+    returnFocus.current = { to: document.activeElement };
     setBusy(true);
     try {
       await action();
@@ -48,6 +54,19 @@ export function SyncSettings() {
       setBusy(false);
     }
   }
+
+  // Buttons are disabled while an action runs, and turning sync on or off replaces them, which drops focus
+  // to the page. Give it back: to the refused invite field, the control that was used, or the group's first button.
+  useEffect(() => {
+    const pending = returnFocus.current;
+    if (!pending || busy || confirmDelete) return;
+    returnFocus.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body) return; // focus went somewhere on purpose: a field, a dialog, a notice
+    const used = pending.to instanceof HTMLElement && pending.to.isConnected && !pending.to.matches(":disabled") ? pending.to : null;
+    const target = state.kind === "invite-required" ? inviteRef.current : (used ?? groupRef.current?.querySelector<HTMLElement>("button:not(:disabled)"));
+    target?.focus();
+  }, [busy, confirmDelete, state.kind]);
 
   async function turnOn() {
     const code = invite.trim();
@@ -91,7 +110,7 @@ export function SyncSettings() {
   const inviteError = !refused ? null : typedInvite === "" ? t.sync.inviteNeeded : typedInvite === sentInvite ? t.sync.inviteWrong : null;
 
   return (
-    <div className="settings-group">
+    <div className="settings-group" ref={groupRef}>
       <h3>{t.sync.title}</h3>
       <p className="settings-group-note">{t.sync.note}</p>
       <div className="settings-group-body">
@@ -100,6 +119,7 @@ export function SyncSettings() {
             <label className="field sync-field">
               <span className="field-label">{t.sync.inviteLabel}</span>
               <input
+                ref={inviteRef}
                 type="text"
                 value={invite}
                 onChange={(e) => setInvite(e.target.value)}
@@ -170,7 +190,10 @@ export function SyncSettings() {
 
         {state.kind !== "off" && !refused && (
           <div className="settings-action">
-            <span className={state.kind === "pending" || state.kind === "conflict" ? "field-error" : "muted"}>{statusText(state)}</span>
+            {/* Read out as it changes (synced, waiting, failed, a conflict) while Settings is open. */}
+            <span className={state.kind === "pending" || state.kind === "conflict" ? "field-error" : "muted"} role="status">
+              {statusText(state)}
+            </span>
             {state.kind === "conflict" && (
               <div className="field-actions">
                 <button type="button" className="button button-primary" onClick={() => setConflictOpen(true)}>
@@ -190,7 +213,8 @@ export function SyncSettings() {
             </div>
             <p className="field-hint">{t.sync.keyHint}</p>
             <div className="field-actions">
-              <button type="button" className="button" disabled={busy || state.kind === "syncing"} onClick={() => void run(check)}>
+              {/* In a conflict nothing syncs until a side is chosen, so a check would do nothing. */}
+              <button type="button" className="button" disabled={busy || state.kind === "syncing" || state.kind === "conflict"} onClick={() => void run(check)}>
                 {t.sync.checkNow}
               </button>
               <button type="button" className="button" disabled={busy} onClick={() => void run(disable)}>
@@ -204,7 +228,11 @@ export function SyncSettings() {
           </div>
         )}
 
-        {actionError && <span className="field-error">{t.sync.actionFailed.replace("{detail}", actionError)}</span>}
+        {actionError && (
+          <span className="field-error" role="alert">
+            {t.sync.actionFailed.replace("{detail}", actionError)}
+          </span>
+        )}
       </div>
 
       {confirmDelete && (
@@ -217,7 +245,11 @@ export function SyncSettings() {
             await deleteServerCopy();
             return useSync.getState().actionError === null;
           }}
-          onClose={() => setConfirmDelete(false)}
+          onClose={() => {
+            // After a delete its button is gone with the "on" controls; focus goes to what replaced them.
+            returnFocus.current = { to: null };
+            setConfirmDelete(false);
+          }}
         />
       )}
       {conflictOpen && <SyncConflictDialog onClose={() => setConflictOpen(false)} />}

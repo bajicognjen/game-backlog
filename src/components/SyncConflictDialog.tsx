@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { formatDateTime } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { t } from "../i18n/en";
@@ -25,6 +25,8 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
   const [busy, setBusy] = useState(false);
   const [sides, setSides] = useState<ConflictSides | null>(null);
   const remote = state.kind === "conflict" ? state.remote : null;
+  const leadId = useId();
+  const outcomeId = useId();
 
   useEffect(() => {
     let current = true;
@@ -49,8 +51,10 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
   const lead = state.meta.lastSyncedAt ? t.sync.conflictSince.replace("{time}", formatDateTime(state.meta.lastSyncedAt)) : t.sync.conflictFirst;
 
   return (
-    <Modal title={t.sync.conflictTitle} onClose={onClose}>
-      <p className="modal-text">{lead}</p>
+    <Modal title={t.sync.conflictTitle} onClose={onClose} describedBy={`${leadId} ${outcomeId}`}>
+      <p className="modal-text" id={leadId}>
+        {lead}
+      </p>
       <table className="sync-compare">
         <thead>
           <tr>
@@ -69,7 +73,9 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
           ))}
         </tbody>
       </table>
-      <p className="modal-text">{t.sync.conflictOutcome}</p>
+      <p className="modal-text" id={outcomeId}>
+        {t.sync.conflictOutcome}
+      </p>
       <footer className="modal-actions modal-actions-stack">
         <button type="button" className="button button-ghost" onClick={onClose} disabled={busy} data-autofocus>
           {t.sync.later}

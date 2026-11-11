@@ -237,18 +237,42 @@ describe("sync engine", () => {
     await b.engine.check();
     expect(b.engine.state().kind).toBe("conflict");
 
-    await b.engine.resolve("take-server");
+    const replacedHere = await b.engine.resolve("take-server");
     expect((await b.repository.load()).games.map((g) => g.title)).toEqual(["A's game"]);
     expect(b.engine.state().kind).toBe("idle");
+    expect(replacedHere?.games.map((g) => g.title)).toEqual(["B's game"]); // handed back for Undo
 
     await addGame(b.repository, "B again");
     await b.engine.check();
     await addGame(a.repository, "A again");
     await a.engine.check();
     expect(a.engine.state().kind).toBe("conflict");
-    await a.engine.resolve("keep-mine");
+    const replacedOnServer = await a.engine.resolve("keep-mine");
     expect(a.engine.state().kind).toBe("idle");
     expect(await server.titles()).toEqual(["A's game", "A again"]);
+    expect(replacedOnServer?.games.map((g) => g.title)).toEqual(["A's game", "B again"]);
+  });
+
+  it("undoing a conflict choice puts the replaced plan back here and on the server", async () => {
+    const server = fakeServer();
+    const a = device(server);
+    await a.repository.load();
+    await addGame(a.repository, "Server plan");
+    await a.engine.enable();
+    const key = (a.engine.state() as { meta: { key: string } }).meta.key;
+    const b = device(server);
+    await b.repository.load();
+    await addGame(b.repository, "Local plan");
+    await b.engine.connect(key);
+
+    const replaced = await b.engine.resolve("take-server");
+    expect((await b.repository.load()).games.map((g) => g.title)).toEqual(["Server plan"]);
+    // Undo is the store's applyBackup: a local replaceAll, which sync then pushes.
+    await b.repository.replaceAll(replaced!);
+    await b.engine.check();
+    expect((await b.repository.load()).games.map((g) => g.title)).toEqual(["Local plan"]);
+    expect(await server.titles()).toEqual(["Local plan"]);
+    expect(b.engine.state().kind).toBe("idle");
   });
 
   it("joining a key on a device that already has a plan asks which side to keep", async () => {

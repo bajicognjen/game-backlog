@@ -56,6 +56,11 @@ export async function decodeDocument(bytes: Uint8Array): Promise<SnapshotState> 
   return fromStoredState(JSON.parse(await new Response(stream).text()));
 }
 
+/** A plan in the shape `replaceAll` (and the store's `applyBackup`) takes. */
+function asBackup(plan: Pick<SnapshotState, "settings" | "games" | "sessions">, exportedAt: string): Backup {
+  return { app: "game-backlog", version: BACKUP_VERSION, exportedAt, settings: plan.settings, games: plan.games, sessions: plan.sessions };
+}
+
 // --- a conflict, side by side ----------------------------------------------------------
 
 /** One copy of the plan as the conflict dialog shows it; `changedAt` is when that copy was last written (ISO). */
@@ -185,7 +190,11 @@ export interface SyncEngine {
   disable(): Promise<void>;
   /** Remove the server copy and stop syncing. */
   deleteServerCopy(): Promise<void>;
-  resolve(choice: ConflictChoice): Promise<void>;
+  /**
+   * Settle a conflict by keeping one side. Resolves with the plan that was replaced (this device's for
+   * "take-server", the server's for "keep-mine") so the choice can be undone, or null when there was none.
+   */
+  resolve(choice: ConflictChoice): Promise<Backup | null>;
   /** Compare with the server now (on load, when the page becomes visible, when back online). */
   check(): Promise<void>;
   /** Hear about a local save (wired to `onWebStateSaved`). */
@@ -283,8 +292,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** Replace the local plan with the server's document and record its revision. */
   async function pull(current: SyncMeta, remote: RemoteDocument): Promise<void> {
     set({ kind: "syncing", meta: current });
-    const decoded = await decodeDocument(remote.bytes);
-    const backup: Backup = { app: "game-backlog", version: BACKUP_VERSION, exportedAt: remote.updatedAt, settings: decoded.settings, games: decoded.games, sessions: decoded.sessions };
+    const backup = asBackup(await decodeDocument(remote.bytes), remote.updatedAt);
     applyingRemote = true;
     try {
       await deps.repository.replaceAll(backup);
@@ -372,11 +380,22 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }),
 
     resolve: (choice) =>
-      run(async () => {
-        if (state.kind !== "conflict") return;
+      run(async (): Promise<Backup | null> => {
+        if (state.kind !== "conflict") return null;
         const { meta: current, remote } = state;
-        if (choice === "take-server") return pull(current, remote);
-        return push(current, remote.revision);
+        if (choice === "take-server") {
+          // This device's plan is about to go: keep it, so the choice can be undone.
+          const mine = asBackup(await deps.repository.load(), now().toISOString());
+          await pull(current, remote);
+          return mine;
+        }
+        // The server's copy is about to be overwritten; an unreadable one cannot be offered back.
+        const theirs = await decodeDocument(remote.bytes).then(
+          (plan) => asBackup(plan, remote.updatedAt),
+          () => null,
+        );
+        await push(current, remote.revision);
+        return theirs;
       }),
 
     check: () =>
