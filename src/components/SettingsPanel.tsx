@@ -17,6 +17,7 @@ import { failureMessage } from "./GameSearch";
 import { Icon } from "./Icon";
 import { SteamAccount } from "./SteamAccount";
 import { SteamImportDialog } from "./SteamImportDialog";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 /**
  * Plan settings, IGDB credentials, maintenance and app info. Each field keeps
@@ -362,6 +363,15 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
       </div>
 
       {inBrowser && <SyncSettings request={syncRequest} />}
+
+      {/* Below 900px only: the top bar's room goes to Sync there, so the theme lives here. */}
+      <div className="settings-group settings-group-narrow">
+        <h3>{t.themeTitle}</h3>
+        <p className="settings-group-note">{t.settings.themeNote}</p>
+        <div className="settings-group-body">
+          <ThemeSwitch />
+        </div>
+      </div>
 
       {(version || backupFolder || inBrowser) && (
         <div className="settings-group">

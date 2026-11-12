@@ -142,6 +142,7 @@ export const t = {
   skipToFinished: "Skip to finished games",
   skipToStats: "Skip to statistics",
   skipLinks: "Skip links",
+  undoWindow: "You can undo for {seconds} seconds; the time waits while you're on this notice.",
   showFinished: "Show in finished games",
   dateField: {
     placeholder: "dd.mm.yyyy",
@@ -265,6 +266,8 @@ export const t = {
     setUpSteam: "Set up Steam",
     done: "Done",
     appTitle: "App",
+    // Below 900px the theme leaves the top bar (its room goes to Sync) and lives here.
+    themeNote: "How the app looks on this device. System follows the device's light or dark setting.",
     appNote: "Updates and the automatic backups.",
     appNoteWeb: "This version and where your data lives.",
     dataTitle: "Your data",
@@ -299,6 +302,7 @@ export const t = {
     linkHintCopy: "Copy the join link and open it on your other device. Anyone who has the link can read and change the plan.",
     shareLink: "Share join link",
     shareTitle: "Game Backlog join link",
+    shareText: "Open this on your other device to sync its Game Backlog plan with this one.",
     otherWays: "Other ways",
     otherWaysName: "Other ways to add a device",
     keyLabel: "Sync key",
@@ -322,6 +326,9 @@ export const t = {
     stateStopped: "Not syncing",
     stateConflict: "Different plans",
     stateGone: "Server copy deleted",
+    stateLastSynced: "Last synced",
+    detailUnreachable: "The last check didn't get through to the sync server. Nothing on this device is waiting to go up; a change goes up once it answers.",
+    lastSyncedSince: "last synced {since}",
     detailNever: "Nothing confirmed by the server yet.",
     detailOffline: "The server can't be reached. A change goes up when the connection is back.",
     detailError: "The sync server had a problem. Changes stay on this device and go up once it answers; Check now tries again.",
@@ -344,8 +351,12 @@ export const t = {
     inviteAsk: "This server asks for an invite code before it stores a plan. Enter the one you were given.",
     inviteWrong: "The server didn't accept this invite code. Check it with whoever sent it to you.",
     checkNow: "Check now",
-    checkedUpToDate: "Checked just now: this device has the latest plan.",
-    checkUnreachable: "Couldn't reach the sync server just now. Nothing on this device is waiting to go up; try again later.",
+    // What Check now found, with the time it was tried: a time of day stays true as the minutes pass.
+    checkedUpToDate: "Checked at {time}: this device has the latest plan.",
+    checkUnreachable: "Tried at {time}: the sync server couldn't be reached.",
+    checkServerError: "Tried at {time}: the sync server had a problem again.",
+    checkStill: "Tried at {time}: the server answered, but the change still didn't go up.",
+    checkSent: "Checked at {time}: this device's changes went up, and it's in step.",
     exportPlan: "Export this plan",
     turnOff: "Turn off on this device",
     turnOffHint: "The server copy stays; this device keeps its plan and stops sending changes.",
@@ -361,7 +372,7 @@ export const t = {
     conflictOutcome: "Nothing is merged: the plan you keep replaces the other, here and on your other devices. Undo brings the other back for 20 seconds; until you choose, nothing syncs.",
     onlyHere: "Only on this device:",
     onlyThere: "Only on the server:",
-    sameGames: "Both have the same games; they differ in hours, order or what is finished.",
+    sameGames: "Both have the same games; what differs is in their details (hours, order, dates or what is finished) or the plan's settings.",
     moreTitles: "+{n} more",
     exportFirst: "Export this device's plan first",
     compareDevice: "This device",
@@ -384,7 +395,10 @@ export const t = {
     startedAgain: "Sync is on again under a new key, with this device's plan. Links and QR codes from before don't work; add your other devices with the new join link.",
     joined: "Joined: this device now has the synced plan and keeps it in step.",
     deleted: "Deleted the server copy. Sync is off on this device, and it keeps its plan.",
-    bannerConflict: "This device and the server have different plans. Nothing syncs until you choose.",
+    bannerConflict: "Different plans: this device and the server each have one. Nothing syncs until you choose which to keep.",
+    // The top bar's Sync button: its name says the state, so it is heard without opening Settings.
+    topbarName: "Sync: {state}",
+    topbarOff: "Sync: off",
     // Outside Settings, only for sync that has stopped; "Waiting" for the connection is normal and stays in Settings.
     // The banners open with the same words as Sync's status, so there is one vocabulary for trouble.
     bannerGone: "Server copy deleted, so this device isn't syncing. Its plan is safe here.",
@@ -416,6 +430,7 @@ export const t = {
   },
   emptyPlan: "The plan is empty.",
   emptyPlanHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings).",
+  emptyPlanSyncedHint: "This plan syncs: games added here or on your other devices appear in it, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings).",
   emptyPlanJoinHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings). Planning on another device too? Sync keeps both on one plan.",
   // A plan tab's count as a screen reader hears it, after the plan's name: "PC, 26 games".
   tabCount: ", {n} games",

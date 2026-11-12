@@ -18,6 +18,7 @@ import {
   decodeDocument,
   describeConflict,
   encodeDocument,
+  samePlan,
   toRemoteDocument,
   type FetchResult,
   type PushResult,
@@ -500,7 +501,57 @@ describe("sync engine", () => {
     expect(await engine.check()).toBe("answered");
     server.offline = true;
     expect(await engine.check()).toBe("unreachable");
-    expect(engine.state().kind).toBe("idle"); // nothing was waiting, so nothing is pending either
+    // Nothing was waiting, so nothing is pending, but the state says the check didn't get through.
+    expect(engine.state()).toMatchObject({ kind: "idle", unreachable: true });
+    server.offline = false;
+    expect(await engine.check()).toBe("answered");
+    expect(engine.state()).toMatchObject({ kind: "idle" });
+    expect((engine.state() as { unreachable?: boolean }).unreachable).toBeUndefined();
+  });
+
+  it("rejoining a key with the same plan joins without asking, whatever the theme", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Hollow Knight");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+
+    const second = device(server);
+    await second.repository.load();
+    await second.engine.connect(key); // empty: takes the plan
+    await second.engine.disable();
+    await second.repository.saveSettings({ theme: "dark" }); // a device preference, not the plan
+    second.onPulled.mockClear();
+
+    expect(await second.engine.connect(key)).toBe("connected");
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { key, revision: 1, dirty: false } });
+    expect(second.onPulled).toHaveBeenCalledTimes(1); // the "Joined" notice
+  });
+
+  it("rejoining with a plan that differs still asks", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Hollow Knight");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+
+    const second = device(server);
+    await second.repository.load();
+    await second.engine.connect(key);
+    await second.engine.disable();
+    await addGame(second.repository, "Celeste");
+
+    await second.engine.connect(key);
+    expect(second.engine.state().kind).toBe("conflict");
+  });
+
+  it("samePlan ignores when each copy was written and the device's own settings", () => {
+    const empty = emptyState();
+    const base = { settings: { ...empty.settings, hoursPerWeek: 13 }, games: [], sessions: [] };
+    expect(samePlan(base, { ...base, settings: { ...base.settings, theme: "dark", steamApiKey: "secret" } })).toBe(true);
+    expect(samePlan(base, { ...base, settings: { ...base.settings, hoursPerWeek: 10 } })).toBe(false);
   });
 
   it("a push based on a copy that is gone reports it too", async () => {

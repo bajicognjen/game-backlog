@@ -57,6 +57,33 @@ export async function decodeDocument(bytes: Uint8Array): Promise<SnapshotState> 
   return fromStoredState(JSON.parse(await new Response(stream).text()));
 }
 
+type PlanContent = Pick<SnapshotState, "settings" | "games" | "sessions">;
+
+/**
+ * Whether two copies hold the same plan: the same games, sessions and plan settings. What differs between devices
+ * without changing the plan does not count: when each was written, the id counters, the credentials and Steam
+ * lists (never synced) and the theme. Two copies that match need no choice between them.
+ */
+export function samePlan(a: PlanContent, b: PlanContent): boolean {
+  return stableJson(planContent(a)) === stableJson(planContent(b));
+}
+
+function planContent(plan: PlanContent) {
+  const { settings } = toRemoteDocument({ ...plan, nextGameId: 0, nextSessionId: 0 }, new Date(0));
+  const { theme: _theme, ...planSettings } = settings;
+  const byId = (x: { id: number }, y: { id: number }) => x.id - y.id;
+  return { settings: planSettings, games: [...plan.games].sort(byId), sessions: [...plan.sessions].sort(byId) };
+}
+
+/** JSON with every object's keys in one order, so the same content always reads the same. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, inner: unknown) =>
+    inner && typeof inner === "object" && !Array.isArray(inner)
+      ? Object.fromEntries(Object.entries(inner as Record<string, unknown>).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
+      : inner,
+  );
+}
+
 /** A plan in the shape `replaceAll` (and the store's `applyBackup`) takes. */
 function asBackup(plan: Pick<SnapshotState, "settings" | "games" | "sessions">, exportedAt: string): Backup {
   return { app: "game-backlog", version: BACKUP_VERSION, exportedAt, settings: plan.settings, games: plan.games, sessions: plan.sessions };
@@ -165,7 +192,8 @@ export function createSyncApi(fetchImpl: typeof fetch = (...args) => fetch(...ar
 export type SyncState =
   | { kind: "off" }
   /** Everything this browser has is on the server. */
-  | { kind: "idle"; meta: SyncMeta }
+  /** In step as far as this device knows; `unreachable` when the last check could not get through (nothing waits to go up). */
+  | { kind: "idle"; meta: SyncMeta; unreachable?: boolean }
   | { kind: "syncing"; meta: SyncMeta }
   /** A local change is waiting to be pushed; `reason` says why the last attempt failed. */
   | { kind: "pending"; meta: SyncMeta; reason: "offline" | "error" | "too-large"; detail: string | null }
@@ -182,8 +210,8 @@ export type SyncState =
 
 export type ConflictChoice = "keep-mine" | "take-server";
 
-/** How a check went: the server answered (whatever followed), it could not be reached, or there was nothing to check. */
-export type CheckResult = "answered" | "unreachable" | "skipped";
+/** How a check went: the server answered (whatever followed), could not be reached, answered with an error, or there was nothing to check. */
+export type CheckResult = "answered" | "unreachable" | "server-error" | "skipped";
 
 /** How joining a key went: `not-found` means nothing is stored under it, and nothing was saved on this device. */
 export type ConnectResult = "connected" | "not-found";
@@ -290,6 +318,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     if (result.kind === "conflict") {
       const remote = result.remote ?? (await fetchRemote(current.key));
       const dirty = await saveMeta({ ...current, dirty: true });
+      if (remote && (await adoptIfSame(dirty, remote))) return;
       if (remote) set({ kind: "conflict", meta: dirty, remote });
       else if (baseRevision > 0) set({ kind: "gone", meta: dirty }); // the copy it was based on is no longer there
       else set({ kind: "pending", meta: dirty, reason: "error", detail: "conflict" });
@@ -300,6 +329,25 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       return;
     }
     set({ kind: "pending", meta: await saveMeta({ ...current, dirty: true }), reason: "too-large", detail: null });
+  }
+
+  /**
+   * Both sides changed, or a device joins with a plan of its own, but the two copies hold the same plan (a rejoin
+   * after Turn off, two devices that made the same edit): take the server's revision and carry on. There is
+   * nothing to choose between, so nothing is asked.
+   */
+  async function adoptIfSame(current: SyncMeta, remote: RemoteDocument): Promise<boolean> {
+    let server: SnapshotState;
+    try {
+      server = await decodeDocument(remote.bytes);
+    } catch {
+      return false; // an unreadable server copy is the conflict dialog's to show
+    }
+    const local = unsent ?? (await deps.repository.load());
+    if (!samePlan(local, server)) return false;
+    unsent = null;
+    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: now().toISOString() }) });
+    return true;
   }
 
   async function fetchRemote(key: string): Promise<RemoteDocument | null> {
@@ -322,20 +370,22 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     await deps.onPulled();
   }
 
-  /** Ask the server and act on what it says; false when it could not be reached. */
-  async function compare(current: SyncMeta): Promise<boolean> {
+  /** Ask the server and act on what it says. */
+  async function compare(current: SyncMeta): Promise<Exclude<CheckResult, "skipped">> {
     let result: FetchResult;
     try {
       result = await deps.api.get(current.key, current.revision);
     } catch (error) {
-      if (current.dirty) set({ kind: "pending", meta: current, reason: error instanceof SyncError && error.reason === "network" ? "offline" : "error", detail: null });
-      else set({ kind: "idle", meta: current });
-      return false;
+      const offline = error instanceof SyncError && error.reason === "network";
+      if (current.dirty) set({ kind: "pending", meta: current, reason: offline ? "offline" : "error", detail: null });
+      // Nothing waits to go up, but the copy here may be behind the server: say the check didn't get through.
+      else set({ kind: "idle", meta: current, unreachable: true });
+      return offline ? "unreachable" : "server-error";
     }
     // Synced before and now nothing under the key: the copy was deleted. Say so rather than quietly storing it again.
     if (result.kind === "missing" && current.revision > 0) {
       set({ kind: "gone", meta: current });
-      return true;
+      return "answered";
     }
     const remoteRevision = result.kind === "missing" ? null : result.kind === "unchanged" ? result.revision : result.remote.revision;
     switch (reconcile(current, remoteRevision)) {
@@ -350,12 +400,13 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         break;
       case "conflict": {
         const remote = result.kind === "document" ? result.remote : await fetchRemote(current.key);
+        if (remote && (await adoptIfSame(current, remote))) break;
         if (remote) set({ kind: "conflict", meta: current, remote });
         else await push(current, 0);
         break;
       }
     }
-    return true;
+    return "answered";
   }
 
   return {
@@ -389,6 +440,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
           await pull(current, remote);
           return "connected";
         }
+        // The same plan on both (a device rejoining its own key): joined, with the same "Joined" word as a pull.
+        if (await adoptIfSame(current, remote)) {
+          await deps.onPulled();
+          return "connected";
+        }
         set({ kind: "conflict", meta: current, remote });
         return "connected";
       }),
@@ -404,7 +460,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       run(async () => {
         if (meta()) return; // turned on again some other way meanwhile
         const current = await saveMeta({ ...previous, dirty: true });
-        set({ kind: "pending", meta: current, reason: "offline", detail: null });
+        // "Syncing" while it reconnects, not "Waiting": a passing amber state would be announced for nothing.
+        set({ kind: "syncing", meta: current });
         await compare(current);
       }),
 
@@ -440,7 +497,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       run(async (): Promise<CheckResult> => {
         const current = meta();
         if (!current || state.kind === "conflict" || state.kind === "invite-required") return "skipped";
-        return (await compare(current)) ? "answered" : "unreachable";
+        return compare(current);
       }),
 
     noteSaved(saved) {

@@ -1,27 +1,21 @@
-import { useRef } from "react";
 import { APP_VERSION } from "../platform/updates";
-import { THEME_ORDER } from "../state/theme";
-import { useStore } from "../state/store";
-import type { Theme } from "../domain/types";
-import { t, themeLabels, themeShort } from "../i18n/en";
-import { Icon, type IconName } from "./Icon";
-import { useRovingGroup } from "./useRoving";
-
-const THEME_ICON: Record<Theme, IconName> = { system: "monitor", light: "sun", dark: "moon" };
+import { t } from "../i18n/en";
+import { useSync } from "../state/sync";
+import { Icon } from "./Icon";
+import { statusOf, whenText } from "./syncStatus";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 interface Props {
   settingsOpen: boolean;
   onToggleSettings(): void;
   onExport(): void;
   onImport(): void;
+  /** Bring Settings → Sync into view (web app only). */
+  onOpenSync(): void;
 }
 
-export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: Props) {
-  const theme = useStore((s) => s.settings.theme);
-  const updateSettings = useStore((s) => s.updateSettings);
-  const switchRef = useRef<HTMLDivElement>(null);
-  // One Tab stop; Left/Right move and pick, like a native radio group.
-  const roving = useRovingGroup(switchRef, { selector: '[role="radio"]', entry: '[aria-checked="true"]', activateOnMove: true });
+export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport, onOpenSync }: Props) {
+  const syncSupported = useSync((s) => s.supported);
 
   return (
     <header className="topbar">
@@ -39,23 +33,8 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
           <Icon name="upload" /> <span className="label">{t.backup.import}</span>
         </button>
         <span className="topbar-divider" aria-hidden="true" />
-        {/* All three themes are visible; the chosen one is lit, so the next click is never a guess. */}
-        <div ref={switchRef} className="tabs theme-switch" role="radiogroup" aria-label={t.themeTitle} onFocus={roving.onFocus} onKeyDown={roving.onKeyDown}>
-          {THEME_ORDER.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={theme === option}
-              aria-label={themeLabels[option]}
-              title={themeLabels[option]}
-              className={`tab ${theme === option ? "tab-active" : ""}`}
-              onClick={() => void updateSettings({ theme: option })}
-            >
-              <Icon name={THEME_ICON[option]} /> <span className="label">{themeShort[option]}</span>
-            </button>
-          ))}
-        </div>
+        <ThemeSwitch className="topbar-theme" />
+        {syncSupported && <SyncButton onOpen={onOpenSync} />}
         <button
           type="button"
           className={`button ${settingsOpen ? "button-active" : ""}`}
@@ -68,5 +47,27 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
         </button>
       </div>
     </header>
+  );
+}
+
+/**
+ * Sync's health from anywhere: a cloud with the state's dot (the same word and tone as Settings → Sync),
+ * no dot while sync is off. It opens Settings at Sync, where the state is explained and acted on.
+ */
+function SyncButton({ onOpen }: { onOpen(): void }) {
+  const state = useSync((s) => s.state);
+  const status = state.kind === "off" ? null : statusOf(state);
+  // The name says the state, so a screen reader hears it without opening Settings; the time is in the tooltip.
+  const name = status ? t.sync.topbarName.replace("{state}", status.word) : t.sync.topbarOff;
+  const when = status ? whenText(status, new Date()) : null;
+  const tooltip = when ? `${name}, ${when}` : name;
+  return (
+    <button type="button" className="button button-ghost topbar-sync" onClick={onOpen} aria-label={name} title={tooltip}>
+      <span className="topbar-sync-icon">
+        <Icon name="cloud" />
+        {status && <span className={`topbar-sync-dot topbar-sync-dot-${status.tone}`} aria-hidden="true" />}
+      </span>
+      <span className="label">{t.sync.title}</span>
+    </button>
   );
 }

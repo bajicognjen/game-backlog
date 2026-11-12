@@ -883,6 +883,7 @@ textarea {
 
 /* A narrow phone wraps the key at a dash, between groups, never inside one (`.path` breaks anywhere). */
 .path.sync-key {
+  font-size: var(--text-base); /* body size, not a path's 12px: it may be typed from */
   word-break: normal;
   overflow-wrap: anywhere;
 }
@@ -899,8 +900,8 @@ textarea {
    themes (the dark theme's paper would invert it); the four-module quiet zone is inside the tile. */
 .sync-qr {
   display: block;
-  width: 168px;
-  height: 168px;
+  width: 180px; /* while the code is drawn; the code itself sets 4px per module */
+  height: 180px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: #ffffff;
@@ -1020,6 +1021,7 @@ textarea {
 
 .banner-count {
   min-width: 3ch;
+  white-space: nowrap; /* "17 s" on one line, even in a narrow banner */
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
@@ -2146,6 +2148,49 @@ tr:focus-within .row-actions {
   font-size: var(--text-md);
 }
 
+/* The top bar's Sync button: a cloud with sync's state dot at its shoulder (the dots of Settings → Sync), cut
+   out of the bar by a ring of the bar's own colour; no dot while sync is off. */
+.topbar-sync-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.topbar-sync-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.topbar-sync-dot-ok {
+  background: var(--success);
+}
+
+.topbar-sync-dot-warn {
+  background: var(--warning);
+}
+
+.topbar-sync-dot-bad {
+  background: var(--danger);
+}
+
+.topbar-sync-dot-quiet {
+  background: var(--surface);
+  box-shadow:
+    inset 0 0 0 2px var(--text-muted),
+    0 0 0 2px var(--surface);
+}
+
+/* The theme lives in the top bar from 900px up; Settings has it only below that. */
+@media (min-width: 900px) {
+  .settings-group-narrow {
+    display: none;
+  }
+}
+
 /* ---------- Filters and sorting ---------- */
 
 .filter-bar {
@@ -2406,11 +2451,25 @@ tr:focus-within .row-actions {
   }
 
   /* Choices too long to share a row (the sync conflict) stack full width in the order they're written, the way
-     out last, where a thumb ends up. */
+     out last, where a thumb ends up. They stay pinned at the dialog's foot while the evidence above scrolls, so a
+     short phone shows them from the start. Their 12px top gap is a fade: what scrolls under it melts away, and
+     when nothing scrolls it covers only the gap, never the text above. */
   .modal-actions-stack {
+    position: sticky;
+    bottom: 0;
     flex-direction: column;
     align-items: stretch;
+    margin: 0 -24px -22px;
+    padding: 12px 24px 22px;
+    background: linear-gradient(to bottom, transparent, var(--surface) 12px);
   }
+
+  /* A control in the scrolling part, focused from the keyboard, scrolls into view above the pinned choices
+     (their height, three 40px buttons with gaps and padding, plus the fade), never under them. */
+  .modal-content:has(> .modal-actions-stack) :is(button, a, input, select, textarea):not(.modal-actions-stack *) {
+    scroll-margin-bottom: 200px;
+  }
+
 
   .now:not(.now-idle) .now-actions {
     display: grid;
@@ -3174,7 +3233,8 @@ h3[tabindex="-1"]:focus {
   }
 
   .version-tag,
-  .topbar-divider {
+  .topbar-divider,
+  .topbar-theme {
     display: none;
   }
 
@@ -3419,6 +3479,16 @@ h3[tabindex="-1"]:focus {
     max-width: none;
   }
 
+  /* No note, no line: an empty one would still add the row gap under the last line. */
+  .completed-table td.note:empty {
+    display: none;
+  }
+
+  /* The rating's pill has 6px of padding and a 1px border; it hangs left so its figure lines up with the title. */
+  .completed-table .rating-value {
+    margin-left: -7px;
+  }
+
   .row-actions {
     color: var(--text); /* no hover on a phone: the actions stay visible */
   }
@@ -3518,8 +3588,8 @@ h3[tabindex="-1"]:focus {
     --fold-handle: 32px;
   }
 
-  /* Six 40px-tall controls and the app name share the bar: tighter gaps and 32px theme options keep
-     "Game Backlog" whole from 360px up. */
+  /* Four 40px-tall controls (Export, Import, Sync, Settings) and the app name share the bar on a phone; the
+     theme options (32px wide where they show) live in Settings below 900px. */
   .topbar {
     padding: 0 8px;
   }
@@ -3570,5 +3640,59 @@ h3[tabindex="-1"]:focus {
     content: "";
     position: absolute;
     inset: -8px -2px;
+  }
+}
+
+/* ---------- Folded rows at the edges of the one-column layout ---------- */
+
+/* 600–899px has room the phone doesn't: a plan row's dates join its chips line, so the row is two lines, not three. */
+@media (min-width: 600px) and (max-width: 899px) {
+  .plan-table tr::before {
+    display: none;
+  }
+
+  /* A wider step before the dates, so "18 h" and "15.11.2026" don't read as one figure. */
+  .plan-table td.date:not(td.date + td.date) {
+    margin-left: 8px;
+  }
+}
+
+/* The narrowest phones: a row's three actions (132px) would leave the title 72px, breaking it mid-word. They take
+   their own line under the row, at its right edge as elsewhere, and the title gets the width. */
+@media (max-width: 340px) {
+  .plan-table td.actions-col,
+  .completed-table td.actions-col {
+    order: 9;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+/* A folded finished row's title line and rating line sit 4px apart on a touch phone: the title's taller touch
+   reaches up, the rating's down, and they meet in the gap instead of overlapping. */
+@media (max-width: 899px) and (pointer: coarse) {
+  .completed-table .title-cell-link::after {
+    inset: -10px 0 -2px;
+  }
+
+  .completed-table .rating-link::after {
+    inset: -2px 0 -10px;
+  }
+
+  .completed-table .rating-value::after {
+    inset: -2px -2px -14px;
+  }
+}
+
+/* A phone: the plan tabs' track runs to the right edge, like the cards under it, instead of stopping short;
+   the tabs share the width and centre their names. */
+@media (max-width: 599px) {
+  .section-title > .tabs[role="tablist"] {
+    flex: 1 1 auto;
+  }
+
+  .section-title > .tabs[role="tablist"] .tab {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
