@@ -2308,6 +2308,17 @@ tr:focus-within .row-actions {
   font-weight: 650;
 }
 
+.sync-compare-time {
+  white-space: nowrap;
+}
+
+/* On the narrowest phones a change time stacks under its date, so two of them fit beside the labels. */
+@media (max-width: 379px) {
+  .sync-compare-time {
+    display: block;
+  }
+}
+
 /* ---------- Rating ---------- */
 
 .rating-picker {
@@ -3270,11 +3281,24 @@ h2[tabindex="-1"]:focus {
     grid-template-columns: 1fr;
   }
 
+  /* 8px from each edge. The browser's own dialog rule caps a modal at 100% - 2em - 6px, which would win and
+     leave 17px margins; on a 320px phone that cost the sync comparison its last column. */
   .modal,
   .modal-lg,
   .modal-xl {
     width: calc(100vw - 16px);
+    max-width: none;
     max-height: calc(100dvh - 16px);
+  }
+
+  /* The comparison keeps both columns in view: labels may wrap, cells sit closer. */
+  .sync-compare th,
+  .sync-compare td {
+    padding-left: 10px;
+  }
+
+  .sync-compare tbody th {
+    white-space: normal;
   }
 
   /* Choices too long to share a row (the sync conflict) stack full width, in reading order. */

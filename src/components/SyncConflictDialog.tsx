@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { formatDateTime } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { t } from "../i18n/en";
@@ -9,8 +9,8 @@ import { Modal } from "./Modal";
 
 interface CompareRow {
   label: string;
-  device: string;
-  server: string;
+  device: ReactNode;
+  server: ReactNode;
   /** Which values to set in bold: both where the counts differ, the newer one for the change time. */
   strong: { device: boolean; server: boolean };
 }
@@ -101,9 +101,12 @@ function compareRows(sides: ConflictSides | null): CompareRow[] {
     const differs = value(sides.device) !== value(sides.server);
     return { label, device: show(value(sides.device)), server: show(value(sides.server)), strong: { device: differs, server: differs } };
   };
-  const changedAt = (side: ConflictSide | undefined) => (side?.changedAt ? formatDateTime(side.changedAt) : "–");
   const deviceTime = sides?.device.changedAt ? Date.parse(sides.device.changedAt) : NaN;
   const serverTime = sides?.server.changedAt ? Date.parse(sides.server.changedAt) : NaN;
+  // Two changes in the same minute would read as the same time with one marked newer: show the seconds then.
+  const sameMinute =
+    sides?.device.changedAt && sides.server.changedAt ? formatDateTime(sides.device.changedAt) === formatDateTime(sides.server.changedAt) : false;
+  const changedAt = (side: ConflictSide | undefined) => (side?.changedAt ? <ChangeTime iso={side.changedAt} seconds={sameMinute && deviceTime !== serverTime} /> : "–");
   return [
     count(t.sync.compareInPlan, (side) => side.inPlan),
     count(t.sync.compareFinished, (side) => side.finished),
@@ -115,4 +118,17 @@ function compareRows(sides: ConflictSides | null): CompareRow[] {
       strong: { device: deviceTime > serverTime, server: serverTime > deviceTime },
     },
   ];
+}
+
+/** "12.11.2026, 12:53" as a date and a time that can stack on a narrow phone; with seconds when two changes share a minute. */
+function ChangeTime({ iso, seconds }: { iso: string; seconds: boolean }) {
+  const [date, time] = formatDateTime(iso).split(", ");
+  if (time === undefined) return <>{date}</>; // not a readable time: shown as stored
+  const withSeconds = seconds ? `${time}:${String(new Date(iso).getSeconds()).padStart(2, "0")}` : time;
+  return (
+    <>
+      {date},{" "}
+      <span className="sync-compare-time">{withSeconds}</span>
+    </>
+  );
 }
