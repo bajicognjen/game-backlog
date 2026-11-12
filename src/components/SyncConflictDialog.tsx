@@ -78,7 +78,7 @@ export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void
       <p className="modal-text" id={outcomeId}>
         {t.sync.conflictOutcome}
       </p>
-      <footer className="modal-actions modal-actions-stack">
+      <div className="modal-actions modal-actions-stack">
         <button type="button" className="button button-ghost" onClick={onClose} disabled={busy} data-autofocus>
           {t.sync.later}
         </button>
@@ -89,7 +89,7 @@ export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void
         <button type="button" className="button" onClick={() => void choose("take-server")} disabled={busy}>
           {t.sync.takeServer}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
 }

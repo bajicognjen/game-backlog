@@ -30,7 +30,8 @@ export interface SyncUiState {
   /** The last explicit action that failed outright (a network error on connect or delete). */
   actionError: string | null;
   start(): Promise<void>;
-  enable(inviteCode?: string): Promise<void>;
+  /** Turn sync on (or start again under the same key after the server copy was deleted); `place` gets the confirmation. */
+  enable(inviteCode?: string, place?: NoticePlace): Promise<void>;
   /**
    * `invalid`: the input is not a key; `not-found`: nothing is stored under it; `failed`: see `actionError`.
    * `place`: where "Plan updated from the server" shows when joining pulls the plan in.
@@ -50,6 +51,8 @@ export interface SyncUiState {
 let engine: SyncEngine | null = null;
 /** Where the notice of a pull goes: the Sync settings while joining from there, else the top of the page. */
 let pullPlace: NoticePlace = "top";
+/** What the notice of a pull says: joining a key from Sync says so; a pull from another device's change is an update. */
+let pullMessage: string | null = null;
 
 function getEngine(): SyncEngine {
   if (!engine) {
@@ -59,7 +62,7 @@ function getEngine(): SyncEngine {
       onChange: (state) => useSync.setState({ state }),
       onPulled: async () => {
         await useStore.getState().load();
-        useStore.getState().notify(t.sync.pulled, pullPlace);
+        useStore.getState().notify(pullMessage ?? t.sync.pulled, pullPlace);
       },
     });
     const current = engine;
@@ -84,17 +87,24 @@ export const useSync = create<SyncUiState>((set, get) => {
     state: { kind: "off" },
     actionError: null,
     start: () => attempt((e) => e.start()),
-    enable: (inviteCode) => attempt((e) => e.enable(inviteCode ?? null)),
+    async enable(inviteCode, place = "top") {
+      const before = get().state.kind;
+      await attempt((e) => e.enable(inviteCode ?? null));
+      // Confirm what happened (a screen reader hears it too); waiting or a refused invite code show in the status instead.
+      if (get().state.kind === "idle") useStore.getState().notify(before === "gone" ? t.sync.startedAgain : t.sync.turnedOn, place);
+    },
     async connect(input, place = "top") {
       if (!readSyncKey(input)) return "invalid";
       let result: ConnectResult | "failed" = "failed";
       pullPlace = place;
+      pullMessage = t.sync.joined;
       try {
         await attempt(async (e) => {
           result = await e.connect(input);
         });
       } finally {
         pullPlace = "top";
+        pullMessage = null;
       }
       return result;
     },

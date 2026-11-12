@@ -30,7 +30,17 @@ export function Modal({ title, onClose, children, size = "md", describedBy }: Pr
     if (dialog && !dialog.open) dialog.showModal();
     const first = dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
+    // Content that arrives after opening (the sync comparison's numbers) can push the focused control below the
+    // dialog's fold on a short phone; bring it back into view whenever the content changes size.
+    const content = dialog?.querySelector(".modal-content");
+    const keepFocusInView = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== dialog && dialog?.contains(active)) active.scrollIntoView({ block: "nearest" });
+    };
+    const resizes = typeof ResizeObserver === "undefined" || !content ? null : new ResizeObserver(keepFocusInView);
+    if (content) resizes?.observe(content);
     return () => {
+      resizes?.disconnect();
       // Closing a modal dialog makes the browser refocus what was focused before it opened; keep a
       // focus that something else claimed meanwhile (an undo notice), otherwise go back to the opener.
       const active = document.activeElement;

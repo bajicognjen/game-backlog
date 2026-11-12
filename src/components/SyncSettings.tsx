@@ -90,6 +90,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   const status = statusOf(state);
 
   const groupRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   // While this group is on screen, the results of what is done here (and their Undo) show here, not a screen above.
   const setSyncPanelOpen = useStore((s) => s.setSyncPanelOpen);
   useEffect(() => {
@@ -138,9 +139,10 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   useEffect(() => {
     if (!request) return;
     if (request.mode === "show") {
+      // The heading, not the first button: that may be "Start syncing again", and a second Enter would re-upload.
       requestAnimationFrame(() => {
         groupRef.current?.scrollIntoView({ block: "start" });
-        groupRef.current?.querySelector<HTMLElement>(".settings-group-body > :not(.banner) button:not(:disabled)")?.focus({ preventScroll: true });
+        headingRef.current?.focus({ preventScroll: true });
       });
       return;
     }
@@ -169,7 +171,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   async function turnOn() {
     const code = invite.trim();
     setSentInvite(code);
-    await enable(code || undefined);
+    await enable(code || undefined, "sync");
     // Accepted (or not needed): the code has done its job and should not linger in the field.
     if (useSync.getState().state.kind !== "invite-required") {
       setInvite("");
@@ -227,7 +229,9 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
 
   return (
     <div className="settings-group" ref={groupRef} id="sync-settings">
-      <h3>{t.sync.title}</h3>
+      <h3 ref={headingRef} tabIndex={-1}>
+        {t.sync.title}
+      </h3>
       <p className="settings-group-note">{t.sync.note}</p>
       <SyncAnnouncer status={state.kind === "off" || refused ? null : status} />
       <div className="settings-group-body">
@@ -266,7 +270,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                 aria-describedby={inviteNoteId}
               />
               {inviteError ? (
-                <span className="field-error" id={inviteNoteId}>
+                <span className="field-error" id={inviteNoteId} role="alert">
                   {inviteError}
                 </span>
               ) : (
@@ -356,7 +360,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   </button>
                 ) : state.kind === "gone" ? (
                   // Puts this device's plan back on the server under the same key (asks for the invite code if the server wants it).
-                  <button type="button" className="button button-primary button-small" disabled={busy} onClick={() => void run(() => enable())}>
+                  <button type="button" className="button button-primary button-small" disabled={busy} onClick={() => void run(() => enable(undefined, "sync"))}>
                     {t.sync.startAgain}
                   </button>
                 ) : (
@@ -383,7 +387,16 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
             <div className="settings-action">
               <span className="field-label">{t.sync.keyLabel}</span>
               <div className="field-actions">
-                <code className="path sync-key">{showKey ? formatSyncKey(state.meta.key) : "••••-••••-••••-••••-••••-••••-••••-••••"}</code>
+                <code className="path sync-key">
+                  {showKey ? (
+                    formatSyncKey(state.meta.key)
+                  ) : (
+                    <>
+                      <span className="visually-hidden">{t.sync.keyHidden}</span>
+                      <span aria-hidden="true">••••-••••-••••-••••-••••-••••-••••-••••</span>
+                    </>
+                  )}
+                </code>
                 <button type="button" className="button button-small" onClick={() => setShowKey((v) => !v)}>
                   {showKey ? t.sync.hide : t.sync.show}
                 </button>

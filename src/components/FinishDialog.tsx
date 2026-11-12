@@ -122,14 +122,14 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose, initialDate }
           <textarea rows={2} value={review} onChange={(e) => setReview(e.target.value)} />
         </label>
 
-        <footer className="modal-actions">
+        <div className="modal-actions">
           <button type="button" className="button" onClick={onClose} disabled={busy}>
             {t.cancel}
           </button>
           <button type="submit" className="button button-success" disabled={busy}>
             <Icon name="check" /> {t.finishDialog.confirm}
           </button>
-        </footer>
+        </div>
       </form>
     </Modal>
   );

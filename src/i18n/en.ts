@@ -358,6 +358,10 @@ export const t = {
     pulled: "Plan updated from the server.",
     turnedOff: "Sync is off on this device. It keeps its plan; the server copy and your other devices are unchanged.",
     turnedOnAgain: "Sync is on again, with the same key.",
+    turnedOn: "Sync is on. To add another device, open the join link on it or scan the code below.",
+    startedAgain: "Sync is on again: this device's plan is back on the server, under the same key.",
+    joined: "Joined: this device now has the synced plan and keeps it in step.",
+    keyHidden: "Sync key, hidden",
     deleted: "Deleted the server copy. Sync is off on this device, and it keeps its plan.",
     bannerConflict: "This device and the server have different plans. Nothing syncs until you choose.",
     // Outside Settings, only for sync that has stopped; "Waiting" for the connection is normal and stays in Settings.

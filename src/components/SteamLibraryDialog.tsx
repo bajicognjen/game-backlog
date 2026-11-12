@@ -220,7 +220,7 @@ export function SteamLibraryDialog({ onAdd, onClose }: Props) {
         </>
       )}
 
-      <footer className="modal-actions">
+      <div className="modal-actions">
         {stage.kind === "failed" && stage.reason !== "no-credentials" && (
           <button type="button" className="button" onClick={() => setAttempt((n) => n + 1)}>
             <Icon name="refresh" /> {t.steam.retry}
@@ -229,7 +229,7 @@ export function SteamLibraryDialog({ onAdd, onClose }: Props) {
         <button type="button" className="button" onClick={onClose}>
           {t.close}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { t } from "../i18n/en";
+import { useStore } from "../state/store";
 import { useSync } from "../state/sync";
 import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
@@ -11,10 +12,13 @@ import { SyncConflictDialog } from "./SyncConflictDialog";
  */
 export function SyncBanner({ onOpenSync }: { onOpenSync(): void }) {
   const state = useSync((s) => s.state);
+  /** With Sync on screen in Settings, its own status and announcer tell a stop; a banner would say it twice. */
+  const syncPanelOpen = useStore((s) => s.syncPanelOpen);
   const [open, setOpen] = useState(false);
   const conflict = state.kind === "conflict";
-  const stopped =
-    state.kind === "gone"
+  const stopped = syncPanelOpen
+    ? null
+    : state.kind === "gone"
       ? t.sync.bannerGone
       : state.kind === "pending" && state.reason === "error"
         ? t.sync.bannerFailed
@@ -23,8 +27,12 @@ export function SyncBanner({ onOpenSync }: { onOpenSync(): void }) {
           : null;
   return (
     <>
-      {/* Always on the page, so a screen reader reads the banner when it appears; the dialog stays outside it. */}
-      <div aria-live="polite">
+      {/* Always on the page and holding only the words, so a screen reader reads the message when a banner
+          appears, without the button labels run on after it. */}
+      <div className="visually-hidden" role="status">
+        {conflict ? t.sync.bannerConflict : (stopped ?? "")}
+      </div>
+      <div>
         {conflict && (
           <div className="banner banner-info">
             <span>{t.sync.bannerConflict}</span>

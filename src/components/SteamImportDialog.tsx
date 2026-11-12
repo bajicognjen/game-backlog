@@ -96,7 +96,7 @@ export function SteamImportDialog({ onClose }: Props) {
 
       {plan && <Preview plan={plan} excluded={excluded} onToggle={toggle} onToggleAll={toggleAll} />}
 
-      <footer className="modal-actions">
+      <div className="modal-actions">
         <button type="button" className="button" onClick={onClose} disabled={busy}>
           {plan && plan.items.length > 0 ? t.cancel : t.close}
         </button>
@@ -110,7 +110,7 @@ export function SteamImportDialog({ onClose }: Props) {
             {confirmLabel(selected.length, hours)}
           </button>
         )}
-      </footer>
+      </div>
     </Modal>
   );
 }

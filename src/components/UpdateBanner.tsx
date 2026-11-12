@@ -3,12 +3,25 @@ import { useUpdates } from "../state/updates";
 
 /**
  * Desktop: offers a newer release found on GitHub, then shows the download until the app restarts. Web: offers a reload into a new version.
- * The live region is always on the page, so a screen reader reads a banner when it appears, not only when it changes.
+ * A live region with the offer's words is always on the page, so a screen reader reads it when it appears.
  */
 export function UpdateBanner() {
   return (
-    <div aria-live="polite">
+    <>
+      <UpdateAnnouncement />
       <UpdateBannerContent />
+    </>
+  );
+}
+
+/** Only the words of the offer, in a region that is always on the page; the buttons are not read as part of it. */
+function UpdateAnnouncement() {
+  const status = useUpdates((s) => s.status);
+  const version = useUpdates((s) => s.version);
+  const message = status === "reloadReady" ? t.updates.webReady : status === "available" ? t.updates.available.replace("{version}", version ?? "") : "";
+  return (
+    <div className="visually-hidden" role="status">
+      {message}
     </div>
   );
 }

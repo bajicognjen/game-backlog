@@ -2425,12 +2425,17 @@ tr:focus-within .row-actions {
 }
 
 /* Headings that skip links and hashes land on stop below the sticky bar; so does Sync when a join link opens it. */
+/* Headings that skip links and hashes land on, Sync when a link or banner opens it, and a notice that takes
+   focus all stop below the sticky bar, never under it. */
 h2[id],
-#sync-settings {
+#sync-settings,
+#sync-settings h3,
+.banner {
   scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 
-h2[tabindex="-1"]:focus {
+h2[tabindex="-1"]:focus,
+h3[tabindex="-1"]:focus {
   outline: none;
 }
 
