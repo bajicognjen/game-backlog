@@ -294,6 +294,9 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                 onChange={(e) => setInvite(e.target.value)}
                 onKeyDown={submitOnEnter(() => void run(turnOn), !(refused && typedInvite === ""))}
                 autoComplete="off"
+                // A code is typed as given: no capital first letter, no "correction" by the phone's keyboard.
+                autoCapitalize="none"
+                autoCorrect="off"
                 spellCheck={false}
                 aria-invalid={inviteError !== null}
                 aria-describedby={inviteNoteId}

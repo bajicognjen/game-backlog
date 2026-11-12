@@ -175,7 +175,8 @@ export type SyncState =
   | { kind: "invite-required"; meta: SyncMeta }
   /**
    * The server copy this device synced with is gone (deleted from another device). Nothing is put back
-   * on its own: `enable` starts again under the same key with this device's plan, `disable` stops here.
+   * on its own: `enable` starts again under a new key with this device's plan (the deleted key, and every
+   * link and QR code made from it, stays dead), `disable` stops here.
    */
   | { kind: "gone"; meta: SyncMeta };
 
@@ -187,7 +188,7 @@ export type ConnectResult = "connected" | "not-found";
 export interface SyncEngine {
   /** Load what this browser knows and compare with the server once. */
   start(): Promise<void>;
-  /** Make a new key and put this browser's plan on the server under it. */
+  /** Make a new key and put this browser's plan on the server under it (after a refused invite code, the key already made). */
   enable(inviteCode?: string | null): Promise<void>;
   /**
    * Join an existing key: take its plan when this browser has none, otherwise ask (a conflict) which side to keep.
@@ -362,7 +363,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
     enable: (inviteCode = null) =>
       run(async () => {
-        const current = meta() ?? (await saveMeta({ key: syncKeyFromBytes(random(20)), revision: 0, dirty: true, lastSyncedAt: null }));
+        // A refused invite code keeps the key it was refused for; a deleted copy's key is never brought back.
+        const kept = state.kind === "gone" ? null : meta();
+        const current = kept ?? (await saveMeta({ key: syncKeyFromBytes(random(20)), revision: 0, dirty: true, lastSyncedAt: null }));
         await push(current, 0, inviteCode);
       }),
 

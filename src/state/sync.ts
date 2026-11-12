@@ -53,6 +53,8 @@ let engine: SyncEngine | null = null;
 let pullPlace: NoticePlace = "top";
 /** What the notice of a pull says: joining a key from Sync says so; a pull from another device's change is an update. */
 let pullMessage: string | null = null;
+/** Sync is being started again after its server copy was deleted (under a new key), possibly via the invite code. */
+let restarting = false;
 
 function getEngine(): SyncEngine {
   if (!engine) {
@@ -89,9 +91,14 @@ export const useSync = create<SyncUiState>((set, get) => {
     start: () => attempt((e) => e.start()),
     async enable(inviteCode, place = "top") {
       const before = get().state.kind;
+      // Starting again after a deleted copy may pass through the invite code; it is still a restart when it lands.
+      if (before === "gone") restarting = true;
+      else if (before !== "invite-required") restarting = false;
       await attempt((e) => e.enable(inviteCode ?? null));
+      const after = get().state.kind;
       // Confirm what happened (a screen reader hears it too); waiting or a refused invite code show in the status instead.
-      if (get().state.kind === "idle") useStore.getState().notify(before === "gone" ? t.sync.startedAgain : t.sync.turnedOn, place);
+      if (after === "idle") useStore.getState().notify(restarting ? t.sync.startedAgain : t.sync.turnedOn, place);
+      if (after !== "invite-required") restarting = false;
     },
     async connect(input, place = "top") {
       if (!readSyncKey(input)) return "invalid";

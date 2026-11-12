@@ -127,7 +127,7 @@ function browserWithOwnMeta(server: ReturnType<typeof fakeServer>) {
  * A separate device: its own plan store and its own sync record, so two of
  * them share nothing but the fake server (fake-indexeddb is one browser).
  */
-function device(server: ReturnType<typeof fakeServer>, now?: () => Date) {
+function device(server: ReturnType<typeof fakeServer>, now?: () => Date, random: (n: number) => Uint8Array = randomBytes) {
   let saved: SnapshotState | null = null;
   let engine: SyncEngine | null = null;
   const store: SnapshotStore = {
@@ -153,7 +153,7 @@ function device(server: ReturnType<typeof fakeServer>, now?: () => Date) {
     },
   };
   const onPulled = vi.fn();
-  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes, metaStore, now });
+  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes: random, metaStore, now });
   return { repository, engine, onPulled };
 }
 
@@ -443,14 +443,14 @@ describe("sync engine", () => {
     expect(first.engine.state().kind).toBe("conflict");
   });
 
-  it("a server copy deleted from another device is reported, not quietly stored again; starting again keeps the key", async () => {
+  it("a server copy deleted from another device is reported, not quietly stored again; starting again takes a new key", async () => {
     const server = fakeServer();
     const first = device(server);
     await first.repository.load();
     await addGame(first.repository, "Shared");
     await first.engine.enable();
     const key = (first.engine.state() as { meta: { key: string } }).meta.key;
-    const second = device(server);
+    const second = device(server, undefined, (n) => new Uint8Array(n).map((_, i) => i * 11 + 3));
     await second.repository.load();
     await second.engine.connect(key);
 
@@ -463,9 +463,32 @@ describe("sync engine", () => {
     await addGame(second.repository, "Made while gone");
     expect(server.remote).toBeNull();
 
+    // The deleted key stays dead (its links and QR codes with it): this device's plan goes up under a new one.
     await second.engine.enable();
-    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { key } });
+    const restarted = second.engine.state();
+    expect(restarted).toMatchObject({ kind: "idle", meta: { revision: 1, dirty: false } });
+    expect((restarted as { meta: { key: string } }).meta.key).not.toBe(key);
     expect(await server.titles()).toEqual(["Shared", "Made while gone"]);
+  });
+
+  it("starting again after a deleted copy keeps its new key through a refused invite code", async () => {
+    const server = fakeServer();
+    let calls = 0;
+    const first = device(server, undefined, (n) => new Uint8Array(n).map((_, i) => i * 7 + ++calls));
+    await first.repository.load();
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    server.remote = null; // deleted from another device
+    await first.engine.check();
+    expect(first.engine.state().kind).toBe("gone");
+
+    server.inviteCode = "friends-only";
+    await first.engine.enable();
+    const refused = first.engine.state() as { kind: string; meta: { key: string } };
+    expect(refused.kind).toBe("invite-required");
+    expect(refused.meta.key).not.toBe(key);
+    await first.engine.enable("friends-only");
+    expect(first.engine.state()).toMatchObject({ kind: "idle", meta: { key: refused.meta.key } });
   });
 
   it("a push based on a copy that is gone reports it too", async () => {

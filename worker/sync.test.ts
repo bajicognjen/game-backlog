@@ -119,6 +119,8 @@ describe("handleSync", () => {
     expect((await put(db, 0, "v1", {}, options)).status).toBe(403);
     expect((await put(db, 0, "v1", { [INVITE_HEADER]: "wrong" }, options)).status).toBe(403);
     expect((await put(db, 0, "v1", { [INVITE_HEADER]: "friends-only" }, options)).status).toBe(200);
+    // Capitals don't matter (a phone capitalises the first letter); the letters do.
+    expect((await put(db, 0, "v1", { [INVITE_HEADER]: " Friends-Only ", [SYNC_KEY_HEADER]: OTHER_KEY }, options)).status).toBe(200);
     expect((await put(db, 1, "v2", {}, options)).status).toBe(200);
     expect((await put(db, 0, "v1", {}, { inviteCode: "" })).status).toBe(409); // no code required, but the key exists
   });
