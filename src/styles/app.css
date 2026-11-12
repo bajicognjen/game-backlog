@@ -3143,9 +3143,12 @@ h3[tabindex="-1"]:focus {
     overflow: hidden;
   }
 
+  /* The name stays whole: where the controls leave it too little room for one line (under ~350px) it takes two,
+     "Game" over "Backlog", inside the 52px bar; only a word that still can't fit is cut. */
   .topbar-brand h1 {
     font-size: var(--text-base);
-    white-space: nowrap;
+    line-height: 1.15;
+    text-wrap: balance;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -3456,7 +3459,7 @@ h3[tabindex="-1"]:focus {
     white-space: normal;
   }
 
-  /* The sync key takes its own line; Show key and Copy share the next one. */
+  /* The sync key takes its own line; Copy key goes under it. */
   .sync-key {
     flex-basis: 100%;
   }

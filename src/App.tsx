@@ -577,7 +577,8 @@ function CompletedSection({ defaultPlatform, defaultTogether, onOpen, onSetupIgd
   );
   const empty =
     allCompleted.length === 0 ? (
-      <EmptyState title={t.emptyCompleted} hint={t.emptyCompletedHint} action={addButton} />
+      // No second "Add finished game": the section head's is a line above, as the plan's empty state leaves Add game to its head.
+      <EmptyState title={t.emptyCompleted} hint={t.emptyCompletedHint} />
     ) : (
       <EmptyState
         title={t.emptyFiltered}
