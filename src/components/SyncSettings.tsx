@@ -4,6 +4,7 @@ import { formatSyncKey, joinLink, readSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import { useStore } from "../state/store";
 import { useSync } from "../state/sync";
+import { Banner } from "./Banner";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
@@ -27,6 +28,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   const enable = useSync((s) => s.enable);
   const connect = useSync((s) => s.connect);
   const disable = useSync((s) => s.disable);
+  const turnOff = useSync((s) => s.turnOff);
   const deleteServerCopy = useSync((s) => s.deleteServerCopy);
   const check = useSync((s) => s.check);
   /** A device with no games is most likely the second one: joining is its main action. */
@@ -84,6 +86,12 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   const status = statusOf(state);
 
   const groupRef = useRef<HTMLDivElement>(null);
+  // While this group is on screen, the results of what is done here (and their Undo) show here, not a screen above.
+  const setSyncPanelOpen = useStore((s) => s.setSyncPanelOpen);
+  useEffect(() => {
+    setSyncPanelOpen(true);
+    return () => setSyncPanelOpen(false);
+  }, [setSyncPanelOpen]);
   const inviteRef = useRef<HTMLInputElement>(null);
   /** Set when an action starts here (or the delete dialog closes): where focus was, to give it back afterwards. */
   const returnFocus = useRef<{ to: Element | null } | null>(null);
@@ -107,7 +115,9 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     const active = document.activeElement;
     if (active && active !== document.body) return; // focus went somewhere on purpose: a field, a dialog, a notice
     const used = pending.to instanceof HTMLElement && pending.to.isConnected && !pending.to.matches(":disabled") ? pending.to : null;
-    const target = state.kind === "invite-required" ? inviteRef.current : (used ?? groupRef.current?.querySelector<HTMLElement>("button:not(:disabled)"));
+    // A result shown here (deleted, plan pulled in) is read first; a stray Enter then can't start anything.
+    const result = groupRef.current?.querySelector<HTMLElement>(".settings-group-body > .banner");
+    const target = state.kind === "invite-required" ? inviteRef.current : (result ?? used ?? groupRef.current?.querySelector<HTMLElement>("button:not(:disabled)"));
     target?.focus();
   }, [busy, confirmDelete, state.kind]);
 
@@ -158,7 +168,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
 
   async function join() {
     setKeyError(null);
-    const result = await connect(keyInput);
+    const result = await connect(keyInput, "sync");
     if (result === "invalid") setKeyError(t.sync.invalidKey);
     else if (result === "not-found") setKeyError(t.sync.keyNotFound);
     else if (result === "connected") {
@@ -209,6 +219,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
       <h3>{t.sync.title}</h3>
       <p className="settings-group-note">{t.sync.note}</p>
       <div className="settings-group-body">
+        <Banner place="sync" />
         {state.kind === "off" && offStep === "choose" && (
           <div className="settings-action">
             <div className="field-actions">
@@ -390,7 +401,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
             {managing && (
               <div className="sync-manage" id={manageId}>
                 <div className="settings-action">
-                  <button type="button" className="button" disabled={busy} onClick={() => void run(disable)}>
+                  <button type="button" className="button" disabled={busy} onClick={() => void run(() => turnOff("sync"))}>
                     {t.sync.turnOff}
                   </button>
                   <p className="field-hint">{t.sync.turnOffHint}</p>
@@ -420,7 +431,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
           warning={t.sync.deleteWarning}
           confirmLabel={t.sync.deleteConfirm}
           onConfirm={async () => {
-            await deleteServerCopy();
+            await deleteServerCopy("sync");
             return useSync.getState().actionError === null;
           }}
           onClose={() => {
@@ -430,7 +441,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
           }}
         />
       )}
-      {conflictOpen && <SyncConflictDialog onClose={() => setConflictOpen(false)} />}
+      {conflictOpen && <SyncConflictDialog place="sync" onClose={() => setConflictOpen(false)} />}
     </div>
   );
 }

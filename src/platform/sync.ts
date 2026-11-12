@@ -189,6 +189,11 @@ export interface SyncEngine {
   connect(key: string): Promise<ConnectResult>;
   /** Stop syncing on this browser; the server copy stays. */
   disable(): Promise<void>;
+  /**
+   * Undo of `disable`: sync again with the same key, as it was. Marked as having a change to send,
+   * since a save made while sync was off went nowhere; if the server moved on meanwhile, that is a conflict.
+   */
+  restore(previous: SyncMeta): Promise<void>;
   /** Remove the server copy and stop syncing. */
   deleteServerCopy(): Promise<void>;
   /**
@@ -369,6 +374,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         await metaStore.clear();
         unsent = null;
         set({ kind: "off" });
+      }),
+
+    restore: (previous) =>
+      run(async () => {
+        if (meta()) return; // turned on again some other way meanwhile
+        const current = await saveMeta({ ...previous, dirty: true });
+        set({ kind: "pending", meta: current, reason: "offline", detail: null });
+        await compare(current);
       }),
 
     deleteServerCopy: () =>

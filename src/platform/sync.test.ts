@@ -410,6 +410,39 @@ describe("sync engine", () => {
     expect(server.gets).toBeGreaterThan(0);
   });
 
+  it("restore undoes turning sync off: same key again, and a change made meanwhile is sent", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const before = first.engine.state();
+    if (before.kind !== "idle") throw new Error("expected idle");
+
+    await first.engine.disable();
+    await addGame(first.repository, "Added while off");
+    await first.engine.restore(before.meta);
+    expect(first.engine.state()).toMatchObject({ kind: "idle", meta: { key: before.meta.key, dirty: false } });
+    expect(await server.titles()).toEqual(["Added while off"]);
+  });
+
+  it("restore after the server moved on asks which plan to keep", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const before = first.engine.state();
+    if (before.kind !== "idle") throw new Error("expected idle");
+    const second = device(server);
+    await second.repository.load();
+    await second.engine.connect(before.meta.key);
+
+    await first.engine.disable();
+    await addGame(second.repository, "From the other device");
+    await second.engine.check();
+    await first.engine.restore(before.meta);
+    expect(first.engine.state().kind).toBe("conflict");
+  });
+
   it("disable keeps the server copy; deleteServerCopy removes it", async () => {
     const server = fakeServer();
     const { repository, engine } = browser(server);

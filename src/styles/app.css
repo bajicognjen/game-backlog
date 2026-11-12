@@ -908,6 +908,12 @@ textarea {
   border: 1px solid transparent;
 }
 
+/* A notice of an action taken in Settings → Sync shows there, at the top of the group, the full width of it. */
+.settings-group-body > .banner {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+
 .banner-error {
   background: var(--danger-soft);
   color: var(--danger);

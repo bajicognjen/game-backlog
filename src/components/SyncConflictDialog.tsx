@@ -3,6 +3,7 @@ import { formatDateTime } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { t } from "../i18n/en";
 import type { ConflictSide, ConflictSides } from "../platform/sync";
+import type { NoticePlace } from "../state/store";
 import { useSync } from "../state/sync";
 import { Modal } from "./Modal";
 
@@ -18,7 +19,7 @@ interface CompareRow {
  * When this device and the server both changed, or a device that already has a plan joins a key:
  * the user compares the two copies and picks one. Nothing is merged, and neither choice is favoured.
  */
-export function SyncConflictDialog({ onClose }: { onClose(): void }) {
+export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void; place?: NoticePlace }) {
   const state = useSync((s) => s.state);
   const resolve = useSync((s) => s.resolve);
   const conflictSides = useSync((s) => s.conflictSides);
@@ -42,7 +43,8 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
 
   async function choose(choice: "keep-mine" | "take-server") {
     setBusy(true);
-    await resolve(choice);
+    // Its result and Undo show where the dialog was opened from.
+    await resolve(choice, place);
     setBusy(false);
     onClose();
   }

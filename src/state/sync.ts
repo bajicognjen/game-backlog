@@ -20,7 +20,7 @@ import {
   type SyncEngine,
   type SyncState,
 } from "../platform/sync";
-import { describeError, useStore } from "./store";
+import { describeError, useStore, type NoticePlace } from "./store";
 
 export interface SyncUiState {
   /** False in the desktop app and in unit tests: the section is not shown. */
@@ -30,17 +30,25 @@ export interface SyncUiState {
   actionError: string | null;
   start(): Promise<void>;
   enable(inviteCode?: string): Promise<void>;
-  /** `invalid`: the input is not a key; `not-found`: nothing is stored under it; `failed`: see `actionError`. */
-  connect(input: string): Promise<"invalid" | ConnectResult | "failed">;
+  /**
+   * `invalid`: the input is not a key; `not-found`: nothing is stored under it; `failed`: see `actionError`.
+   * `place`: where "Plan updated from the server" shows when joining pulls the plan in.
+   */
+  connect(input: string, place?: NoticePlace): Promise<"invalid" | ConnectResult | "failed">;
+  /** Stop quietly (giving up on a refused new key). */
   disable(): Promise<void>;
-  deleteServerCopy(): Promise<void>;
-  resolve(choice: ConflictChoice): Promise<void>;
+  /** Stop syncing on this device, with a notice and a 20-second Undo that syncs again with the same key. */
+  turnOff(place?: NoticePlace): Promise<void>;
+  deleteServerCopy(place?: NoticePlace): Promise<void>;
+  resolve(choice: ConflictChoice, place?: NoticePlace): Promise<void>;
   /** The two copies in a conflict, summed up for the dialog; null outside a conflict or when the server copy can't be read. */
   conflictSides(): Promise<ConflictSides | null>;
   check(): Promise<void>;
 }
 
 let engine: SyncEngine | null = null;
+/** Where the notice of a pull goes: the Sync settings while joining from there, else the top of the page. */
+let pullPlace: NoticePlace = "top";
 
 function getEngine(): SyncEngine {
   if (!engine) {
@@ -50,7 +58,7 @@ function getEngine(): SyncEngine {
       onChange: (state) => useSync.setState({ state }),
       onPulled: async () => {
         await useStore.getState().load();
-        useStore.getState().notify(t.sync.pulled);
+        useStore.getState().notify(t.sync.pulled, pullPlace);
       },
     });
     const current = engine;
@@ -76,17 +84,41 @@ export const useSync = create<SyncUiState>((set, get) => {
     actionError: null,
     start: () => attempt((e) => e.start()),
     enable: (inviteCode) => attempt((e) => e.enable(inviteCode ?? null)),
-    async connect(input) {
+    async connect(input, place = "top") {
       if (!readSyncKey(input)) return "invalid";
       let result: ConnectResult | "failed" = "failed";
-      await attempt(async (e) => {
-        result = await e.connect(input);
-      });
+      pullPlace = place;
+      try {
+        await attempt(async (e) => {
+          result = await e.connect(input);
+        });
+      } finally {
+        pullPlace = "top";
+      }
       return result;
     },
     disable: () => attempt((e) => e.disable()),
-    deleteServerCopy: () => attempt((e) => e.deleteServerCopy()),
-    async resolve(choice) {
+    async turnOff(place = "top") {
+      const current = get().state;
+      if (current.kind === "off") return;
+      await attempt((e) => e.disable());
+      if (get().actionError) return;
+      // The key leaves the screen with it: for 20 seconds Undo brings it back, and syncing with it.
+      const previous = current.meta;
+      useStore.getState().offerUndo(
+        t.sync.turnedOff,
+        async () => {
+          await attempt((e) => e.restore(previous));
+          if (!get().actionError) useStore.getState().notify(t.sync.turnedOnAgain, place);
+        },
+        place,
+      );
+    },
+    async deleteServerCopy(place = "top") {
+      await attempt((e) => e.deleteServerCopy());
+      if (!get().actionError) useStore.getState().notify(t.sync.deleted, place);
+    },
+    async resolve(choice, place = "top") {
       const outcome: { replaced: Backup | null } = { replaced: null };
       await attempt(async (e) => {
         outcome.replaced = await e.resolve(choice);
@@ -96,9 +128,13 @@ export const useSync = create<SyncUiState>((set, get) => {
       // The Second Chance Rule: for 20 seconds the replaced plan can come back. Applying it is a
       // local save, so sync sends it to the server too: undo ends with both sides on the other plan.
       const keptMine = choice === "keep-mine";
-      useStore.getState().offerUndo(keptMine ? t.sync.keptMine : t.sync.tookServer, async () => {
-        if (await useStore.getState().applyBackup(replaced)) useStore.getState().notify(keptMine ? t.sync.undoKeptMine : t.sync.undoTookServer);
-      });
+      useStore.getState().offerUndo(
+        keptMine ? t.sync.keptMine : t.sync.tookServer,
+        async () => {
+          if (await useStore.getState().applyBackup(replaced)) useStore.getState().notify(keptMine ? t.sync.undoKeptMine : t.sync.undoTookServer, place);
+        },
+        place,
+      );
     },
     async conflictSides() {
       const current = get().state;

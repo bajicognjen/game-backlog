@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from "react";
-import { UNDO_WINDOW_MS, useStore } from "../state/store";
+import { UNDO_WINDOW_MS, useStore, type NoticePlace } from "../state/store";
 import { t } from "../i18n/en";
 
 /**
@@ -7,11 +7,15 @@ import { t } from "../i18n/en";
  * offer takes focus when it appears, so Undo is the next Tab stop and a
  * screen reader hears it; the seconds left are shown next to Undo and a
  * line drains under the notice, both pausing while the user is on the offer.
+ *
+ * `place` "top" is the page's banner; "sync" sits inside Settings → Sync and
+ * shows the notices of actions taken there, which the top one then leaves out
+ * (it takes them back if Sync closes). Errors always show at the top.
  */
-export function Banner() {
+export function Banner({ place = "top" }: { place?: NoticePlace }) {
   const error = useStore((s) => s.error);
-  const notice = useStore((s) => s.notice);
-  const undo = useStore((s) => s.undo);
+  const storedNotice = useStore((s) => s.notice);
+  const storedUndo = useStore((s) => s.undo);
   const undoHeld = useStore((s) => s.undoHeld);
   const undoDeadline = useStore((s) => s.undoDeadline);
   const recentlyFinishedId = useStore((s) => s.recentlyFinishedId);
@@ -20,13 +24,25 @@ export function Banner() {
   const resumeUndo = useStore((s) => s.resumeUndo);
   const dismissError = useStore((s) => s.dismissError);
   const dismissNotice = useStore((s) => s.dismissNotice);
+  const noticePlace = useStore((s) => s.noticePlace);
+  const syncPanelOpen = useStore((s) => s.syncPanelOpen);
+  const here = noticePlace === place || (place === "top" && noticePlace === "sync" && !syncPanelOpen);
+  const notice = here ? storedNotice : null;
+  const undo = here ? storedUndo : null;
   const noticeRef = useRef<HTMLDivElement>(null);
   /** Whether focus is inside the notice; kept by hand because a removed element fires no blur. */
   const focusWithin = useRef(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
-  /** The notice's buttons vanish with it; send focus to the current game before acting. */
+  /**
+   * The notice's buttons vanish with it; send focus on before acting: to the current game at the top,
+   * to the Sync group's first control in Settings, where the user is.
+   */
   function focusCard() {
+    if (place === "sync") {
+      document.querySelector<HTMLElement>("#sync-settings .settings-group-body > :not(.banner) button:not(:disabled)")?.focus({ preventScroll: true });
+      return;
+    }
     document.querySelector<HTMLElement>(".now .link-button, .now .button")?.focus({ preventScroll: true });
   }
 
@@ -36,8 +52,9 @@ export function Banner() {
     if (!node) return;
     // The offer appears while the dialog that caused it may still be open; a modal dialog makes the
     // page inert and focus() is ignored, so try again a few times after it has closed.
+    // At the top the page stays where it is (the action may be far below); in Sync the notice is where the user is.
     const tryFocus = () => {
-      if (document.activeElement !== node) node.focus({ preventScroll: true });
+      if (document.activeElement !== node) node.focus({ preventScroll: place === "top" });
       return document.activeElement === node;
     };
     const timers = tryFocus() ? [] : [60, 200, 450].map((ms) => setTimeout(tryFocus, ms));
@@ -82,7 +99,7 @@ export function Banner() {
 
   return (
     <>
-      {error && (
+      {error && place === "top" && (
         <div className="banner banner-error" role="alert">
           <span>{error}</span>
           <button type="button" className="button button-ghost button-small" onClick={dismissError}>
@@ -104,7 +121,7 @@ export function Banner() {
         >
           <span>{notice}</span>
           <span className="banner-actions">
-            {undo && recentlyFinishedId !== null && (
+            {undo && recentlyFinishedId !== null && place === "top" && (
               <button type="button" className="button button-ghost button-small" onClick={showFinished} onFocus={pauseUndo} onBlur={resumeUndo}>
                 {t.showFinished}
               </button>
@@ -116,7 +133,10 @@ export function Banner() {
                   className="button button-primary button-small"
                   onClick={() => {
                     focusCard();
-                    void undoLast();
+                    // Undoing can replace the control focus went to (sync turning back on); land again when it is done.
+                    void undoLast().then(() => {
+                      if (document.activeElement === document.body || document.activeElement === null) focusCard();
+                    });
                   }}
                   onFocus={pauseUndo}
                   onBlur={resumeUndo}
