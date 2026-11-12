@@ -36,6 +36,8 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   const turnOff = useSync((s) => s.turnOff);
   const deleteServerCopy = useSync((s) => s.deleteServerCopy);
   const check = useSync((s) => s.check);
+  const stopSyncing = useSync((s) => s.stopSyncing);
+  const exportBackup = useStore((s) => s.exportBackup);
 
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<OffStep>("choose");
@@ -44,8 +46,15 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   stepRef.current = step;
   const [keyInput, setKeyInput] = useState("");
   const [invite, setInvite] = useState("");
-  /** The invite code sent with the last "Turn on sync", to tell a missing code from a refused one. */
+  /**
+   * The invite code sent with the last "Turn on sync", to tell a missing code from a refused one; null when none was
+   * offered yet (starting again after a deleted copy tries without one), so the server's ask is a question, not an error.
+   */
   const [sentInvite, setSentInvite] = useState<string | null>(null);
+  /** Starting again after a deleted copy, until it lands or stops: its way out is "Stop syncing here", not Cancel. */
+  const [restarting, setRestarting] = useState(false);
+  /** What the last Check now found, when the status alone can't say it (nothing new, or the server out of reach). */
+  const [checkNote, setCheckNote] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
   /** What happened to a join link opened while this device already syncs. */
   const [requestNote, setRequestNote] = useState<string | null>(null);
@@ -91,6 +100,9 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
       setOtherWays(false);
       setByHand(null);
     }
+    if (state.kind !== "gone" && state.kind !== "invite-required" && state.kind !== "syncing") setRestarting(false);
+    // A check's finding is about the state it was made in.
+    setCheckNote(null);
   }, [state.kind]);
   // "5 min ago" keeps up while Settings stays open.
   const [now, setNow] = useState(() => new Date());
@@ -204,6 +216,25 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     // "failed": actionError below says why, and the form stays open to try again.
   }
 
+  /** Start again after a deleted copy: try without an invite code; if the server wants one, it is asked for next. */
+  async function startAgain() {
+    setSentInvite(null);
+    setInvite("");
+    setRestarting(true);
+    await enable(undefined, "sync");
+  }
+
+  async function checkNow() {
+    setCheckNote(null);
+    const before = useSync.getState().state;
+    const result = await check();
+    const after = useSync.getState().state;
+    if (after.kind !== "idle") return; // the status (and any notice) says what changed
+    const pulled = before.kind !== "off" && after.meta.revision !== before.meta.revision;
+    if (result === "unreachable") setCheckNote(t.sync.checkUnreachable);
+    else if (result === "answered" && !pulled) setCheckNote(t.sync.checkedUpToDate);
+  }
+
   function cancelStep() {
     setKeyError(null);
     setKeyInput("");
@@ -244,7 +275,9 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   // The server refused a new key: say whether a code is missing or was not accepted, until the user types another.
   const refused = state.kind === "invite-required";
   const typedInvite = invite.trim();
-  const inviteError = !refused ? null : typedInvite === "" ? t.sync.inviteNeeded : typedInvite === sentInvite ? t.sync.inviteWrong : null;
+  const inviteError = !refused ? null : typedInvite === "" ? (sentInvite === null ? null : t.sync.inviteNeeded) : typedInvite === sentInvite ? t.sync.inviteWrong : null;
+  /** Asked, not scolded: the server wants a code and none was offered yet. */
+  const inviteHint = refused && typedInvite === "" && sentInvite === null ? t.sync.inviteAsk : t.sync.inviteHint;
   const offStep: OffStep = refused ? "start" : step;
   const link = state.kind !== "off" ? joinLink(window.location.origin, state.meta.key) : null;
 
@@ -307,7 +340,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                 </span>
               ) : (
                 <span className="field-hint" id={inviteNoteId}>
-                  {t.sync.inviteHint}
+                  {inviteHint}
                 </span>
               )}
             </div>
@@ -319,10 +352,13 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                 type="button"
                 className="button button-ghost"
                 disabled={busy}
-                // A refused new key is given up (back to off); otherwise this only steps back to the question.
-                onClick={() => (refused ? void run(disable).then(cancelStep) : cancelStep())}
+                // Starting again after a deleted copy: stop for good, and say so. A refused new key is given up (back to
+                // off, where sync was); otherwise this only steps back to the question.
+                onClick={() =>
+                  restarting ? void run(() => stopSyncing("sync")).then(cancelStep) : refused ? void run(disable).then(cancelStep) : cancelStep()
+                }
               >
-                {t.cancel}
+                {restarting ? t.sync.stopHere : t.cancel}
               </button>
             </div>
           </div>
@@ -390,30 +426,60 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   <button type="button" className="button button-primary button-small" onClick={() => setConflictOpen(true)}>
                     {t.sync.resolve}
                   </button>
-                ) : state.kind === "gone" ? (
-                  // Puts this device's plan back on the server under the same key (asks for the invite code if the server wants it).
-                  <button type="button" className="button button-primary button-small" disabled={busy} onClick={() => void run(() => enable(undefined, "sync"))}>
-                    {t.sync.startAgain}
+                ) : state.kind === "gone" ? null : state.kind === "pending" && state.reason === "too-large" ? (
+                  // Checking again can't help a plan that is too big; Export still moves it between devices.
+                  <button type="button" className="button button-small" onClick={() => void exportBackup()}>
+                    <Icon name="download" size={14} /> {t.sync.exportPlan}
                   </button>
                 ) : (
-                  <button type="button" className="button button-small" disabled={busy || state.kind === "syncing"} onClick={() => void run(check)}>
+                  <button type="button" className="button button-small" disabled={busy || state.kind === "syncing"} onClick={() => void run(checkNow)}>
                     {t.sync.checkNow}
                   </button>
                 )}
-                {/* One name in both states (the state is aria-expanded), lit while open like the Settings button. */}
-                <button
-                  type="button"
-                  className={`button button-small button-ghost ${managing ? "button-active" : ""}`}
-                  aria-expanded={managing}
-                  aria-controls={managing ? manageId : undefined}
-                  aria-label={t.sync.changeSync}
-                  onClick={() => setManaging((open) => !open)}
-                >
-                  <Icon name="pencil" size={14} /> {t.settings.change}
-                </button>
+                {/* One name in both states (the state is aria-expanded), lit while open like the Settings button.
+                    A deleted copy has its two ways on show below instead. */}
+                {state.kind !== "gone" && (
+                  <button
+                    type="button"
+                    className={`button button-small button-ghost ${managing ? "button-active" : ""}`}
+                    aria-expanded={managing}
+                    aria-controls={managing ? manageId : undefined}
+                    aria-label={t.sync.changeSync}
+                    onClick={() => setManaging((open) => !open)}
+                  >
+                    <Icon name="pencil" size={14} /> {t.settings.change}
+                  </button>
+                )}
               </span>
             </div>
             {requestNote && <p className="field-hint sync-request-note">{requestNote}</p>}
+            {checkNote && <p className="field-hint sync-request-note">{checkNote}</p>}
+            {/* Always on the page and holding only the words, so what a check found is read out when it appears. */}
+            <span className="visually-hidden" role="status">
+              {checkNote ?? ""}
+            </span>
+
+            {/* The copy is gone: two equal ways on, each with what it does, as when sync is off. */}
+            {state.kind === "gone" && (
+              <div className="sync-choices">
+                <div className="settings-action">
+                  <button type="button" className="button" disabled={busy} onClick={() => void run(startAgain)} aria-describedby={`${inviteNoteId}-again`}>
+                    {t.sync.startAgain}
+                  </button>
+                  <p className="field-hint" id={`${inviteNoteId}-again`}>
+                    {t.sync.startAgainHint}
+                  </p>
+                </div>
+                <div className="settings-action">
+                  <button type="button" className="button" disabled={busy} onClick={() => void run(() => stopSyncing("sync"))} aria-describedby={`${inviteNoteId}-stop`}>
+                    {t.sync.stopHere}
+                  </button>
+                  <p className="field-hint" id={`${inviteNoteId}-stop`}>
+                    {t.sync.stopHereHint}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Behind Change, right under it: the two ways to stop, each with what it does right under it. */}
             {managing && (
@@ -559,7 +625,7 @@ function AddDevice(props: AddDeviceProps) {
       </div>
       {leadLink && linkText}
       {leadQr && qr}
-      <p className="field-hint">{t.sync.linkHint}</p>
+      <p className="field-hint">{share ? t.sync.linkHintShare : touch ? t.sync.linkHintCopy : t.sync.linkHint}</p>
       {otherWays && (
         <div className="sync-other-ways" id={otherWaysId}>
           {(!leadLink || !leadQr) && (

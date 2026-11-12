@@ -15,6 +15,7 @@ import {
   createSyncEngine,
   SyncError,
   describeConflict,
+  type CheckResult,
   type ConflictChoice,
   type ConflictSides,
   type ConnectResult,
@@ -45,7 +46,10 @@ export interface SyncUiState {
   resolve(choice: ConflictChoice, place?: NoticePlace): Promise<void>;
   /** The two copies in a conflict, summed up for the dialog; null outside a conflict or when the server copy can't be read. */
   conflictSides(): Promise<ConflictSides | null>;
-  check(): Promise<void>;
+  /** Compare with the server now; null when it threw (actionError says why). */
+  check(): Promise<CheckResult | null>;
+  /** Stop syncing on this device for good (a deleted copy's key): no Undo, a notice that says where the plan is. */
+  stopSyncing(place?: NoticePlace): Promise<void>;
 }
 
 let engine: SyncEngine | null = null;
@@ -163,7 +167,17 @@ export const useSync = create<SyncUiState>((set, get) => {
         return null; // an unreadable server copy: the dialog still offers the choice, without the numbers
       }
     },
-    check: () => attempt((e) => e.check()),
+    async check() {
+      let result: CheckResult | null = null;
+      await attempt(async (e) => {
+        result = await e.check();
+      });
+      return result;
+    },
+    async stopSyncing(place = "top") {
+      await attempt((e) => e.disable());
+      if (get().state.kind === "off") useStore.getState().notify(t.sync.stoppedHere, place);
+    },
   };
 });
 

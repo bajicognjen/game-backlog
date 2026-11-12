@@ -491,6 +491,18 @@ describe("sync engine", () => {
     expect(first.engine.state()).toMatchObject({ kind: "idle", meta: { key: refused.meta.key } });
   });
 
+  it("check says whether the server answered, so a manual check can report it", async () => {
+    const server = fakeServer();
+    const { repository, engine } = device(server);
+    await repository.load();
+    expect(await engine.check()).toBe("skipped"); // sync is off
+    await engine.enable();
+    expect(await engine.check()).toBe("answered");
+    server.offline = true;
+    expect(await engine.check()).toBe("unreachable");
+    expect(engine.state().kind).toBe("idle"); // nothing was waiting, so nothing is pending either
+  });
+
   it("a push based on a copy that is gone reports it too", async () => {
     const server = fakeServer();
     const first = device(server);

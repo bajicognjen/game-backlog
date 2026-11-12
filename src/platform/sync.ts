@@ -182,6 +182,9 @@ export type SyncState =
 
 export type ConflictChoice = "keep-mine" | "take-server";
 
+/** How a check went: the server answered (whatever followed), it could not be reached, or there was nothing to check. */
+export type CheckResult = "answered" | "unreachable" | "skipped";
+
 /** How joining a key went: `not-found` means nothing is stored under it, and nothing was saved on this device. */
 export type ConnectResult = "connected" | "not-found";
 
@@ -210,7 +213,7 @@ export interface SyncEngine {
    */
   resolve(choice: ConflictChoice): Promise<Backup | null>;
   /** Compare with the server now (on load, when the page becomes visible, when back online). */
-  check(): Promise<void>;
+  check(): Promise<CheckResult>;
   /** Hear about a local save (wired to `onWebStateSaved`). */
   noteSaved(state: SnapshotState): void;
   state(): SyncState;
@@ -319,35 +322,40 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     await deps.onPulled();
   }
 
-  async function compare(current: SyncMeta): Promise<void> {
+  /** Ask the server and act on what it says; false when it could not be reached. */
+  async function compare(current: SyncMeta): Promise<boolean> {
     let result: FetchResult;
     try {
       result = await deps.api.get(current.key, current.revision);
     } catch (error) {
       if (current.dirty) set({ kind: "pending", meta: current, reason: error instanceof SyncError && error.reason === "network" ? "offline" : "error", detail: null });
       else set({ kind: "idle", meta: current });
-      return;
+      return false;
     }
     // Synced before and now nothing under the key: the copy was deleted. Say so rather than quietly storing it again.
     if (result.kind === "missing" && current.revision > 0) {
       set({ kind: "gone", meta: current });
-      return;
+      return true;
     }
     const remoteRevision = result.kind === "missing" ? null : result.kind === "unchanged" ? result.revision : result.remote.revision;
     switch (reconcile(current, remoteRevision)) {
       case "nothing":
         set({ kind: "idle", meta: current });
-        return;
+        break;
       case "push":
-        return push(current, remoteRevision ?? 0);
+        await push(current, remoteRevision ?? 0);
+        break;
       case "pull":
-        return pull(current, result.kind === "document" ? result.remote : (await fetchRemote(current.key))!);
+        await pull(current, result.kind === "document" ? result.remote : (await fetchRemote(current.key))!);
+        break;
       case "conflict": {
         const remote = result.kind === "document" ? result.remote : await fetchRemote(current.key);
         if (remote) set({ kind: "conflict", meta: current, remote });
-        else return push(current, 0);
+        else await push(current, 0);
+        break;
       }
     }
+    return true;
   }
 
   return {
@@ -429,10 +437,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }),
 
     check: () =>
-      run(async () => {
+      run(async (): Promise<CheckResult> => {
         const current = meta();
-        if (!current || state.kind === "conflict" || state.kind === "invite-required") return;
-        await compare(current);
+        if (!current || state.kind === "conflict" || state.kind === "invite-required") return "skipped";
+        return (await compare(current)) ? "answered" : "unreachable";
       }),
 
     noteSaved(saved) {
