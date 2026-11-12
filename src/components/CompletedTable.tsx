@@ -12,7 +12,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRef, type CSSProperties, type ReactNode } from "react";
 import { formatDate } from "../domain/dates";
 import type { Game } from "../domain/types";
-import { t } from "../i18n/en";
+import { planLabels, t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
@@ -167,8 +167,11 @@ function CompletedRow({ game, arrived, canReorder, onRate, onEdit, onDelete, onO
       <td role="cell" className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
-      <td role="cell">
-        <PlatformChip platform={game.platform} />
+      <td role="cell" className="platform">
+        <span className="chip-row">
+          <PlatformChip platform={game.platform} />
+          {game.together && <span className="chip chip-together">{planLabels.together}</span>}
+        </span>
       </td>
       <td role="cell" className="date">{game.completedAt ? formatDate(game.completedAt) : t.none}</td>
       <td role="cell" className="num">

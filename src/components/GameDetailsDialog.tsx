@@ -5,7 +5,7 @@ import { formatHours } from "../domain/format";
 import { igdbImageUrl } from "../domain/igdb";
 import { releaseYear, thumbnailUrl, toMetadata } from "../domain/provider";
 import { plannedIds } from "../domain/plan";
-import type { Game } from "../domain/types";
+import { planOf, type Game } from "../domain/types";
 import { genreLabels, platformLabels, statusLabels, t } from "../i18n/en";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
@@ -78,13 +78,15 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
           type: meta.typeHint ?? "linear",
           genre: meta.genre,
           platform: game.platform === "ps4" ? "pc" : game.platform,
+          // A game like one played with others likely is played with them too.
+          together: game.together,
           casualHours: meta.playtimeHours ?? 0,
           series: meta.seriesHint,
           seriesOrder: null,
           note: null,
           ...toMetadata(meta),
         },
-        plannedIds(useStore.getState().games, game.platform === "ps4" ? "pc" : game.platform).length,
+        plannedIds(useStore.getState().games, planOf({ platform: game.platform === "ps4" ? "pc" : game.platform, together: game.together })).length,
       );
     } catch (err) {
       setError(failure(err));

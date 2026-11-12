@@ -10,7 +10,7 @@ A Tauri 2 desktop shell around a web UI (React, TypeScript, Vite). The design la
 
 ## Users
 
-The owner and a few friends, each running their own copy on their own PC. They are fluent with games, play-time estimates and spreadsheets; the app replaced a spreadsheet. The job: decide which singleplayer game to play next and keep the PC plan realistic against a weekly hours budget. PS5 is an ordered queue without dates; PS4 exists only as history. Copies are sometimes compared or passed around as JSON backups.
+The owner and a few friends, each running their own copy on their own PC. They are fluent with games, play-time estimates and spreadsheets; the app replaced a spreadsheet. The job: decide which singleplayer game to play next and keep the PC plan realistic against a weekly hours budget. PS5 is an ordered queue without dates; PS4 exists only as history. Games played with others (a partner, friends) live in their own Together list so they never crowd the singleplayer plan. Copies are sometimes compared or passed around as JSON backups.
 
 ## Product Purpose
 
@@ -33,7 +33,7 @@ Live dates from one weekly-hours budget. Start and end dates for the whole plan 
 
 Confirmed functionality:
 
-- Plans per platform: PC (scheduled), PS5 (queue). Statuses: Not started, In progress, Paused, Completed, Dropped. Drag-and-drop reorder, a "Position in plan" field, filters by IGDB mode and platform.
+- Plans per platform: PC (scheduled), PS5 (queue), plus Together: games played with others, from any platform, an ordered list without dates that stays out of the PC schedule (its hours, start date, warnings and the "quiet game" Steam hint). A game moves in and out from its row menu or the "Played with others" box in its form; finishing it moves it to Finished games, marked "Together". Statuses: Not started, In progress, Paused, Completed, Dropped. Drag-and-drop reorder, a "Position in plan" field, filters by IGDB mode and platform.
 - Schedule: weeks = remaining hours ÷ hours per week; end = start + (hours logged since the start + cumulative remaining hours) ÷ hours per week × 7 days; remaining hours = estimate − logged hours. Hours played since the start took calendar time, so logging them never pulls the current game's end into the past; hours logged before the start only shorten what is left. "Today" status: on track, days ahead or behind, days left.
 - Sessions (date, hours, note), the finish flow (finish date, next game's start, rating 1–10, short review, "put the next game in progress"), drop, undo for delete and drop.
 - Plan warnings: two long games (50 h+) in a row; a series played out of order.
@@ -52,7 +52,7 @@ Open, not confirmed as constraints (current behavior, not a commitment):
 - Whether the schedule must keep matching the original spreadsheet's formulas exactly.
 - Whether the app must remain fully usable without IGDB credentials (it is today).
 
-Terminology to keep: "Plan", "Finished games", "Log hours", "Finish game", "Drop", "Design" (how a game's world and progression are built: Linear, Semi-open, Open world, Sandbox, Metroidvania, Roguelike), "Estimated hours", platform labels PC / PS5 / PS4, dates shown as dd.mm.yyyy.
+Terminology to keep: "Plan", "Finished games", "Log hours", "Finish game", "Drop", "Design" (how a game's world and progression are built: Linear, Semi-open, Open world, Sandbox, Metroidvania, Roguelike), "Estimated hours", platform labels PC / PS5 / PS4, "Together" (the list of games played with others; deliberately not "Co-op", which is the IGDB mode filter), dates shown as dd.mm.yyyy.
 
 ## Brand Commitments
 

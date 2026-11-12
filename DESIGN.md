@@ -367,7 +367,7 @@ Dark is a full second set under `prefers-color-scheme: dark` and `[data-theme="d
 
 One window, no page container. `main` spans the full width at `20px 28px 56px` padding (`16px 16px 48px` under 1400px, `12px 12px 40px` below 900px); the sticky top bar is 52px tall with 24px side padding, and sticky table headers lock in beneath it. The page sets `overflow-anchor: none` so panels opening above the plan do not scroll the reader away.
 
-The reading order is fixed: top bar, optional Settings card (24px below), banners and warnings, the Now playing card (16px below), platform tabs with the section tools, filter bar (10px above the table), then the plan table; 40px separates the Plan and Finished games sections, 14px separates a section head from its content.
+The reading order is fixed: top bar, optional Settings card (24px below), banners and warnings, the Now playing card (16px below), plan tabs with the section tools, filter bar (10px above the table), then the plan table; 40px separates the Plan and Finished games sections, 14px separates a section head from its content.
 
 Rhythm comes from a small set of gaps rather than a grid: 2–4px inside controls, 6px between sibling actions, 8px between chips, stats and dialog buttons, 10–12px inside bars and forms, 14–16px between fields and groups, 20–24px of card padding, 32px between the settings label column (240px) and its body, 40px between sections. Form rows are 1-, 2- or 3-column grids with 12px gaps; the Settings card is a two-column grid that collapses to one under 1000px.
 
@@ -439,13 +439,14 @@ Refined and restrained: paper tiles with a thin strong rule, text at 500, an opt
 ### Navigation
 - **Skip links:** two links before the top bar, "Skip to finished games" and "Skip to stats", hidden until focused; the focused one slides in under the top bar's left edge as an 8px Plan Blue tile with on-accent 600 text at `6px 12px`, and Enter lands focus on the section's heading.
 - **Top bar:** 52px Paper strip with a Rule bottom edge; the app name at Title size with a pill version tag, ghost buttons for Export/Import on the right, a 1px 20px divider, the theme switch (the platform-tab segmented control one size smaller: System / Light / Dark with their icons, the chosen one lit; a radio group that is a single Tab stop, where Left/Right move and select), and the Settings button that turns Active while open. Below 900px the bar keeps the app name, which truncates only under 360px, and turns every control icon-only; the words stay in the page, hidden from view only, as each button's name.
-- **Platform tabs:** a segmented control on a Paper Shade track (10px, 3px padding, 2px gaps); tabs are 8px, `5px 14px`, 600 weight in Ink Muted. The active tab lifts to Paper with the Ambient shadow and Ink text, and its count pill turns Plan Blue Wash / Plan Blue Ink. Arrow keys move between tabs.
+- **Plan tabs:** PC, PS5 and Together (games played with others; a list that mixes platforms, so its table adds a Platform column). A segmented control on a Paper Shade track (10px, 3px padding, 2px gaps); tabs are 8px, `5px 14px`, 600 weight in Ink Muted. The active tab lifts to Paper with the Ambient shadow and Ink text, and its count pill turns Plan Blue Wash / Plan Blue Ink. Arrow keys move between tabs.
 - **Row menu:** a 28px "more" icon button opens a fixed-position Paper popover (8px, 4px padding, Popover shadow, 150px minimum); items are 13px at `6px 10px` with 6px corners, Paper Shade on hover and focus (outline inset 2px), danger items in Drop Red. The popover follows its button when the page scrolls or the window resizes rather than closing.
 
 ### Chips
 - **Design chips:** pills at `2px 10px`, 12px/600, one of the six fixed pastel/deep pairs.
 - **Genre chip:** Paper Shade with Ink Muted text at 500.
 - **Platform chip:** transparent with a Rule Strong border, Ink Muted, 0.02em tracking.
+- **Together chip:** Paper Shade with Ink Muted text at 500, like the genre chip, beside the platform chip of a finished game played with others.
 - **Filter toggle:** Paper with a Rule Strong border and Ink Muted text; on: Plan Blue border, wash and ink. Exposed as `aria-pressed`.
 - **Kind chip:** 11px Plan Blue Wash / Ink mini-pill after a search result title.
 - Under 1400px every chip drops to `1px 7px` and 11px.

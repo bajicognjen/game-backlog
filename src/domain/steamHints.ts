@@ -8,7 +8,7 @@
 import { finishHint, type SteamAchievement, type UnlockedAchievement } from "./achievements";
 import { MS_PER_DAY, parseIsoDate } from "./dates";
 import { lastPlayedDay, minutesToHours, planSteamImport, type SteamOwnedGame } from "./steam";
-import { isDone, type Game, type PlaySession } from "./types";
+import { SCHEDULED_PLATFORM, isDone, planOf, type Game, type PlaySession } from "./types";
 
 /** Hours in the last two weeks before a game not marked as in progress counts as being played (a quick launch does not). */
 export const PLAYING_MIN_HOURS = 0.5;
@@ -28,7 +28,9 @@ export type StatusHint =
  * without the ones dismissed. A hint's key carries the moment it rests on (the
  * last play, the unlock), so a dismissed hint comes back only when that moves.
  * `currentSince` is when the current game started (the plan's start date): a
- * game made current a week ago is not quiet, whatever Steam last saw.
+ * game made current a week ago is not quiet, whatever Steam last saw. It is
+ * the PC plan's date, so it says nothing about a game in the Together list;
+ * nor does a Together game go quiet, since it waits for the others to be free.
  * `achievements` holds the Steam achievements of the games in progress or
  * paused, by game id; without them there are no "finished" hints.
  */
@@ -46,7 +48,8 @@ export function statusHints(
   const plan = planSteamImport(planned, sessions, owned, today, baseAppIds);
   const hints: StatusHint[] = [];
   for (const { game, steam } of [...plan.items, ...plan.upToDate, ...plan.ahead]) {
-    const finished = finishedInThisRun(game, sessions, achievements.get(game.id), currentSince);
+    const since = planOf(game) === SCHEDULED_PLATFORM ? currentSince : null;
+    const finished = finishedInThisRun(game, sessions, achievements.get(game.id), since);
     if (finished) {
       // A finished game needs finishing, not starting or pausing.
       hints.push({ kind: "finished", key: `finished:${game.id}:${finished.unlockedAt}`, game, achievement: finished });
@@ -57,11 +60,11 @@ export function statusHints(
       hints.push({ kind: "playing", key: `playing:${game.id}:${steam.rtime_last_played ?? 0}`, game, hours: recentHours });
       continue;
     }
-    if (game.status !== "in_progress" || (steam.playtime_2weeks ?? 0) > 0) continue;
+    if (game.status !== "in_progress" || game.together || (steam.playtime_2weeks ?? 0) > 0) continue;
     const steamDay = lastPlayedDay(steam);
     if (!steamDay) continue;
     const logDay = sessions.filter((s) => s.gameId === game.id).reduce((latest, s) => (s.playedOn > latest ? s.playedOn : latest), "");
-    const lastPlayed = [steamDay, logDay, currentSince ?? ""].reduce((latest, day) => (day > latest ? day : latest));
+    const lastPlayed = [steamDay, logDay, since ?? ""].reduce((latest, day) => (day > latest ? day : latest));
     const days = Math.floor((parseIsoDate(today) - parseIsoDate(lastPlayed)) / MS_PER_DAY);
     if (days >= IDLE_DAYS) hints.push({ kind: "idle", key: `idle:${game.id}:${lastPlayed}`, game, lastPlayed, days });
   }

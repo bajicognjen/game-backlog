@@ -45,12 +45,39 @@ export const SCHEDULED_PLATFORM: Platform = "pc";
 /** Platforms with a plan tab. PS4 is history only: it shows up on finished games. */
 export const PLAN_PLATFORMS: readonly Platform[] = ["pc", "ps5"];
 
+/**
+ * The list a planned game is in: its platform's plan, or the Together list
+ * for games played with others (co-op with friends or a partner), whatever
+ * their platform. The Together list keeps an order but no dates, and stays
+ * out of the PC schedule, its warnings and its start date.
+ */
+export type PlanId = Platform | "together";
+
+export const TOGETHER = "together" as const;
+
+/** The plan tabs, in order. */
+export const PLAN_TABS: readonly PlanId[] = [...PLAN_PLATFORMS, TOGETHER];
+
+/** Every list a planned game can be in (a PS4 game can only be planned through an old backup). */
+export const ALL_PLANS: readonly PlanId[] = [...PLATFORMS, TOGETHER];
+
+export function planOf(game: Pick<Game, "platform" | "together">): PlanId {
+  return game.together ? TOGETHER : game.platform;
+}
+
+/** The platform a new game in `plan` gets: its own, or PC for the Together list. */
+export function platformOfPlan(plan: PlanId): Platform {
+  return plan === TOGETHER ? SCHEDULED_PLATFORM : plan;
+}
+
 export interface Game {
   id: number;
   title: string;
   type: GameType;
   genre: Genre | null;
   platform: Platform;
+  /** Played with others: planned in the Together list instead of its platform's plan (see `planOf`). */
+  together: boolean;
   /**
    * Set by the user: a game starts, pauses and resumes on request. Dates in
    * the PC plan follow the plan order, not the status.

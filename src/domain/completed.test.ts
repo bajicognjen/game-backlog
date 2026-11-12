@@ -10,6 +10,7 @@ function done(id: number, order: number, completedAt: string | null, rating: num
     type: "linear",
     genre: null,
     platform: "pc",
+    together: false,
     status: "completed",
     casualHours: 0,
     hoursPlayed: 0,

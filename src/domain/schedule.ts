@@ -1,5 +1,5 @@
 import { addDays, parseIsoDate } from "./dates";
-import { SCHEDULED_PLATFORM, isDone, type Game, type Platform, type PlaySession, type Settings } from "./types";
+import { SCHEDULED_PLATFORM, isDone, planOf, type Game, type PlanId, type PlaySession, type Settings } from "./types";
 
 export interface ScheduleRow {
   game: Game;
@@ -39,10 +39,10 @@ export function planHours(game: Pick<Game, "casualHours" | "hoursPlayed">): numb
   return Math.max(0, game.casualHours - game.hoursPlayed);
 }
 
-/** Games still in a plan (not completed), in plan order; one platform or all of them. */
-export function plannedGames(games: readonly Game[], platform?: Platform): Game[] {
+/** Games still in a plan (not completed), in plan order; one plan (a platform's, or Together) or all of them. */
+export function plannedGames(games: readonly Game[], plan?: PlanId): Game[] {
   return games
-    .filter((game) => !isDone(game) && (platform === undefined || game.platform === platform))
+    .filter((game) => !isDone(game) && (plan === undefined || planOf(game) === plan))
     .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity) || a.id - b.id);
 }
 
@@ -55,7 +55,8 @@ export function completedGames(games: readonly Game[]): Game[] {
 
 /**
  * Project start and end dates for every planned game on the scheduled
- * platform (PC), as the spreadsheet did, plus the time already played:
+ * platform (PC), as the spreadsheet did, plus the time already played. Games
+ * in the Together list are not part of it, nor are the hours logged on them:
  *
  *   weeks           = hours / hoursPerWeek
  *   cumulativeHours = running sum of hours

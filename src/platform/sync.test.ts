@@ -36,6 +36,7 @@ const gameInput = (title: string): GameInput => ({
   type: "linear",
   genre: null,
   platform: "pc",
+  together: false,
   casualHours: 10,
   series: null,
   seriesOrder: null,
@@ -52,7 +53,7 @@ const gameInput = (title: string): GameInput => ({
 async function addGame(repo: Repository, title: string) {
   const { games } = await repo.load();
   const ids = games.filter((g) => g.platform === "pc" && g.position !== null).sort((a, b) => a.position! - b.position!).map((g) => g.id);
-  await repo.addPlannedGame(gameInput(title), { platform: "pc", ids: [...ids, "new"] });
+  await repo.addPlannedGame(gameInput(title), { plan: "pc", ids: [...ids, "new"] });
 }
 
 /** A server that behaves like worker/sync.ts, with switches for the tests. */

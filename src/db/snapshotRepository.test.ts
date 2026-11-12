@@ -30,7 +30,7 @@ describe("snapshot repository", () => {
     const repo = createSnapshotRepository();
     const { games } = await repo.load();
     const [first, second, ...rest] = plannedIds(games, "pc");
-    await repo.finishGame(first, { completedAt: "2026-11-15", rating: 9, review: null, nextStartDate: "2026-11-16", startNext: true }, { platform: "pc", ids: [second, ...rest] });
+    await repo.finishGame(first, { completedAt: "2026-11-15", rating: 9, review: null, nextStartDate: "2026-11-16", startNext: true }, { plan: "pc", ids: [second, ...rest] });
 
     const after = await repo.load();
     const finished = after.games.find((g) => g.id === first)!;
@@ -48,10 +48,10 @@ describe("snapshot repository", () => {
     const { games: withHours, sessions } = await repo.load();
     const game = withHours.find((g) => g.id === ids[1])!;
 
-    await repo.deleteGame(game.id, { platform: "pc", ids: ids.filter((id) => id !== game.id) });
+    await repo.deleteGame(game.id, { plan: "pc", ids: ids.filter((id) => id !== game.id) });
     expect((await repo.load()).sessions).toHaveLength(0);
 
-    await repo.reinsertGame(game, sessions, { platform: "pc", ids }, null);
+    await repo.reinsertGame(game, sessions, { plan: "pc", ids }, null);
     const after = await repo.load();
     expect(plannedIds(after.games, "pc")).toEqual(ids);
     expect(after.games.find((g) => g.id === game.id)?.hoursPlayed).toBe(3);

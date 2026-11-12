@@ -45,6 +45,7 @@ function game(id: number, title: string, extra: Partial<Game> = {}): Game {
     type: "linear",
     genre: null,
     platform: "pc",
+    together: false,
     status: "pending",
     casualHours: 20,
     hoursPlayed: 0,

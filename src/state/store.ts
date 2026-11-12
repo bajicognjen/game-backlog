@@ -10,10 +10,10 @@ import {
 } from "../db";
 import { backupFileName, createBackup, parseBackup, serializeBackup, type Backup } from "../domain/backup";
 import { completedIds, insertAt, moveItem, plannedIds, withCompletedOrder, withPlanOrder } from "../domain/plan";
-import { isDone } from "../domain/types";
+import { isDone, planOf } from "../domain/types";
 import { sessionsOf } from "../domain/sessions";
 import { SEED_SETTINGS } from "../domain/seed";
-import type { Game, Platform, PlaySession, Settings } from "../domain/types";
+import type { Game, PlanId, Platform, PlaySession, Settings } from "../domain/types";
 import { todayIso } from "../domain/dates";
 import { writeAutoBackup } from "../platform/autoBackup";
 import { openTextFile, saveTextFile } from "../platform/files";
@@ -41,17 +41,17 @@ export interface AppState {
 
   load(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
-  /** Add a planned game at the 0-based `index` of its platform's plan. Resolves true on success. */
+  /** Add a planned game at the 0-based `index` of its plan. Resolves true on success. */
   addGame(input: GameInput, index: number): Promise<boolean>;
   /**
    * Edit a game's fields. When `index` is given the game moves to that slot;
-   * a platform change moves it between plans (to `index`, or to the end).
+   * a change of platform or of `together` moves it between plans (to `index`, or to the end).
    */
   editGame(id: number, patch: GamePatch, index?: number): Promise<boolean>;
   removeGame(id: number): Promise<boolean>;
   /** Write several game patches (e.g. refreshed IGDB metadata) with one reload, then show `notice`. */
   updateGames(updates: readonly GameUpdate[], notice: string): Promise<boolean>;
-  /** Finish a planned game: completed today (or the given date), next game on that platform starts. */
+  /** Finish a planned game: completed today (or the given date), next game in that plan starts. */
   finishGame(id: number, input: FinishInput): Promise<boolean>;
   /** Add a game that was finished before the app existed. */
   addCompletedGame(input: GameInput & CompletedDetails): Promise<boolean>;
@@ -66,7 +66,9 @@ export interface AppState {
   removeSession(id: number): Promise<boolean>;
   /** Log several sessions in one write (an import); the notice offers to take them back again. */
   logSessions(inputs: readonly SessionInput[], notice: { done: string; undone: string }): Promise<boolean>;
-  /** Drag-and-drop within one platform: put `activeId` where `overId` currently is. */
+  /** Move a planned game into the Together list or back to its platform's plan, at the end; the notice offers to undo. */
+  setTogether(id: number, together: boolean): Promise<boolean>;
+  /** Drag-and-drop within one plan: put `activeId` where `overId` currently is. */
   moveGame(activeId: number, overId: number): Promise<void>;
   /** Drag-and-drop in the completed list: put `activeId` where `overId` currently is (finish order). */
   moveCompleted(activeId: number, overId: number): Promise<void>;
@@ -103,6 +105,8 @@ export interface StoreMessages {
   deleted(title: string): string;
   dropped(title: string): string;
   restored(title: string): string;
+  /** A planned game moved into the Together list (`together`) or back to the plan of `platform`. */
+  movedToPlan(title: string, together: boolean, platform: Platform): string;
   /** A game was finished; `next` is the title that was put in progress, if any. */
   finished(title: string, rating: number | null, next: string | null): string;
 }
@@ -120,6 +124,7 @@ let messages: StoreMessages = {
   deleted: (title) => `Deleted "${title}".`,
   dropped: (title) => `Dropped "${title}".`,
   restored: (title) => `Restored "${title}".`,
+  movedToPlan: (title, together, platform) => (together ? `Moved "${title}" to Together.` : `Moved "${title}" back to the ${platform} plan.`),
   finished: (title, rating, next) =>
     `Finished "${title}"${rating === null ? "" : `, rated ${rating}/10`}.${next ? ` "${next}" is now in progress.` : ""}`,
 };
@@ -211,9 +216,32 @@ export const useStore = create<AppState>((set, get) => {
     }, AUTO_BACKUP_DELAY_MS);
   }
 
-  /** The current plan order of one platform, minus `exceptId`. */
-  function orderWithout(platform: Platform, exceptId: number): PlanOrder {
-    return { platform, ids: plannedIds(get().games, platform).filter((id) => id !== exceptId) };
+  /** The current order of one plan, minus `exceptId`. */
+  function orderWithout(plan: PlanId, exceptId: number): PlanOrder {
+    return { plan, ids: plannedIds(get().games, plan).filter((id) => id !== exceptId) };
+  }
+
+  function editGame(id: number, patch: GamePatch, index?: number): Promise<boolean> {
+    return persist(async () => {
+      const game = get().games.find((g) => g.id === id);
+      if (!game) throw new Error(`Game ${id} not found`);
+      const from = planOf(game);
+      const to = planOf({ platform: patch.platform ?? game.platform, together: patch.together ?? game.together });
+      if (isDone(game) || to === from) {
+        await repository.updateGame(id, patch);
+        if (isDone(game) || index === undefined) return;
+        const ids = plannedIds(get().games, from);
+        const current = ids.indexOf(id);
+        if (current < 0 || current === index) return;
+        await repository.setPlanOrder({ plan: from, ids: moveItem(ids, current, index) });
+        return;
+      }
+      // Leave the old slot in the same write, or it could collide with a game already in that slot of the new plan.
+      await repository.updateGame(id, { ...patch, position: null });
+      await repository.setPlanOrder(orderWithout(from, id));
+      const target = plannedIds(get().games, to);
+      await repository.setPlanOrder({ plan: to, ids: insertAt(target, id, index ?? target.length) });
+    });
   }
 
   return {
@@ -250,31 +278,25 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     addGame(input, index) {
-      const ids = insertAt<number | "new">(plannedIds(get().games, input.platform), "new", index);
-      return persist(() => repository.addPlannedGame(input, { platform: input.platform, ids }));
+      const plan = planOf(input);
+      const ids = insertAt<number | "new">(plannedIds(get().games, plan), "new", index);
+      return persist(() => repository.addPlannedGame(input, { plan, ids }));
     },
 
-    editGame(id, patch, index) {
-      return persist(async () => {
-        const game = get().games.find((g) => g.id === id);
-        if (!game) throw new Error(`Game ${id} not found`);
-        await repository.updateGame(id, patch);
-        if (game.status === "completed") return;
+    editGame,
 
-        const from = game.platform;
-        const to = patch.platform ?? from;
-        if (to !== from) {
-          await repository.setPlanOrder(orderWithout(from, id));
-          const target = plannedIds(get().games, to);
-          await repository.setPlanOrder({ platform: to, ids: insertAt(target, id, index ?? target.length) });
-          return;
-        }
-        if (index === undefined) return;
-        const ids = plannedIds(get().games, from);
-        const current = ids.indexOf(id);
-        if (current < 0 || current === index) return;
-        await repository.setPlanOrder({ platform: from, ids: moveItem(ids, current, index) });
-      });
+    async setTogether(id, together) {
+      const game = get().games.find((g) => g.id === id);
+      if (!game || isDone(game) || game.together === together) return false;
+      const plan = planOf(game);
+      const index = plannedIds(get().games, plan).indexOf(id);
+      const ok = await editGame(id, { together });
+      if (ok) {
+        offerUndo(messages.movedToPlan(game.title, together, game.platform), async () => {
+          if (await editGame(id, { together: game.together }, index)) flashNotice(messages.restored(game.title));
+        });
+      }
+      return ok;
     },
 
     async removeGame(id) {
@@ -282,10 +304,10 @@ export const useStore = create<AppState>((set, get) => {
       const game = games.find((g) => g.id === id);
       if (!game) return false;
       // Remember enough to put it back exactly where it was.
-      const planOrder = isDone(game) ? null : { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const planOrder = isDone(game) ? null : { plan: planOf(game), ids: plannedIds(games, planOf(game)) };
       const completedOrder = isDone(game) ? completedIds(games) : null;
       const ownSessions = sessionsOf(sessions, id);
-      const ok = await persist(() => repository.deleteGame(id, orderWithout(game.platform, id)));
+      const ok = await persist(() => repository.deleteGame(id, orderWithout(planOf(game), id)));
       if (ok) {
         offerUndo(messages.deleted(game.title), async () => {
           if (await persist(() => repository.reinsertGame(game, ownSessions, planOrder, completedOrder))) {
@@ -309,13 +331,13 @@ export const useStore = create<AppState>((set, get) => {
       const game = games.find((g) => g.id === id);
       if (!game) return false;
       // Remember enough to put the plan back: the full orders, the next game's status and the start date.
-      const planOrder = { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const planOrder = { plan: planOf(game), ids: plannedIds(games, planOf(game)) };
       const completedOrder = completedIds(games);
       const remaining = planOrder.ids.filter((other) => other !== id);
       const next = remaining.length > 0 ? games.find((g) => g.id === remaining[0]) : undefined;
       const startsNext = input.startNext && next !== undefined && next.status !== "completed";
       const previousStartDate = settings.startDate;
-      const ok = await persist(() => repository.finishGame(id, input, { platform: game.platform, ids: remaining }));
+      const ok = await persist(() => repository.finishGame(id, input, { plan: planOrder.plan, ids: remaining }));
       if (ok) {
         set({ recentlyFinishedId: id });
         offerUndo(messages.finished(game.title, input.rating, startsNext && next ? next.title : null), async () => {
@@ -371,9 +393,9 @@ export const useStore = create<AppState>((set, get) => {
       const { games } = get();
       const game = games.find((g) => g.id === id);
       if (!game) return false;
-      const planOrder = { platform: game.platform, ids: plannedIds(games, game.platform) };
+      const planOrder = { plan: planOf(game), ids: plannedIds(games, planOf(game)) };
       const completedOrder = completedIds(games);
-      const ok = await persist(() => repository.dropGame(id, todayIso(), orderWithout(game.platform, id)));
+      const ok = await persist(() => repository.dropGame(id, todayIso(), orderWithout(planOrder.plan, id)));
       if (ok) {
         offerUndo(messages.dropped(game.title), async () => {
           if (await persist(() => repository.restoreGame(game, planOrder, completedOrder))) {
@@ -388,15 +410,16 @@ export const useStore = create<AppState>((set, get) => {
       const { games } = get();
       const active = games.find((g) => g.id === activeId);
       if (!active) return;
-      const ids = plannedIds(games, active.platform);
+      const plan = planOf(active);
+      const ids = plannedIds(games, plan);
       const from = ids.indexOf(activeId);
       const to = ids.indexOf(overId);
       if (from < 0 || to < 0 || from === to) return;
       const order = moveItem(ids, from, to);
       // Optimistic: the table (and dates) move at once; storage catches up.
-      set({ games: withPlanOrder(games, order, active.platform) });
+      set({ games: withPlanOrder(games, order, plan) });
       try {
-        await repository.setPlanOrder({ platform: active.platform, ids: order });
+        await repository.setPlanOrder({ plan, ids: order });
       } catch (error) {
         set({ games, error: describeError(error) });
       }

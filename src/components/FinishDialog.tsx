@@ -3,7 +3,7 @@ import type { FinishInput } from "../db";
 import { isValidIsoDate, todayIso } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { planHours } from "../domain/schedule";
-import { SCHEDULED_PLATFORM, type Game } from "../domain/types";
+import { SCHEDULED_PLATFORM, planOf, type Game } from "../domain/types";
 import { t } from "../i18n/en";
 import { DateField } from "./DateField";
 import { Icon } from "./Icon";
@@ -28,8 +28,8 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose, initialDate }
   const [nextStartDate, setNextStartDate] = useState(initialDate ?? today);
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState("");
-  // The PC plan continues with the next game by default; a queue does not.
-  const [startNext, setStartNext] = useState(game.platform === SCHEDULED_PLATFORM);
+  // The PC plan continues with the next game by default; a queue or the Together list does not.
+  const [startNext, setStartNext] = useState(planOf(game) === SCHEDULED_PLATFORM);
   /** Until the next-start date is edited by hand, it follows the finish date. */
   const [nextTouched, setNextTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -40,7 +40,8 @@ export function FinishDialog({ game, nextTitle, onSubmit, onClose, initialDate }
     if (!nextTouched) setNextStartDate(value);
   }
 
-  const scheduled = game.platform === SCHEDULED_PLATFORM;
+  /** Only the PC plan has a start date to move; a Together game on PC leaves it alone. */
+  const scheduled = planOf(game) === SCHEDULED_PLATFORM;
   const completedAtValid = isValidIsoDate(completedAt);
   const nextStartValid = !scheduled || isValidIsoDate(nextStartDate);
   const played =

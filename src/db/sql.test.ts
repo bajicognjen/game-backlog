@@ -48,6 +48,7 @@ const MIGRATIONS = [
   "0008_series.sql",
   "0009_details.sql",
   "0010_design.sql",
+  "0011_together.sql",
 ].map((file) =>
   readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
 );
@@ -85,12 +86,22 @@ function completed(): CompletedRow[] {
     .all() as unknown as CompletedRow[];
 }
 
+/** One platform's plan: its games not played together. */
 function plan(platform = "pc"): Row[] {
   return db
     .prepare(
-      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status NOT IN ('completed', 'dropped') AND platform = ? ORDER BY position",
+      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status NOT IN ('completed', 'dropped') AND platform = ? AND together = 0 ORDER BY position",
     )
     .all(platform) as unknown as Row[];
+}
+
+/** The Together list, whatever the platform. */
+function togetherList(): Row[] {
+  return db
+    .prepare(
+      "SELECT id, title, status, platform, position, casual_hours, note FROM games WHERE status NOT IN ('completed', 'dropped') AND together = 1 ORDER BY position",
+    )
+    .all() as unknown as Row[];
 }
 
 beforeEach(() => {
@@ -139,6 +150,7 @@ describe("plan order statements", () => {
         type: "roguelike",
         genre: "roguelike",
         platform: "pc",
+        together: false,
         status: "pending",
         casualHours: 12.5,
         series: null,
@@ -235,6 +247,7 @@ describe("finishing and rating", () => {
         type: "linear",
         genre: "puzzle",
         platform: "ps4",
+        together: false,
         casualHours: 8,
         series: "Portal",
         seriesOrder: 2,
@@ -313,6 +326,7 @@ describe("platforms", () => {
         type: "linear",
         genre: null,
         platform: "ps5",
+        together: false,
         status: position === 1 ? "in_progress" : "pending",
         casualHours: 0,
         series: null,
@@ -360,6 +374,95 @@ describe("platforms", () => {
     const done = completed();
     expect(done[done.length - 1]).toMatchObject({ title: "Astro Bot", completed_order: 11 });
     expect(db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'start_date'").get()).toMatchObject({ n: 0 });
+  });
+});
+
+describe("together list", () => {
+  function addTogether(title: string, platform: "pc" | "ps5", position: number): void {
+    db.exec(
+      insertGameStatement({
+        title,
+        type: "linear",
+        genre: null,
+        platform,
+        together: true,
+        status: "pending",
+        casualHours: 12,
+        series: null,
+        seriesOrder: null,
+        note: null,
+        position,
+        completedOrder: null,
+        completedAt: null,
+        rating: null,
+        review: null,
+        ...NO_METADATA,
+      }),
+    );
+  }
+
+  it("keeps existing games out of it and numbers it apart from the PC plan, across platforms", () => {
+    expect(togetherList()).toEqual([]);
+    addTogether("It Takes Two", "pc", 1); // the PC plan already has position 1
+    addTogether("Split Fiction", "ps5", 2);
+    expect(togetherList().map((r) => [r.title, r.platform, r.position])).toEqual([
+      ["It Takes Two", "pc", 1],
+      ["Split Fiction", "ps5", 2],
+    ]);
+    expect(plan()).toHaveLength(27);
+    expect(() => addTogether("Duplicate", "ps5", 1)).toThrow(/UNIQUE/);
+    expect(() => db.exec("UPDATE games SET together = 2 WHERE title = 'It Takes Two'")).toThrow(/CHECK/);
+  });
+
+  it("reorders the PC plan without touching the Together list", () => {
+    addTogether("It Takes Two", "pc", 1);
+    addTogether("Remnant II", "pc", 2);
+    const pc = plan().map((r) => r.id);
+    batch(planOrderStatements([pc[1], pc[0], ...pc.slice(2)], "pc"));
+    expect(togetherList().map((r) => [r.title, r.position])).toEqual([
+      ["It Takes Two", 1],
+      ["Remnant II", 2],
+    ]);
+    expect(plan()[0]).toMatchObject({ title: "Resident Evil 4 Remake", position: 1 });
+  });
+
+  it("moves a game between its plan and the Together list without tripping the index", () => {
+    addTogether("It Takes Two", "pc", 1);
+    const pc = plan().map((r) => r.id);
+    const forest = pc[5]; // position 6 in the PC plan
+    // Into Together: clear the slot in the same update, close the gap, append.
+    const into = updateGameQuery(forest, { together: true, position: null });
+    if (!into) throw new Error("expected a query");
+    db.prepare(into.sql).run(...(into.values as (string | number | null)[]));
+    batch(planOrderStatements(pc.filter((id) => id !== forest), "pc"));
+    const list = togetherList().map((r) => r.id).filter((id) => id !== forest);
+    batch(planOrderStatements([...list, forest], "together"));
+    expect(togetherList().map((r) => [r.title, r.position])).toEqual([
+      ["It Takes Two", 1],
+      ["The Forest", 2],
+    ]);
+    expect(plan()).toHaveLength(26);
+    expect(plan().map((r) => r.position)).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
+
+    // And back to slot 1 of the PC plan, which is taken.
+    const back = updateGameQuery(forest, { together: false, position: null });
+    if (!back) throw new Error("expected a query");
+    db.prepare(back.sql).run(...(back.values as (string | number | null)[]));
+    batch(planOrderStatements(togetherList().map((r) => r.id).filter((id) => id !== forest), "together"));
+    batch(planOrderStatements([forest, ...plan().map((r) => r.id).filter((id) => id !== forest)], "pc"));
+    expect(plan()[0]).toMatchObject({ title: "The Forest", position: 1 });
+    expect(togetherList().map((r) => [r.title, r.position])).toEqual([["It Takes Two", 1]]);
+  });
+
+  it("finishing a Together game leaves the PC plan and start date alone", () => {
+    addTogether("It Takes Two", "pc", 1);
+    addTogether("Remnant II", "pc", 2);
+    const list = togetherList().map((r) => r.id);
+    batch([finishGameStatement(list[0], { completedAt: "2026-11-20", rating: 9, review: null }), ...planOrderStatements(list.slice(1), "together")]);
+    expect(togetherList().map((r) => [r.title, r.position])).toEqual([["Remnant II", 1]]);
+    expect(plan()).toHaveLength(27);
+    expect(plan()[0]).toMatchObject({ title: "Batman: Arkham Knight", status: "in_progress" });
+    expect(db.prepare("SELECT together FROM games WHERE id = ?").get(list[0])).toMatchObject({ together: 1 });
   });
 });
 
@@ -454,6 +557,7 @@ describe("dropped status and RAWG metadata", () => {
       type: "open_world",
       genre: "rpg",
       platform: "ps5",
+      together: false,
       status: "pending",
       casualHours: 46,
       series: "The Witcher",
@@ -661,6 +765,7 @@ describe("undo", () => {
         type: "open_world",
         genre: "action_adventure",
         platform: "pc",
+        together: false,
         status: "pending",
         casualHours: 55,
         hoursPlayed: 0,

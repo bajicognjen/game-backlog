@@ -1,6 +1,6 @@
 import type { Backup } from "../domain/backup";
 import type { GameDetails } from "../domain/details";
-import type { Game, GameSource, GameStatus, GameType, Genre, Platform, PlaySession, Settings } from "../domain/types";
+import type { Game, GameSource, GameStatus, GameType, Genre, PlanId, Platform, PlaySession, Settings } from "../domain/types";
 import type { SessionInput } from "./sessions";
 
 export interface Snapshot {
@@ -15,6 +15,8 @@ export interface GameInput {
   type: GameType;
   genre: Genre | null;
   platform: Platform;
+  /** Played with others: planned in the Together list, outside the PC schedule. */
+  together: boolean;
   casualHours: number;
   series: string | null;
   seriesOrder: number | null;
@@ -37,26 +39,27 @@ export interface CompletedDetails {
   review: string | null;
 }
 
-export type GamePatch = Partial<GameInput & CompletedDetails & { status: GameStatus }>;
+/** `position: null` goes with a change of plan (platform or together): the game leaves its old slot before it gets a new one. */
+export type GamePatch = Partial<GameInput & CompletedDetails & { status: GameStatus; position: null }>;
 
 /** What the finish-game dialog collects. */
 export interface FinishInput extends CompletedDetails {
   completedAt: string;
   /** New `startDate` setting; null for platforms without a schedule. */
   nextStartDate: string | null;
-  /** Put the first remaining planned game of that platform in progress. */
+  /** Put the first remaining game of that plan in progress. */
   startNext: boolean;
 }
 
-/** The complete order of one platform's planned games. */
+/** The complete order of one plan's games (a platform's plan, or Together). */
 export interface PlanOrder {
-  platform: Platform;
+  plan: PlanId;
   ids: readonly number[];
 }
 
 /** Like `PlanOrder`, with one `"new"` slot for the game being added. */
 export interface PlanOrderWithNew {
-  platform: Platform;
+  plan: PlanId;
   ids: ReadonlyArray<number | "new">;
 }
 
@@ -65,7 +68,7 @@ export interface PlanOrderWithNew {
  * SQLite through tauri-plugin-sql; a memory implementation backs the plain
  * browser preview (`npm run dev` outside Tauri) and keeps the UI testable.
  *
- * Every write that touches a plan takes that platform's complete new order
+ * Every write that touches a plan takes that plan's complete new order
  * of game ids, so positions are always rewritten contiguously and the first
  * planned game is marked in progress (see `domain/plan.ts`).
  */
@@ -77,7 +80,7 @@ export interface Repository {
   updateGame(id: number, patch: GamePatch): Promise<void>;
   deleteGame(id: number, planOrder: PlanOrder): Promise<void>;
   setPlanOrder(planOrder: PlanOrder): Promise<void>;
-  /** Mark `id` completed (next finish order), reorder its platform, optionally move `startDate` and start the next game. */
+  /** Mark `id` completed (next finish order), reorder its plan, optionally move `startDate` and start the next game. */
   finishGame(id: number, input: FinishInput, planOrder: PlanOrder): Promise<void>;
   /** Renumber the finish order of all finished games. */
   setCompletedOrder(ids: readonly number[]): Promise<void>;

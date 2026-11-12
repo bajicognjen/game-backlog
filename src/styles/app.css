@@ -630,6 +630,18 @@ textarea {
   height: 16px;
 }
 
+/* A checkbox with a line under it saying what ticking it does; the line starts under the label, past the box. */
+.field-check {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-check .field-hint {
+  padding-left: 24px;
+  min-height: 0;
+}
+
 /* ---------- Cards and settings ---------- */
 
 .card {
@@ -1894,6 +1906,19 @@ tr:focus-within .row-actions {
   color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* Played with others: a quiet word beside the platform in the finished list. */
+.chip-together {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.chip-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .chip-kind {

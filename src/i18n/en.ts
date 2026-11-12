@@ -1,4 +1,4 @@
-import type { GameSource, GameStatus, GameType, Genre, Platform, Theme } from "../domain/types";
+import type { GameSource, GameStatus, GameType, Genre, PlanId, Platform, Theme } from "../domain/types";
 
 /** Design types: how a game's world and progression are structured. */
 export const typeLabels: Record<GameType, string> = {
@@ -71,6 +71,12 @@ export const platformLabels: Record<Platform, string> = {
   ps4: "PS4",
 };
 
+/** Plan tab names: each platform's plan, and the list of games played with others. */
+export const planLabels: Record<PlanId, string> = {
+  ...platformLabels,
+  together: "Together",
+};
+
 export const themeLabels: Record<Theme, string> = {
   system: "System theme",
   light: "Light theme",
@@ -91,6 +97,7 @@ export const t = {
   appTitle: "Game Backlog",
   plan: "Plan",
   queueHint: "A list in play order, without dates.",
+  togetherHint: "Games you play with others: no dates, and the PC plan doesn't count them.",
   allPlatforms: "All platforms",
   completed: "Finished games",
   loading: "Loading your games…",
@@ -110,6 +117,8 @@ export const t = {
     finished: "Finished “{title}”.",
     finishedRated: "Finished “{title}”, rated {rating}/10.",
     finishedNext: "“{next}” is now in progress.",
+    movedToTogether: "Moved “{title}” to Together. The PC plan no longer counts it.",
+    movedToPlan: "Moved “{title}” back to the {platform} plan.",
   },
   none: "–",
   columns: {
@@ -353,6 +362,8 @@ export const t = {
   emptyPlanHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week.",
   emptyQueue: "Nothing queued for {platform} yet.",
   emptyQueueHint: "Add games to play on {platform}. The list keeps its order, without dates.",
+  emptyTogether: "Nothing to play together yet.",
+  emptyTogetherHint: "Add a game you play with friends or a partner, or move one here with “Move to Together” in a plan row's menu.",
   emptyFiltered: "No games match this filter.",
   emptyFilteredHint: "Only games with IGDB data can match a filter.",
   emptyCompleted: "No finished games yet.",
@@ -373,6 +384,8 @@ export const t = {
     drop: "Drop",
     logHours: "Log hours",
     details: "Details",
+    moveToTogether: "Move to Together",
+    moveToPlan: "Move back to {platform} plan",
     more: "More actions",
     rate: "Rate",
     changeRating: "Change rating",
@@ -399,6 +412,7 @@ export const t = {
     editTitle: "Edit finished game",
     hours: "Hours to finish (optional)",
     completedAt: "Finish date (optional)",
+    togetherHint: "Marked “Together” in the finished list.",
   },
   backup: {
     export: "Export",
@@ -448,6 +462,8 @@ export const t = {
     series: "Series",
     seriesOrder: "No. in series",
     seriesHint: "For a warning when you play a series out of order.",
+    together: "Played with others",
+    togetherHint: "Listed under Together: no dates, and the PC plan doesn't count it.",
     position: "Position in plan",
     atEnd: "End of plan",
     before: "Before:",

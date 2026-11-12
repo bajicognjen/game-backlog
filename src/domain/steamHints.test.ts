@@ -52,6 +52,13 @@ describe("statusHints", () => {
     expect(IDLE_DAYS).toBe(30);
   });
 
+  it("never calls a game played together quiet: it waits for the others, but can still be marked in progress", () => {
+    const coop = { ...batman, together: true };
+    expect(statusHints([coop], [], owned, new Map(), TODAY, [])).toEqual([]);
+    const pausedCoop = { ...control, together: true };
+    expect(statusHints([pausedCoop], [], owned, new Map(), TODAY, [])).toMatchObject([{ kind: "playing", game: { title: "Control" } }]);
+  });
+
   it("does not call quiet a game made current recently, whatever Steam last saw", () => {
     expect(statusHints([batman], [], owned, new Map(), TODAY, [], "2026-11-02")).toEqual([]);
     expect(statusHints([batman], [], owned, new Map(), TODAY, [], "2026-10-01")).toMatchObject([{ kind: "idle", lastPlayed: "2026-10-01", days: 39 }]);

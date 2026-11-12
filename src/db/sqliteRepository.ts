@@ -59,10 +59,9 @@ export const sqliteRepository: Repository = {
     if (newIndex < 0) throw new Error("Plan order must contain the slot for the new game");
     const db = await initDb();
     await runBatch(db, [
-      resetPlanPositions(order.platform),
+      resetPlanPositions(order.plan),
       insertGameStatement({
         ...input,
-        platform: order.platform,
         status: "pending",
         position: newIndex + 1,
         completedOrder: null,
@@ -91,13 +90,13 @@ export const sqliteRepository: Repository = {
     await runBatch(db, [
       deleteSessionsOfGameStatement(id),
       deleteGameStatement(id),
-      ...planOrderStatements(planOrder.ids, planOrder.platform),
+      ...planOrderStatements(planOrder.ids, planOrder.plan),
     ]);
   },
 
   async setPlanOrder(planOrder) {
     const db = await initDb();
-    await runBatch(db, planOrderStatements(planOrder.ids, planOrder.platform));
+    await runBatch(db, planOrderStatements(planOrder.ids, planOrder.plan));
   },
 
   async finishGame(id, input, planOrder) {
@@ -105,7 +104,7 @@ export const sqliteRepository: Repository = {
     const nextId = planOrder.ids[0];
     await runBatch(db, [
       finishGameStatement(id, input),
-      ...planOrderStatements(planOrder.ids, planOrder.platform),
+      ...planOrderStatements(planOrder.ids, planOrder.plan),
       ...(input.nextStartDate ? [upsertSetting("start_date", input.nextStartDate)] : []),
       ...(input.startNext && nextId !== undefined ? [startGameStatement(nextId)] : []),
     ]);
@@ -118,7 +117,7 @@ export const sqliteRepository: Repository = {
 
   async dropGame(id, droppedAt, planOrder) {
     const db = await initDb();
-    await runBatch(db, [dropGameStatement(id, droppedAt), ...planOrderStatements(planOrder.ids, planOrder.platform)]);
+    await runBatch(db, [dropGameStatement(id, droppedAt), ...planOrderStatements(planOrder.ids, planOrder.plan)]);
   },
 
   async replaceAll(backup) {
@@ -143,7 +142,7 @@ export const sqliteRepository: Repository = {
     await runBatch(db, [
       insertGameWithIdStatement({ ...game, position: null, completedOrder: null }),
       ...sessions.map(insertSessionWithIdStatement),
-      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.platform) : []),
+      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.plan) : []),
       ...(completedOrder ? completedOrderStatements(completedOrder) : []),
     ]);
   },
@@ -152,7 +151,7 @@ export const sqliteRepository: Repository = {
     const db = await initDb();
     await runBatch(db, [
       restoreGameStatement(game),
-      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.platform) : []),
+      ...(planOrder ? planOrderStatements(planOrder.ids, planOrder.plan) : []),
       ...(completedOrder ? completedOrderStatements(completedOrder) : []),
     ]);
   },
