@@ -1020,6 +1020,7 @@ textarea {
 
 .banner-count {
   min-width: 3ch;
+  white-space: nowrap; /* "17 s" on one line, even in a narrow banner */
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);

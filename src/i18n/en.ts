@@ -142,6 +142,7 @@ export const t = {
   skipToFinished: "Skip to finished games",
   skipToStats: "Skip to statistics",
   skipLinks: "Skip links",
+  undoWindow: "You can undo for {seconds} seconds; the time waits while you're on this notice.",
   showFinished: "Show in finished games",
   dateField: {
     placeholder: "dd.mm.yyyy",

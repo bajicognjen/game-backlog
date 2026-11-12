@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent } from "react";
 import { UNDO_WINDOW_MS, useStore, type NoticePlace } from "../state/store";
 import { t } from "../i18n/en";
+import { useAnyDialogOpen } from "./useAnyDialogOpen";
 
 /**
  * Error and success messages from the store, each dismissible. An undo
@@ -45,6 +46,23 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
   const noticeRef = useRef<HTMLDivElement>(null);
   /** Whether focus is inside the notice; kept by hand because a removed element fires no blur. */
   const focusWithin = useRef(false);
+  /**
+   * The notice's clock waits while the user is on it: the pointer over it, keyboard focus anywhere in it (the box
+   * itself too, where it lands when it appears), or a dialog open over the page. Focus a mouse click left there
+   * doesn't hold it, or a mouse user's clock would never run.
+   */
+  const hovered = useRef(false);
+  const keyboardOn = useRef(false);
+  const dialogOpen = useAnyDialogOpen();
+  function holdOrRelease() {
+    if (hovered.current || keyboardOn.current || dialogOpen) hold();
+    else release();
+  }
+  useEffect(() => {
+    if (notice) holdOrRelease();
+    // Only the dialog and the notice itself change what holds the clock here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, notice, undo]);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   /**
@@ -94,13 +112,19 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
     return () => clearInterval(timer);
   }, [undo, undoDeadline]);
 
-  function onNoticeFocus() {
+  function onNoticeFocus(event: FocusEvent<HTMLDivElement>) {
     focusWithin.current = true;
+    keyboardOn.current = isFocusVisible(event.target);
+    holdOrRelease();
   }
 
   function onNoticeBlur(event: FocusEvent<HTMLDivElement>) {
     // A move to another element means focus left; a null target may be the element vanishing, so keep the flag.
-    if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) focusWithin.current = false;
+    if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) {
+      focusWithin.current = false;
+      keyboardOn.current = false;
+      holdOrRelease();
+    }
   }
 
   function showFinished() {
@@ -129,15 +153,25 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
           tabIndex={-1}
           className={`banner banner-info ${undo ? "banner-undo" : ""} ${undoHeld ? "banner-held" : ""}`}
           style={{ "--undo-ms": `${UNDO_WINDOW_MS}ms` } as CSSProperties}
-          onMouseEnter={hold}
-          onMouseLeave={release}
+          onMouseEnter={() => {
+            hovered.current = true;
+            holdOrRelease();
+          }}
+          onMouseLeave={() => {
+            hovered.current = false;
+            holdOrRelease();
+          }}
           onFocus={onNoticeFocus}
           onBlur={onNoticeBlur}
         >
-          <span>{notice}</span>
+          <span>
+            {notice}
+            {/* The time limit, heard once with the notice: the visible count is not read out as it ticks. */}
+            {undo && <span className="visually-hidden"> {t.undoWindow.replace("{seconds}", String(Math.round(UNDO_WINDOW_MS / 1000)))}</span>}
+          </span>
           <span className="banner-actions">
             {undo && recentlyFinishedId !== null && place === "top" && (
-              <button type="button" className="button button-ghost button-small" onClick={showFinished} onFocus={pauseUndo} onBlur={resumeUndo}>
+              <button type="button" className="button button-ghost button-small" onClick={showFinished}>
                 {t.showFinished}
               </button>
             )}
@@ -153,8 +187,6 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
                       if (document.activeElement === document.body || document.activeElement === null) focusCard();
                     });
                   }}
-                  onFocus={pauseUndo}
-                  onBlur={resumeUndo}
                 >
                   {t.undo}
                 </button>
@@ -172,8 +204,6 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
                 focusCard();
                 dismissNotice();
               }}
-              onFocus={hold}
-              onBlur={release}
             >
               {t.dismiss}
             </button>
@@ -183,4 +213,13 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
       )}
     </>
   );
+}
+
+/** Whether focus got here from the keyboard (or assistive tech), not from a click. */
+function isFocusVisible(target: EventTarget): boolean {
+  try {
+    return target instanceof Element && target.matches(":focus-visible");
+  } catch {
+    return true; // no :focus-visible: treat focus as the user being on it
+  }
 }

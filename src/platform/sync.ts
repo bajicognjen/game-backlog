@@ -460,7 +460,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       run(async () => {
         if (meta()) return; // turned on again some other way meanwhile
         const current = await saveMeta({ ...previous, dirty: true });
-        set({ kind: "pending", meta: current, reason: "offline", detail: null });
+        // "Syncing" while it reconnects, not "Waiting": a passing amber state would be announced for nothing.
+        set({ kind: "syncing", meta: current });
         await compare(current);
       }),
 
