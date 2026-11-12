@@ -7,12 +7,17 @@ interface Props {
   hint?: string;
   /** The control that does so, when there is one. */
   action?: ReactNode;
+  /**
+   * Read out when it appears: for an empty state the user's own filtering caused. A list that is simply empty is
+   * not news, and a live region there would speak whenever its hint changed (sync turning on or off).
+   */
+  announce?: boolean;
 }
 
 /** Empty list placeholder that names the state and offers the next step. */
-export function EmptyState({ title, hint, action }: Props) {
+export function EmptyState({ title, hint, action, announce = false }: Props) {
   return (
-    <div className="empty-state" role="status">
+    <div className="empty-state" role={announce ? "status" : undefined}>
       <p className="empty-title">{title}</p>
       {hint && <p className="empty-hint">{hint}</p>}
       {action && <div className="empty-action">{action}</div>}

@@ -93,9 +93,15 @@ export interface AppState {
   /** Stop the undo countdown while the user is on the offer; `resumeUndo` restarts it with the time left. */
   pauseUndo(): void;
   resumeUndo(): void;
+  /** The same for a routine confirmation: its clock stops while the pointer or focus is on it. */
+  pauseNotice(): void;
+  resumeNotice(): void;
   dismissError(): void;
   dismissNotice(): void;
-  /** Show a routine confirmation that clears itself (used by sync after a pull). */
+  /**
+   * Show a routine confirmation that clears itself (used by sync after a pull). One placed in Settings → Sync stays
+   * while Sync is on screen (it may hold the next step, and it has focus), and clears itself once Settings closes.
+   */
   notify(notice: string, place?: NoticePlace): void;
   /** Show a notice with a 20-second undo offer for something done outside the store (sync's conflict choice). */
   offerUndo(notice: string, undo: () => Promise<void>, place?: NoticePlace): void;
@@ -170,13 +176,30 @@ export const useStore = create<AppState>((set, get) => {
   let undoTimer: ReturnType<typeof setTimeout> | null = null;
   let undoRemainingMs = 0;
   let noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  let noticeDeadlineMs = 0;
+  /** Time left on a routine confirmation held by the pointer or focus; null when it isn't held. */
+  let noticeHeldMs: number | null = null;
 
   function clearTimers(): void {
     if (undoTimer) clearTimeout(undoTimer);
     if (noticeTimer) clearTimeout(noticeTimer);
     undoTimer = null;
     noticeTimer = null;
+    noticeHeldMs = null;
   }
+
+  /** Let the current routine confirmation clear itself after `ms`. */
+  function armNotice(notice: string, ms: number): void {
+    if (noticeTimer) clearTimeout(noticeTimer);
+    noticeDeadlineMs = Date.now() + ms;
+    noticeTimer = setTimeout(() => {
+      noticeTimer = null;
+      if (get().notice === notice && !get().undo) set({ notice: null });
+    }, ms);
+  }
+
+  /** A confirmation shown in Settings → Sync waits while Sync is on screen; anywhere else it runs its clock. */
+  const waitsInSync = () => get().noticePlace === "sync" && get().syncPanelOpen;
 
   let undoDeadlineMs = 0;
   const undoDeadline = () => undoDeadlineMs;
@@ -202,10 +225,7 @@ export const useStore = create<AppState>((set, get) => {
   function flashNotice(notice: string, place: NoticePlace = "top"): void {
     clearTimers();
     set({ notice, noticePlace: place, undo: null, undoHeld: false, undoDeadline: null });
-    noticeTimer = setTimeout(() => {
-      noticeTimer = null;
-      if (get().notice === notice) set({ notice: null });
-    }, NOTICE_WINDOW_MS);
+    if (!waitsInSync()) armNotice(notice, NOTICE_WINDOW_MS);
   }
 
   let autoBackupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -508,6 +528,22 @@ export const useStore = create<AppState>((set, get) => {
       armUndo(undo, undoRemainingMs);
     },
 
+    pauseNotice() {
+      const { notice, undo } = get();
+      if (!notice || undo || !noticeTimer) return;
+      noticeHeldMs = Math.max(1000, noticeDeadlineMs - Date.now());
+      clearTimeout(noticeTimer);
+      noticeTimer = null;
+    },
+
+    resumeNotice() {
+      const { notice, undo } = get();
+      const left = noticeHeldMs;
+      noticeHeldMs = null;
+      if (left === null || !notice || undo || waitsInSync()) return;
+      armNotice(notice, left);
+    },
+
     dismissError() {
       set({ error: null });
     },
@@ -525,6 +561,12 @@ export const useStore = create<AppState>((set, get) => {
 
     setSyncPanelOpen(open) {
       set({ syncPanelOpen: open });
+      // Settings closed on a confirmation that waited in Sync: it moves to the top and clears itself from there.
+      const { notice, noticePlace, undo } = get();
+      if (!open && notice && noticePlace === "sync" && !undo && !noticeTimer) {
+        noticeHeldMs = null;
+        armNotice(notice, NOTICE_WINDOW_MS);
+      }
     },
   };
 });

@@ -7,10 +7,16 @@ import { t } from "../i18n/en";
  * offer takes focus when it appears, so Undo is the next Tab stop and a
  * screen reader hears it; the seconds left are shown next to Undo and a
  * line drains under the notice, both pausing while the user is on the offer.
+ * A routine confirmation pauses its clock the same way.
  *
  * `place` "top" is the page's banner; "sync" sits inside Settings → Sync and
  * shows the notices of actions taken there, which the top one then leaves out
- * (it takes them back if Sync closes). Errors always show at the top.
+ * (it takes them back if Sync closes). A notice in Sync takes focus too and
+ * stays while Sync is open. Errors always show at the top.
+ *
+ * A notice that takes focus is read out by it; one that doesn't is read from a
+ * hidden status that holds only its words, never its buttons. Whenever a notice
+ * goes while focus is on it, focus moves on to where the user is.
  */
 export function Banner({ place = "top" }: { place?: NoticePlace }) {
   const error = useStore((s) => s.error);
@@ -22,6 +28,8 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
   const undoLast = useStore((s) => s.undoLast);
   const pauseUndo = useStore((s) => s.pauseUndo);
   const resumeUndo = useStore((s) => s.resumeUndo);
+  const pauseNotice = useStore((s) => s.pauseNotice);
+  const resumeNotice = useStore((s) => s.resumeNotice);
   const dismissError = useStore((s) => s.dismissError);
   const dismissNotice = useStore((s) => s.dismissNotice);
   const noticePlace = useStore((s) => s.noticePlace);
@@ -29,6 +37,11 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
   const here = noticePlace === place || (place === "top" && noticePlace === "sync" && !syncPanelOpen);
   const notice = here ? storedNotice : null;
   const undo = here ? storedUndo : null;
+  const takesFocus = undo !== null || place === "sync";
+  /** Born at the top and not focused: the only notices the hidden status reads out. */
+  const announced = notice !== null && !takesFocus && noticePlace === "top" ? notice : "";
+  const hold = undo ? pauseUndo : pauseNotice;
+  const release = undo ? resumeUndo : resumeNotice;
   const noticeRef = useRef<HTMLDivElement>(null);
   /** Whether focus is inside the notice; kept by hand because a removed element fires no blur. */
   const focusWithin = useRef(false);
@@ -47,7 +60,7 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
   }
 
   useLayoutEffect(() => {
-    if (!undo) return;
+    if (!notice) return;
     const node = noticeRef.current;
     if (!node) return;
     // The offer appears while the dialog that caused it may still be open; a modal dialog makes the
@@ -57,8 +70,8 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
       if (document.activeElement !== node) node.focus({ preventScroll: place === "top" });
       return document.activeElement === node;
     };
-    const timers = tryFocus() ? [] : [60, 200, 450].map((ms) => setTimeout(tryFocus, ms));
-    // When the offer goes (expiry, undo, dismiss) while focus is still on it, hand focus to the current game.
+    const timers = !takesFocus || tryFocus() ? [] : [60, 200, 450].map((ms) => setTimeout(tryFocus, ms));
+    // When the notice goes (expiry, undo, dismiss, a newer one) while focus is still on it, hand focus on.
     return () => {
       timers.forEach(clearTimeout);
       if (focusWithin.current || node.contains(document.activeElement)) {
@@ -66,7 +79,7 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
         focusCard();
       }
     };
-  }, [undo]);
+  }, [notice, undo]);
 
   // The visible countdown: ticks while the offer runs, freezes while it is held.
   useEffect(() => {
@@ -99,6 +112,9 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
 
   return (
     <>
+      <div className="visually-hidden" role="status">
+        {announced}
+      </div>
       {error && place === "top" && (
         <div className="banner banner-error" role="alert">
           <span>{error}</span>
@@ -112,10 +128,9 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
           ref={noticeRef}
           tabIndex={-1}
           className={`banner banner-info ${undo ? "banner-undo" : ""} ${undoHeld ? "banner-held" : ""}`}
-          role="status"
           style={{ "--undo-ms": `${UNDO_WINDOW_MS}ms` } as CSSProperties}
-          onMouseEnter={undo ? pauseUndo : undefined}
-          onMouseLeave={undo ? resumeUndo : undefined}
+          onMouseEnter={hold}
+          onMouseLeave={release}
           onFocus={onNoticeFocus}
           onBlur={onNoticeBlur}
         >
@@ -157,8 +172,8 @@ export function Banner({ place = "top" }: { place?: NoticePlace }) {
                 focusCard();
                 dismissNotice();
               }}
-              onFocus={undo ? pauseUndo : undefined}
-              onBlur={undo ? resumeUndo : undefined}
+              onFocus={hold}
+              onBlur={release}
             >
               {t.dismiss}
             </button>

@@ -379,6 +379,7 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, edi
     <EmptyState
       title={t.emptyFiltered}
       hint={t.emptyFilteredHint}
+      announce
       action={
         <button type="button" className="button" onClick={() => setFilter(NO_FILTER)}>
           {t.filters.clear}
@@ -583,6 +584,7 @@ function CompletedSection({ defaultPlatform, defaultTogether, onOpen, onSetupIgd
       <EmptyState
         title={t.emptyFiltered}
         hint={t.emptyFilteredHint}
+        announce
         action={
           <button
             type="button"
