@@ -35,8 +35,6 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   const turnOff = useSync((s) => s.turnOff);
   const deleteServerCopy = useSync((s) => s.deleteServerCopy);
   const check = useSync((s) => s.check);
-  /** A device with no games is most likely the second one: joining is its main action. */
-  const emptyPlan = useStore((s) => s.games.length === 0);
 
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<OffStep>("choose");
@@ -237,17 +235,25 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
       <div className="settings-group-body">
         <Banner place="sync" />
         {state.kind === "off" && offStep === "choose" && (
-          <div className="settings-action">
-            <div className="field-actions">
-              {/* The likely path is the primary one: joining on a device with no games, starting on one with a plan. */}
-              <button ref={startRef} type="button" className={`button ${emptyPlan ? "" : "button-primary"}`} disabled={busy} onClick={() => goTo("start", "field")}>
+          // Two equal choices, each saying what it is for: the app cannot tell a first device from a second
+          // (both start empty), so the person picks by what they hold (an invite code, or a link or key).
+          <div className="sync-choices">
+            <div className="settings-action">
+              <button ref={startRef} type="button" className="button" disabled={busy} onClick={() => goTo("start", "field")} aria-describedby={`${inviteNoteId}-start`}>
                 {t.sync.startHere}
               </button>
-              <button ref={joinRef} type="button" className={`button ${emptyPlan ? "button-primary" : ""}`} disabled={busy} onClick={() => goTo("connect", "field")}>
+              <p className="field-hint" id={`${inviteNoteId}-start`}>
+                {t.sync.startHint}
+              </p>
+            </div>
+            <div className="settings-action">
+              <button ref={joinRef} type="button" className="button" disabled={busy} onClick={() => goTo("connect", "field")} aria-describedby={`${inviteNoteId}-join`}>
                 {t.sync.joinOther}
               </button>
+              <p className="field-hint" id={`${inviteNoteId}-join`}>
+                {t.sync.joinHint}
+              </p>
             </div>
-            <p className="field-hint">{t.sync.chooseHint}</p>
           </div>
         )}
 

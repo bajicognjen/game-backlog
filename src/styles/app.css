@@ -864,6 +864,14 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+/* Sync off: the two ways in, one under the other, each with what it is for right under its button. */
+.sync-choices {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 /* The join link as a QR code. Cameras read dark modules on light, so the tile is Paper and Ink in both
    themes (the dark theme's paper would invert it); the four-module quiet zone is inside the tile. */
 .sync-qr {

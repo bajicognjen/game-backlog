@@ -209,7 +209,7 @@ export default function App() {
           onPlanChange={setPlan}
           onOpen={(game) => setDetailsId(game.id)}
           onSetupIgdb={openIgdbSetup}
-          onJoinSync={() => openSyncJoin(null)}
+          onSetUpSync={openSync}
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
         />
@@ -270,8 +270,8 @@ interface PlanSectionProps {
   onPlanChange(plan: PlanId): void;
   onOpen(game: Game): void;
   onSetupIgdb(): void;
-  /** Web app: open Settings → Sync at the join form. */
-  onJoinSync(): void;
+  /** Web app: bring Settings → Sync into view, at its two choices (start here, or join). */
+  onSetUpSync(): void;
   /** A planned game whose edit form should open (from the details dialog). */
   editRequest: Game | null;
   onEditHandled(): void;
@@ -284,7 +284,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
   return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
 }
 
-function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onJoinSync, editRequest, onEditHandled }: PlanSectionProps) {
+function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   /** Dated sessions: hours played since the plan started count as time already spent. */
@@ -304,7 +304,7 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onJoinSync, edit
   const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
   const platforms = useMemo(() => availablePlatforms(games), [games]);
   const filterable = useMemo(() => hasIgdbData(games), [games]);
-  /** A web copy with nothing in it and sync off is likely a second device: the empty plan offers to join the first. */
+  /** A web copy with nothing in it and sync off may be a first device or a second: the empty plan offers to set up sync, not to guess. */
   const canJoin = useSync((s) => s.supported && s.state.kind === "off") && games.length === 0;
 
   // The details dialog can ask for a planned game's edit form.
@@ -391,8 +391,8 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onJoinSync, edit
       hint={canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint}
       action={
         canJoin && (
-          <button type="button" className="button" onClick={onJoinSync}>
-            {t.sync.joinOther}
+          <button type="button" className="button" onClick={onSetUpSync}>
+            {t.sync.setUp}
           </button>
         )
       }
