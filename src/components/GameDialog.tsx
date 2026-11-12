@@ -59,6 +59,8 @@ export function GameDialog({ mode, game, defaultPlan, planTitles, currentIndex, 
   const [series, setSeries] = useState(game?.series ?? "");
   const [seriesOrder, setSeriesOrder] = useState(game?.seriesOrder !== null && game?.seriesOrder !== undefined ? String(game.seriesOrder) : "");
   const allGames = useStore((s) => s.games);
+  /** Without IGDB the search finds only games already here; a new game starts at its title. */
+  const igdbReady = useStore((s) => s.settings.igdbClientId !== "" && s.settings.igdbClientSecret !== "");
   const knownSeries = useMemo(() => seriesNames(allGames), [allGames]);
   const [meta, setMeta] = useState<Metadata>(game ? metadataOf(game) : NO_METADATA);
   const [pick, setPick] = useState<{ note: string; tone: "hint" | "warn" } | null>(null);
@@ -156,7 +158,7 @@ export function GameDialog({ mode, game, defaultPlan, planTitles, currentIndex, 
   return (
     <Modal title={mode === "add" ? t.gameDialog.addTitle : t.gameDialog.editTitle} onClose={onClose} size="lg">
       <form className="form" onSubmit={(event) => void submit(event)} noValidate>
-        <GameSearch onPick={applyPick} autoFocus={mode === "add"} onSetupIgdb={onSetupIgdb} initialQuery={mode === "add" ? initialQuery : undefined} />
+        <GameSearch onPick={applyPick} autoFocus={mode === "add" && igdbReady} onSetupIgdb={onSetupIgdb} initialQuery={mode === "add" ? initialQuery : undefined} />
         <ProviderLinked
           meta={meta}
           note={pick?.note ?? null}
@@ -174,7 +176,7 @@ export function GameDialog({ mode, game, defaultPlan, planTitles, currentIndex, 
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-invalid={!!errors.title}
-            data-autofocus={mode === "edit" ? "true" : undefined}
+            data-autofocus={mode === "edit" || !igdbReady ? "true" : undefined}
           />
           {errors.title && <span className="field-error">{errors.title}</span>}
         </label>

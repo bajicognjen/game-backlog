@@ -883,6 +883,7 @@ textarea {
 
 /* A narrow phone wraps the key at a dash, between groups, never inside one (`.path` breaks anywhere). */
 .path.sync-key {
+  font-size: var(--text-base); /* body size, not a path's 12px: it may be typed from */
   word-break: normal;
   overflow-wrap: anywhere;
 }
@@ -899,8 +900,8 @@ textarea {
    themes (the dark theme's paper would invert it); the four-module quiet zone is inside the tile. */
 .sync-qr {
   display: block;
-  width: 168px;
-  height: 168px;
+  width: 180px; /* while the code is drawn; the code itself sets 4px per module */
+  height: 180px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: #ffffff;
@@ -3478,6 +3479,16 @@ h3[tabindex="-1"]:focus {
     max-width: none;
   }
 
+  /* No note, no line: an empty one would still add the row gap under the last line. */
+  .completed-table td.note:empty {
+    display: none;
+  }
+
+  /* The rating's pill has 6px of padding and a 1px border; it hangs left so its figure lines up with the title. */
+  .completed-table .rating-value {
+    margin-left: -7px;
+  }
+
   .row-actions {
     color: var(--text); /* no hover on a phone: the actions stay visible */
   }
@@ -3670,5 +3681,18 @@ h3[tabindex="-1"]:focus {
 
   .completed-table .rating-value::after {
     inset: -2px -2px -14px;
+  }
+}
+
+/* A phone: the plan tabs' track runs to the right edge, like the cards under it, instead of stopping short;
+   the tabs share the width and centre their names. */
+@media (max-width: 599px) {
+  .section-title > .tabs[role="tablist"] {
+    flex: 1 1 auto;
+  }
+
+  .section-title > .tabs[role="tablist"] .tab {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }

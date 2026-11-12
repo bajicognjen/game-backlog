@@ -136,7 +136,8 @@ export function NowPlaying({ rows, today, plan, onPlanChange, onOpen, onFinish, 
             <p className="now-meta">
               <StatusBadge status="in_progress" />
               <TypeChip type={game.type} />
-              <GenreChip genre={game.genre} />
+              {/* A table keeps the column's dash; this line just leaves a missing genre out. */}
+              {game.genre !== null && <GenreChip genre={game.genre} />}
             </p>
           </div>
           <div className="now-actions">

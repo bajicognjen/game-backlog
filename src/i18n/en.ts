@@ -302,6 +302,7 @@ export const t = {
     linkHintCopy: "Copy the join link and open it on your other device. Anyone who has the link can read and change the plan.",
     shareLink: "Share join link",
     shareTitle: "Game Backlog join link",
+    shareText: "Open this on your other device to sync its Game Backlog plan with this one.",
     otherWays: "Other ways",
     otherWaysName: "Other ways to add a device",
     keyLabel: "Sync key",

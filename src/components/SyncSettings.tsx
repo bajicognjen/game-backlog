@@ -285,7 +285,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
 
   async function shareLink(text: string) {
     try {
-      await navigator.share({ title: t.sync.shareTitle, url: text });
+      await navigator.share({ title: t.sync.shareTitle, text: t.sync.shareText, url: text });
     } catch (error) {
       // Closing the share sheet is a choice, not a failure; anything else falls back to copying.
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -621,9 +621,12 @@ function AddDevice(props: AddDeviceProps) {
     </>
   );
   const qr = showQr && <SyncQrCode id={qrId} text={link} label={t.sync.qrLabel} />;
+  const labelId = useId();
   return (
-    <div className="settings-action sync-add">
-      <span className="field-label">{t.sync.addDevice}</span>
+    <div className="settings-action sync-add" role="group" aria-labelledby={labelId}>
+      <span className="field-label" id={labelId}>
+        {t.sync.addDevice}
+      </span>
       <div className="field-actions">
         {share && (
           <button type="button" className="button button-small" onClick={props.onShare}>

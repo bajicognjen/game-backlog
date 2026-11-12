@@ -28,7 +28,8 @@ export function SyncQrCode({ id, text, label }: Props) {
   if (!modules) return <div id={id} className="sync-qr" aria-busy="true" />;
   const size = modules.length;
   return (
-    <svg id={id} className="sync-qr" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label} shapeRendering="crispEdges">
+    // Four CSS pixels per module, a whole number, so every module's edge lands on a pixel and a camera reads it cleanly.
+    <svg id={id} className="sync-qr" viewBox={`0 0 ${size} ${size}`} style={{ width: size * 4, height: size * 4 }} role="img" aria-label={label} shapeRendering="crispEdges">
       <path d={modulePath(modules)} fill="currentColor" />
     </svg>
   );
