@@ -229,6 +229,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     <div className="settings-group" ref={groupRef} id="sync-settings">
       <h3>{t.sync.title}</h3>
       <p className="settings-group-note">{t.sync.note}</p>
+      <SyncAnnouncer status={state.kind === "off" || refused ? null : status} />
       <div className="settings-group-body">
         <Banner place="sync" />
         {state.kind === "off" && offStep === "choose" && (
@@ -336,8 +337,8 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
           <>
             {/* Folded like IGDB and Steam once set up: the state, the one action it calls for, and Change. */}
             <div className="settings-status">
-              {/* Read out as it changes (synced, waiting, failed, a conflict) while Settings is open. */}
-              <div className="sync-status" role="status">
+              {/* Not a live region: its "5 min ago" ticks every minute. SyncAnnouncer reads out the changes that matter. */}
+              <div className="sync-status">
                 <span className="sync-status-line">
                   <span className={`sync-state sync-state-${status.tone}`}>{status.word}</span>
                   {status.when && (
@@ -363,21 +364,16 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                     {t.sync.checkNow}
                   </button>
                 )}
+                {/* One name in both states (the state is aria-expanded), lit while open like the Settings button. */}
                 <button
                   type="button"
-                  className="button button-small button-ghost"
+                  className={`button button-small button-ghost ${managing ? "button-active" : ""}`}
                   aria-expanded={managing}
                   aria-controls={managing ? manageId : undefined}
-                  aria-label={managing ? undefined : t.sync.changeSync}
+                  aria-label={t.sync.changeSync}
                   onClick={() => setManaging((open) => !open)}
                 >
-                  {managing ? (
-                    t.settings.done
-                  ) : (
-                    <>
-                      <Icon name="pencil" size={14} /> {t.settings.change}
-                    </>
-                  )}
+                  <Icon name="pencil" size={14} /> {t.settings.change}
                 </button>
               </span>
             </div>
@@ -461,6 +457,37 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
         />
       )}
       {conflictOpen && <SyncConflictDialog place="sync" onClose={() => setConflictOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * Reads out a change of sync's health while Settings is open: into trouble ("Sync failed", "Different plans",
+ * "Waiting") and back to "Synced". Not every push: "Syncing…" in between and a fresh time are left quiet. The
+ * words clear after a few seconds so they are not read again when moving through the page.
+ */
+function SyncAnnouncer({ status }: { status: SyncStatus | null }) {
+  const [message, setMessage] = useState("");
+  /** The last state word read out, or seen when Settings opened; "quiet" states (turning on, syncing) never count. */
+  const lastWord = useRef<string | null>(status && status.tone !== "quiet" ? status.word : null);
+  const tone = status?.tone ?? null;
+  const word = status?.word ?? "";
+  const detail = status?.detail ?? null;
+  useEffect(() => {
+    if (tone === null || tone === "quiet" || word === lastWord.current) return;
+    const first = lastWord.current === null;
+    lastWord.current = word;
+    if (first && tone === "ok") return; // just turned on and synced: the action's own result says so
+    setMessage(detail ? `${word}. ${detail}` : word);
+  }, [tone, word, detail]);
+  useEffect(() => {
+    if (message === "") return;
+    const timer = setTimeout(() => setMessage(""), 7000);
+    return () => clearTimeout(timer);
+  }, [message]);
+  return (
+    <div className="visually-hidden" role="status">
+      {message}
     </div>
   );
 }
