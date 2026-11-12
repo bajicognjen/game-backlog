@@ -265,6 +265,8 @@ export const t = {
     setUpSteam: "Set up Steam",
     done: "Done",
     appTitle: "App",
+    // Below 900px the theme leaves the top bar (its room goes to Sync) and lives here.
+    themeNote: "How the app looks on this device. System follows the device's light or dark setting.",
     appNote: "Updates and the automatic backups.",
     appNoteWeb: "This version and where your data lives.",
     dataTitle: "Your data",
@@ -384,7 +386,10 @@ export const t = {
     startedAgain: "Sync is on again under a new key, with this device's plan. Links and QR codes from before don't work; add your other devices with the new join link.",
     joined: "Joined: this device now has the synced plan and keeps it in step.",
     deleted: "Deleted the server copy. Sync is off on this device, and it keeps its plan.",
-    bannerConflict: "This device and the server have different plans. Nothing syncs until you choose.",
+    bannerConflict: "Different plans: this device and the server each have one. Nothing syncs until you choose which to keep.",
+    // The top bar's Sync button: its name says the state, so it is heard without opening Settings.
+    topbarName: "Sync: {state}",
+    topbarOff: "Sync: off",
     // Outside Settings, only for sync that has stopped; "Waiting" for the connection is normal and stays in Settings.
     // The banners open with the same words as Sync's status, so there is one vocabulary for trouble.
     bannerGone: "Server copy deleted, so this device isn't syncing. Its plan is safe here.",
@@ -416,6 +421,7 @@ export const t = {
   },
   emptyPlan: "The plan is empty.",
   emptyPlanHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings).",
+  emptyPlanSyncedHint: "This plan syncs: games added here or on your other devices appear in it, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings).",
   emptyPlanJoinHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings). Planning on another device too? Sync keeps both on one plan.",
   // A plan tab's count as a screen reader hears it, after the plan's name: "PC, 26 games".
   tabCount: ", {n} games",

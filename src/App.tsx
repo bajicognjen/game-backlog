@@ -198,7 +198,13 @@ export default function App() {
           {t.skipToStats}
         </a>
       </nav>
-      <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
+      <TopBar
+        settingsOpen={settingsOpen}
+        onToggleSettings={toggleSettings}
+        onExport={() => void exportBackup()}
+        onImport={() => void startImport()}
+        onOpenSync={openSync}
+      />
       <main>
         {/* A choice about the plan comes before news about the app. */}
         <SyncBanner onOpenSync={openSync} />
@@ -307,6 +313,8 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, edi
   const filterable = useMemo(() => hasIgdbData(games), [games]);
   /** A web copy with nothing in it and sync off may be a first device or a second: the empty plan offers to set up sync, not to guess. */
   const canJoin = useSync((s) => s.supported && s.state.kind === "off") && games.length === 0;
+  /** Syncing: an empty plan may fill from another device, and says so. */
+  const synced = useSync((s) => s.supported && s.state.kind !== "off");
 
   // The details dialog can ask for a planned game's edit form.
   useEffect(() => {
@@ -390,7 +398,7 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, edi
   ) : scheduled ? (
     <EmptyState
       title={t.emptyPlan}
-      hint={(canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint).replace("{hours}", formatHours(settings.hoursPerWeek))}
+      hint={(canJoin ? t.emptyPlanJoinHint : synced ? t.emptyPlanSyncedHint : t.emptyPlanHint).replace("{hours}", formatHours(settings.hoursPerWeek))}
       action={
         canJoin && (
           <button type="button" className="button" onClick={onSetUpSync}>

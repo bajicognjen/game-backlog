@@ -31,6 +31,7 @@ export type IconName =
   | "link"
   | "qr"
   | "share"
+  | "cloud"
   | "trash"
   | "refresh"
   | "info"
@@ -114,6 +115,7 @@ const PATHS: Record<IconName, ReactElement> = {
       <path d="M14 14h3v3h-3zM21 14v.01M17 21h4v-4M14 21v.01" />
     </>
   ),
+  cloud: <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />,
   share: (
     <>
       <circle cx="18" cy="5" r="3" />

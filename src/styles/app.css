@@ -2146,6 +2146,49 @@ tr:focus-within .row-actions {
   font-size: var(--text-md);
 }
 
+/* The top bar's Sync button: a cloud with sync's state dot at its shoulder (the dots of Settings → Sync), cut
+   out of the bar by a ring of the bar's own colour; no dot while sync is off. */
+.topbar-sync-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.topbar-sync-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.topbar-sync-dot-ok {
+  background: var(--success);
+}
+
+.topbar-sync-dot-warn {
+  background: var(--warning);
+}
+
+.topbar-sync-dot-bad {
+  background: var(--danger);
+}
+
+.topbar-sync-dot-quiet {
+  background: var(--surface);
+  box-shadow:
+    inset 0 0 0 2px var(--text-muted),
+    0 0 0 2px var(--surface);
+}
+
+/* The theme lives in the top bar from 900px up; Settings has it only below that. */
+@media (min-width: 900px) {
+  .settings-group-narrow {
+    display: none;
+  }
+}
+
 /* ---------- Filters and sorting ---------- */
 
 .filter-bar {
@@ -3174,7 +3217,8 @@ h3[tabindex="-1"]:focus {
   }
 
   .version-tag,
-  .topbar-divider {
+  .topbar-divider,
+  .topbar-theme {
     display: none;
   }
 
@@ -3518,8 +3562,8 @@ h3[tabindex="-1"]:focus {
     --fold-handle: 32px;
   }
 
-  /* Six 40px-tall controls and the app name share the bar: tighter gaps and 32px theme options keep
-     "Game Backlog" whole from 360px up. */
+  /* Four 40px-tall controls (Export, Import, Sync, Settings) and the app name share the bar on a phone; the
+     theme options (32px wide where they show) live in Settings below 900px. */
   .topbar {
     padding: 0 8px;
   }

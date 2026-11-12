@@ -33,9 +33,13 @@ export function SyncBanner({ onOpenSync }: { onOpenSync(): void }) {
         {conflict ? t.sync.bannerConflict : (stopped ?? "")}
       </div>
       <div>
+        {/* Sync has stopped until a choice is made: the same caution as the other stops, not the routine blue of news. */}
         {conflict && (
-          <div className="banner banner-info">
-            <span>{t.sync.bannerConflict}</span>
+          <div className="banner banner-warn">
+            <span className="banner-text">
+              <Icon name="alert" size={16} className="banner-icon" />
+              {t.sync.bannerConflict}
+            </span>
             <span className="banner-actions">
               <button type="button" className="button button-primary button-small" onClick={() => setOpen(true)}>
                 {t.sync.resolve}
