@@ -57,6 +57,33 @@ export async function decodeDocument(bytes: Uint8Array): Promise<SnapshotState> 
   return fromStoredState(JSON.parse(await new Response(stream).text()));
 }
 
+type PlanContent = Pick<SnapshotState, "settings" | "games" | "sessions">;
+
+/**
+ * Whether two copies hold the same plan: the same games, sessions and plan settings. What differs between devices
+ * without changing the plan does not count: when each was written, the id counters, the credentials and Steam
+ * lists (never synced) and the theme. Two copies that match need no choice between them.
+ */
+export function samePlan(a: PlanContent, b: PlanContent): boolean {
+  return stableJson(planContent(a)) === stableJson(planContent(b));
+}
+
+function planContent(plan: PlanContent) {
+  const { settings } = toRemoteDocument({ ...plan, nextGameId: 0, nextSessionId: 0 }, new Date(0));
+  const { theme: _theme, ...planSettings } = settings;
+  const byId = (x: { id: number }, y: { id: number }) => x.id - y.id;
+  return { settings: planSettings, games: [...plan.games].sort(byId), sessions: [...plan.sessions].sort(byId) };
+}
+
+/** JSON with every object's keys in one order, so the same content always reads the same. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, inner: unknown) =>
+    inner && typeof inner === "object" && !Array.isArray(inner)
+      ? Object.fromEntries(Object.entries(inner as Record<string, unknown>).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)))
+      : inner,
+  );
+}
+
 /** A plan in the shape `replaceAll` (and the store's `applyBackup`) takes. */
 function asBackup(plan: Pick<SnapshotState, "settings" | "games" | "sessions">, exportedAt: string): Backup {
   return { app: "game-backlog", version: BACKUP_VERSION, exportedAt, settings: plan.settings, games: plan.games, sessions: plan.sessions };
@@ -290,6 +317,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     if (result.kind === "conflict") {
       const remote = result.remote ?? (await fetchRemote(current.key));
       const dirty = await saveMeta({ ...current, dirty: true });
+      if (remote && (await adoptIfSame(dirty, remote))) return;
       if (remote) set({ kind: "conflict", meta: dirty, remote });
       else if (baseRevision > 0) set({ kind: "gone", meta: dirty }); // the copy it was based on is no longer there
       else set({ kind: "pending", meta: dirty, reason: "error", detail: "conflict" });
@@ -300,6 +328,25 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       return;
     }
     set({ kind: "pending", meta: await saveMeta({ ...current, dirty: true }), reason: "too-large", detail: null });
+  }
+
+  /**
+   * Both sides changed, or a device joins with a plan of its own, but the two copies hold the same plan (a rejoin
+   * after Turn off, two devices that made the same edit): take the server's revision and carry on. There is
+   * nothing to choose between, so nothing is asked.
+   */
+  async function adoptIfSame(current: SyncMeta, remote: RemoteDocument): Promise<boolean> {
+    let server: SnapshotState;
+    try {
+      server = await decodeDocument(remote.bytes);
+    } catch {
+      return false; // an unreadable server copy is the conflict dialog's to show
+    }
+    const local = unsent ?? (await deps.repository.load());
+    if (!samePlan(local, server)) return false;
+    unsent = null;
+    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: now().toISOString() }) });
+    return true;
   }
 
   async function fetchRemote(key: string): Promise<RemoteDocument | null> {
@@ -350,6 +397,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         break;
       case "conflict": {
         const remote = result.kind === "document" ? result.remote : await fetchRemote(current.key);
+        if (remote && (await adoptIfSame(current, remote))) break;
         if (remote) set({ kind: "conflict", meta: current, remote });
         else await push(current, 0);
         break;
@@ -387,6 +435,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         const local = await deps.repository.load();
         if (local.games.length === 0 && local.sessions.length === 0) {
           await pull(current, remote);
+          return "connected";
+        }
+        // The same plan on both (a device rejoining its own key): joined, with the same "Joined" word as a pull.
+        if (await adoptIfSame(current, remote)) {
+          await deps.onPulled();
           return "connected";
         }
         set({ kind: "conflict", meta: current, remote });

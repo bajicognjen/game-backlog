@@ -363,7 +363,7 @@ export const t = {
     conflictOutcome: "Nothing is merged: the plan you keep replaces the other, here and on your other devices. Undo brings the other back for 20 seconds; until you choose, nothing syncs.",
     onlyHere: "Only on this device:",
     onlyThere: "Only on the server:",
-    sameGames: "Both have the same games; they differ in hours, order or what is finished.",
+    sameGames: "Both have the same games; what differs is in their details (hours, order, dates or what is finished) or the plan's settings.",
     moreTitles: "+{n} more",
     exportFirst: "Export this device's plan first",
     compareDevice: "This device",
