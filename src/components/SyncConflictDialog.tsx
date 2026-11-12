@@ -1,10 +1,12 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { formatDateTime } from "../domain/dates";
 import { formatHours } from "../domain/format";
+import { titlesOnlyIn } from "../domain/sync";
 import { t } from "../i18n/en";
 import type { ConflictSide, ConflictSides } from "../platform/sync";
-import type { NoticePlace } from "../state/store";
+import { useStore, type NoticePlace } from "../state/store";
 import { useSync } from "../state/sync";
+import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 
 interface CompareRow {
@@ -22,6 +24,7 @@ interface CompareRow {
 export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void; place?: NoticePlace }) {
   const state = useSync((s) => s.state);
   const resolve = useSync((s) => s.resolve);
+  const exportBackup = useStore((s) => s.exportBackup);
   const conflictSides = useSync((s) => s.conflictSides);
   const [busy, setBusy] = useState(false);
   const [sides, setSides] = useState<ConflictSides | null>(null);
@@ -75,6 +78,11 @@ export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void
           ))}
         </tbody>
       </table>
+      {/* The totals can match while the games differ: name what choosing the other copy would lose. */}
+      {sides && <SyncDiff sides={sides} />}
+      <button type="button" className="button button-ghost button-small sync-export" onClick={() => void exportBackup()}>
+        <Icon name="download" size={14} /> {t.sync.exportFirst}
+      </button>
       <p className="modal-text" id={outcomeId}>
         {t.sync.conflictOutcome}
       </p>
@@ -130,5 +138,34 @@ function ChangeTime({ iso, seconds }: { iso: string; seconds: boolean }) {
       {date},{" "}
       <span className="sync-compare-time">{withSeconds}</span>
     </>
+  );
+}
+
+/** How many titles a line names before "+N more": enough to recognise the copy, short enough for a phone. */
+const TITLES_SHOWN = 3;
+
+/** "Only on this device: …" and "Only on the server: …", or a line saying both have the same games. */
+function SyncDiff({ sides }: { sides: ConflictSides }) {
+  const here = titlesOnlyIn(sides.device.titles, sides.server.titles);
+  const there = titlesOnlyIn(sides.server.titles, sides.device.titles);
+  if (here.length === 0 && there.length === 0) {
+    return (
+      <div className="sync-diffs">
+        <p className="sync-diff muted">{t.sync.sameGames}</p>
+      </div>
+    );
+  }
+  const line = (label: string, titles: string[]) =>
+    titles.length > 0 && (
+      <p className="sync-diff">
+        <span className="sync-diff-label">{label}</span> {titles.slice(0, TITLES_SHOWN).join(", ")}
+        {titles.length > TITLES_SHOWN && <span className="muted"> ({t.sync.moreTitles.replace("{n}", String(titles.length - TITLES_SHOWN))})</span>}
+      </p>
+    );
+  return (
+    <div className="sync-diffs">
+      {line(t.sync.onlyHere, here)}
+      {line(t.sync.onlyThere, there)}
+    </div>
   );
 }

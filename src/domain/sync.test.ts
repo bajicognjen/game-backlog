@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSyncKey, joinLink, keyInJoinLink, normaliseSyncKey, readSyncKey, reconcile, summarizePlan, syncKeyFromBytes } from "./sync";
+import { formatSyncKey, joinLink, keyInJoinLink, normaliseSyncKey, readSyncKey, titlesOnlyIn, reconcile, summarizePlan, syncKeyFromBytes } from "./sync";
 
 describe("summarizePlan", () => {
   it("counts games still in the plan, finished games and the hours logged", () => {
@@ -60,5 +60,13 @@ describe("reconcile", () => {
   it("never decides for the user when both sides changed", () => {
     expect(reconcile({ revision: 3, dirty: true }, 5)).toBe("conflict");
     expect(reconcile({ revision: 5, dirty: false }, 2)).toBe("conflict");
+  });
+});
+
+describe("titlesOnlyIn", () => {
+  it("lists what only one copy has, ignoring case and spaces, once each, in that copy's order", () => {
+    expect(titlesOnlyIn(["Hollow Knight", "Portal 2", " portal 2", "Celeste"], ["portal 2", "Hades"])).toEqual(["Hollow Knight", "Celeste"]);
+    expect(titlesOnlyIn(["A"], ["a "])).toEqual([]);
+    expect(titlesOnlyIn([], ["A"])).toEqual([]);
   });
 });

@@ -358,8 +358,8 @@ describe("sync engine", () => {
     const remote = { revision: 3, updatedAt: "2026-11-11T12:00:00.000Z", bytes: await encodeDocument(toRemoteDocument(theirs)) };
 
     const sides = await describeConflict(local, remote);
-    expect(sides.device).toEqual({ inPlan: 1, finished: 0, hoursLogged: 0, changedAt: local!.exportedAt });
-    expect(sides.server).toEqual({ inPlan: 1, finished: 1, hoursLogged: 2.5, changedAt: "2026-11-11T12:00:00.000Z" });
+    expect(sides.device).toEqual({ inPlan: 1, finished: 0, hoursLogged: 0, changedAt: local!.exportedAt, titles: ["Mine"] });
+    expect(sides.server).toEqual({ inPlan: 1, finished: 1, hoursLogged: 2.5, changedAt: "2026-11-11T12:00:00.000Z", titles: ["Mine", "Theirs"] });
   });
 
   it("joining a key with nothing stored under it saves nothing and creates nothing", async () => {

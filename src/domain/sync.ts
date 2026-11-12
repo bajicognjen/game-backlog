@@ -126,3 +126,19 @@ export function reconcile(meta: Pick<SyncMeta, "revision" | "dirty">, remoteRevi
   if (remoteRevision > meta.revision) return meta.dirty ? "conflict" : "pull";
   return "conflict"; // the server went backwards: deleted and re-created elsewhere
 }
+
+/**
+ * The titles on one copy of the plan and not on the other, compared without case or surrounding spaces, in
+ * the order the first copy has them: what choosing the other copy would lose.
+ */
+export function titlesOnlyIn(these: readonly string[], those: readonly string[]): string[] {
+  const key = (title: string) => title.trim().toLowerCase();
+  const other = new Set(those.map(key));
+  const seen = new Set<string>();
+  return these.filter((title) => {
+    const k = key(title);
+    if (other.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

@@ -2337,6 +2337,28 @@ tr:focus-within .row-actions {
   border-bottom: 0;
 }
 
+/* What only one copy has, under the totals: the label in 600 so the titles read as a list after it. */
+.sync-diffs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -6px 0 10px;
+}
+
+.sync-diff {
+  margin: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.sync-diff-label {
+  font-weight: 600;
+}
+
+.sync-export {
+  margin: 0 0 12px -8px; /* the words line up with the text; the small button's padding hangs left */
+}
+
 .sync-compare-strong {
   font-weight: 650;
 }

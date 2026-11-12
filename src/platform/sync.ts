@@ -67,6 +67,8 @@ function asBackup(plan: Pick<SnapshotState, "settings" | "games" | "sessions">, 
 /** One copy of the plan as the conflict dialog shows it; `changedAt` is when that copy was last written (ISO). */
 export interface ConflictSide extends PlanSummary {
   changedAt: string | null;
+  /** Every game's title on this copy (planned and finished), for what only one copy has. */
+  titles: string[];
 }
 
 export interface ConflictSides {
@@ -78,8 +80,8 @@ export interface ConflictSides {
 export async function describeConflict(local: StoredState | undefined, remote: RemoteDocument): Promise<ConflictSides> {
   const server = await decodeDocument(remote.bytes);
   return {
-    device: { ...summarizePlan(local?.games ?? [], local?.sessions ?? []), changedAt: local?.exportedAt ?? null },
-    server: { ...summarizePlan(server.games, server.sessions), changedAt: remote.updatedAt },
+    device: { ...summarizePlan(local?.games ?? [], local?.sessions ?? []), changedAt: local?.exportedAt ?? null, titles: (local?.games ?? []).map((g) => g.title) },
+    server: { ...summarizePlan(server.games, server.sessions), changedAt: remote.updatedAt, titles: server.games.map((g) => g.title) },
   };
 }
 
