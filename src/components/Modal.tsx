@@ -14,6 +14,11 @@ interface Props {
   size?: "md" | "lg" | "xl";
   /** Ids of the text that explains the dialog (a consequence), read out with its title when it opens. */
   describedBy?: string;
+  /**
+   * Open with focus on the title, scrolled to the top: for a dialog whose content must be read before any of its
+   * buttons (the sync conflict), where focusing a button would scroll a short phone past the question.
+   */
+  focusTitle?: boolean;
 }
 
 /**
@@ -21,14 +26,16 @@ interface Props {
  * Focus goes to the element marked `data-autofocus` (else the first control)
  * and returns to whatever opened the dialog when it closes.
  */
-export function Modal({ title, onClose, children, size = "md", describedBy }: Props) {
+export function Modal({ title, onClose, children, size = "md", describedBy, focusTitle = false }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (dialog && !dialog.open) dialog.showModal();
-    const first = dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
+    const first = focusTitle
+      ? dialog?.querySelector<HTMLElement>(".modal-title")
+      : (dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog?.querySelector<HTMLElement>(FOCUSABLE));
     first?.focus();
     // Content that arrives after opening (the sync comparison's numbers) can push the focused control below the
     // dialog's fold on a short phone; bring it back into view whenever the content changes size.
@@ -72,7 +79,7 @@ export function Modal({ title, onClose, children, size = "md", describedBy }: Pr
       }}
     >
       <div className="modal-content">
-        <h2 id="modal-title" className="modal-title">
+        <h2 id="modal-title" className="modal-title" tabIndex={focusTitle ? -1 : undefined}>
           {title}
         </h2>
         {children}

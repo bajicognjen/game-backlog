@@ -2394,6 +2394,24 @@ tr:focus-within .row-actions {
    deliberate block, Log hours and Pause side by side and Finish game the full width under them, where a thumb
    ends up. A narrow window with a mouse keeps them in a row; the idle card keeps its single Start. */
 @media (max-width: 599px), (max-width: 899px) and (pointer: coarse) {
+  /* Dialogs 8px from each edge. The browser's own dialog rule caps a modal at 100% - 2em - 6px, which would win
+     and leave 17px margins; on a 320px phone that cost the sync comparison its last column. A narrow window with
+     a mouse keeps each dialog's own width. */
+  .modal,
+  .modal-lg,
+  .modal-xl {
+    width: calc(100vw - 16px);
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+  }
+
+  /* Choices too long to share a row (the sync conflict) stack full width in the order they're written, the way
+     out last, where a thumb ends up. */
+  .modal-actions-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .now:not(.now-idle) .now-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -3012,7 +3030,9 @@ h3[tabindex="-1"]:focus {
 
 /* ---------- Short windows: the card gives rows back ---------- */
 
-@media (max-height: 700px) {
+/* The desktop window made short, not a phone: a phone is short by nature (Safari's bars take 100px and more), and
+   its folded card already gives rows back; hiding the status and the explanation there cost what it says. */
+@media (max-height: 700px) and (min-width: 900px) {
   .now {
     padding: 12px 16px;
     gap: 14px;
@@ -3210,6 +3230,11 @@ h3[tabindex="-1"]:focus {
     flex-direction: column;
     gap: 12px;
     padding: 14px;
+  }
+
+  /* The quiet card keeps the column's left edge (its centring is for the side-by-side layout). */
+  .now-idle {
+    align-items: stretch;
   }
 
   .now-cover {
@@ -3413,16 +3438,6 @@ h3[tabindex="-1"]:focus {
     grid-template-columns: 1fr;
   }
 
-  /* 8px from each edge. The browser's own dialog rule caps a modal at 100% - 2em - 6px, which would win and
-     leave 17px margins; on a 320px phone that cost the sync comparison its last column. */
-  .modal,
-  .modal-lg,
-  .modal-xl {
-    width: calc(100vw - 16px);
-    max-width: none;
-    max-height: calc(100dvh - 16px);
-  }
-
   /* The comparison keeps both columns in view: labels may wrap, cells sit closer. */
   .sync-compare th,
   .sync-compare td {
@@ -3431,17 +3446,6 @@ h3[tabindex="-1"]:focus {
 
   .sync-compare tbody th {
     white-space: normal;
-  }
-
-  /* Choices too long to share a row (the sync conflict) stack full width, in reading order. */
-  .modal-actions-stack {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  /* The way out ("Decide later") goes under the choices, where a thumb ends up. */
-  .modal-actions-stack .button-ghost {
-    order: 1;
   }
 
   .settings-group-body .input,

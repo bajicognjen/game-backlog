@@ -56,7 +56,8 @@ export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void
   const lead = state.meta.lastSyncedAt ? t.sync.conflictSince.replace("{time}", formatDateTime(state.meta.lastSyncedAt)) : t.sync.conflictFirst;
 
   return (
-    <Modal title={t.sync.conflictTitle} onClose={onClose} describedBy={`${leadId} ${outcomeId}`}>
+    // Focus on the question, not a button: the ledger is read first, and a short phone isn't scrolled past it.
+    <Modal title={t.sync.conflictTitle} onClose={onClose} describedBy={`${leadId} ${outcomeId}`} focusTitle>
       <p className="modal-text" id={leadId}>
         {lead}
       </p>
@@ -86,16 +87,17 @@ export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void
       <p className="modal-text" id={outcomeId}>
         {t.sync.conflictOutcome}
       </p>
+      {/* Written in the order they're seen, so Tab goes the way the eye does: the two choices in the table's column
+          order (this device, then the server), then the way out. */}
       <div className="modal-actions modal-actions-stack">
-        <button type="button" className="button button-ghost" onClick={onClose} disabled={busy} data-autofocus>
-          {t.sync.later}
-        </button>
-        {/* Same order as the table's columns: this device, then the server. */}
         <button type="button" className="button" onClick={() => void choose("keep-mine")} disabled={busy}>
           {t.sync.keepMine}
         </button>
         <button type="button" className="button" onClick={() => void choose("take-server")} disabled={busy}>
           {t.sync.takeServer}
+        </button>
+        <button type="button" className="button button-ghost" onClick={onClose} disabled={busy}>
+          {t.sync.later}
         </button>
       </div>
     </Modal>
