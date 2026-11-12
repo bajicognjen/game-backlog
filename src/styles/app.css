@@ -844,7 +844,7 @@ textarea {
   max-width: 78ch;
 }
 
-/* Behind Change: Turn off and Delete server copy, each with its own hint under it. */
+/* Behind Change, right under the state: Turn off and Delete server copy, each with its own hint under it. */
 /* Delete server copy is a ghost button: its words line up with the hint under it, the padding hangs left. */
 .sync-manage .button-danger-ghost {
   margin-left: -13px; /* 12px padding + 1px border */
@@ -855,6 +855,23 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 8px; /* opened under the state: the ways to stop end before the ways to add a device begin */
+}
+
+/* Behind "Other ways": the rest of the ways to add a device, opening under the hint of the one that leads. */
+.sync-other-ways {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Something to copy by hand (the key, or a link the clipboard refused): one tap selects all of it. */
+.sync-copy-text {
+  font-family: inherit; /* The One Family Rule */
+  user-select: all;
+  -webkit-user-select: all;
 }
 
 /* The key in the app's one face (The One Family Rule); tabular figures keep its groups even. */
@@ -862,6 +879,12 @@ textarea {
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+/* A narrow phone wraps the key at a dash, between groups, never inside one (`.path` breaks anywhere). */
+.path.sync-key {
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Sync off: the two ways in, one under the other, each with what it is for right under its button. */

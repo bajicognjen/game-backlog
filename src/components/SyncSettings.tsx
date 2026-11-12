@@ -9,6 +9,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
 import { SyncQrCode } from "./SyncQrCode";
+import { useMediaQuery } from "./useMediaQuery";
 
 /**
  * Sent from outside: "join" (a join link, the empty plan) opens the join form, with the key from the link
@@ -64,9 +65,19 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     setStep(next);
   }
 
-  const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState<"key" | "link" | null>(null);
+  /** What the clipboard refused, shown as text to copy by hand. */
+  const [byHand, setByHand] = useState<"key" | "link" | null>(null);
   const [showQr, setShowQr] = useState(false);
+  /** "Other ways" is open: the ways to add a device that don't lead here (the key, and on a phone the link and QR code). */
+  const [otherWays, setOtherWays] = useState(false);
+  const otherWaysId = useId();
+  /**
+   * A touch screen leads with the system share sheet, where the link goes to a message or the other device; with a
+   * mouse the screen is the one a phone's camera looks at, so the QR code and the link lead.
+   */
+  const touch = useMediaQuery("(pointer: coarse)");
+  const canShare = touch && typeof navigator.share === "function";
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
   /** Change is open: Turn off and Delete server copy are shown. Folded again whenever sync goes off. */
@@ -77,6 +88,8 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     if (state.kind === "off") {
       setManaging(false);
       setShowQr(false);
+      setOtherWays(false);
+      setByHand(null);
     }
   }, [state.kind]);
   // "5 min ago" keeps up while Settings stays open.
@@ -209,12 +222,22 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   async function copyText(text: string, what: "key" | "link") {
     try {
       await navigator.clipboard.writeText(text);
+      setByHand(null);
       setCopied(what);
       setTimeout(() => setCopied((c) => (c === what ? null : c)), 2000);
     } catch {
       // No clipboard access: show what was meant to be copied, to copy by hand.
-      if (what === "key") setShowKey(true);
-      else setShowQr(true);
+      setByHand(what);
+    }
+  }
+
+  async function shareLink(text: string) {
+    try {
+      await navigator.share({ title: t.sync.shareTitle, url: text });
+    } catch (error) {
+      // Closing the share sheet is a choice, not a failure; anything else falls back to copying.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      await copyText(text, "link");
     }
   }
 
@@ -389,46 +412,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
             </div>
             {requestNote && <p className="field-hint sync-request-note">{requestNote}</p>}
 
-            {/* The key and the join link stay in view: setting up another device is what people come back here for. */}
-            <div className="settings-action">
-              <span className="field-label">{t.sync.keyLabel}</span>
-              <div className="field-actions">
-                <code className="path sync-key">
-                  {showKey ? (
-                    formatSyncKey(state.meta.key)
-                  ) : (
-                    <>
-                      <span className="visually-hidden">{t.sync.keyHidden}</span>
-                      <span aria-hidden="true">••••-••••-••••-••••-••••-••••-••••-••••</span>
-                    </>
-                  )}
-                </code>
-                <button type="button" className="button button-small" onClick={() => setShowKey((v) => !v)}>
-                  {showKey ? t.sync.hide : t.sync.show}
-                </button>
-                <button type="button" className="button button-small" onClick={() => void copyText(formatSyncKey(state.meta.key), "key")}>
-                  {copied === "key" ? t.sync.copied : t.sync.copy}
-                </button>
-              </div>
-              <div className="field-actions">
-                <button type="button" className="button button-small" onClick={() => link && void copyText(link, "link")}>
-                  <Icon name="link" size={14} /> {copied === "link" ? t.sync.linkCopied : t.sync.copyLink}
-                </button>
-                <button
-                  type="button"
-                  className="button button-small"
-                  aria-expanded={showQr}
-                  aria-controls={showQr ? qrId : undefined}
-                  onClick={() => setShowQr((v) => !v)}
-                >
-                  <Icon name="qr" size={14} /> {showQr ? t.sync.hideQr : t.sync.showQr}
-                </button>
-              </div>
-              {showQr && link && <SyncQrCode id={qrId} text={link} label={t.sync.qrLabel} />}
-              <p className="field-hint">{t.sync.keyHint}</p>
-            </div>
-
-            {/* Behind Change: the two ways to stop, each with what it does right under it. */}
+            {/* Behind Change, right under it: the two ways to stop, each with what it does right under it. */}
             {managing && (
               <div className="sync-manage" id={manageId}>
                 <div className="settings-action">
@@ -447,6 +431,27 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Adding a device is what people come back here for, so it stays in view; not while the copy is gone or
+                in question, where a link would lead nowhere or into the same choice. */}
+            {link && state.kind !== "gone" && state.kind !== "conflict" && (
+              <AddDevice
+                link={link}
+                syncKey={formatSyncKey(state.meta.key)}
+                share={canShare}
+                touch={touch}
+                copied={copied}
+                byHand={byHand}
+                showQr={showQr}
+                otherWays={otherWays}
+                qrId={qrId}
+                otherWaysId={otherWaysId}
+                onShare={() => void shareLink(link)}
+                onCopy={(text, what) => void copyText(text, what)}
+                onToggleQr={() => setShowQr((v) => !v)}
+                onToggleOtherWays={() => setOtherWays((v) => !v)}
+              />
             )}
           </>
         )}
@@ -476,6 +481,103 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
         />
       )}
       {conflictOpen && <SyncConflictDialog place="sync" onClose={() => setConflictOpen(false)} />}
+    </div>
+  );
+}
+
+interface AddDeviceProps {
+  link: string;
+  /** The key as shown, in groups of four. */
+  syncKey: string;
+  /** Lead with the system share sheet. */
+  share: boolean;
+  /** A touch screen: the QR code waits behind "Other ways" (the phone in hand is rarely the screen another camera reads). */
+  touch: boolean;
+  copied: "key" | "link" | null;
+  byHand: "key" | "link" | null;
+  showQr: boolean;
+  otherWays: boolean;
+  qrId: string;
+  otherWaysId: string;
+  onShare(): void;
+  onCopy(text: string, what: "key" | "link"): void;
+  onToggleQr(): void;
+  onToggleOtherWays(): void;
+}
+
+/**
+ * One way to add a device leads and the rest wait behind "Other ways": on a touch screen Share join link (or Copy
+ * join link where the browser has no share sheet), with a mouse Copy join link and the QR code. The key is always
+ * behind it, shown in full there, since opening it is the deliberate step.
+ */
+function AddDevice(props: AddDeviceProps) {
+  const { link, syncKey, share, touch, copied, byHand, showQr, otherWays, qrId, otherWaysId } = props;
+  const leadLink = !share;
+  const leadQr = !touch;
+  const linkButton = (
+    <button type="button" className="button button-small" onClick={() => props.onCopy(link, "link")}>
+      <Icon name="link" size={14} /> {copied === "link" ? t.sync.linkCopied : t.sync.copyLink}
+    </button>
+  );
+  const qrButton = (
+    <button type="button" className="button button-small" aria-expanded={showQr} aria-controls={showQr ? qrId : undefined} onClick={props.onToggleQr}>
+      <Icon name="qr" size={14} /> {showQr ? t.sync.hideQr : t.sync.showQr}
+    </button>
+  );
+  const linkText = byHand === "link" && (
+    <>
+      <code className="path sync-copy-text">{link}</code>
+      <p className="field-hint">{t.sync.copyByHand}</p>
+    </>
+  );
+  const qr = showQr && <SyncQrCode id={qrId} text={link} label={t.sync.qrLabel} />;
+  return (
+    <div className="settings-action sync-add">
+      <span className="field-label">{t.sync.addDevice}</span>
+      <div className="field-actions">
+        {share && (
+          <button type="button" className="button button-small" onClick={props.onShare}>
+            <Icon name="share" size={14} /> {t.sync.shareLink}
+          </button>
+        )}
+        {leadLink && linkButton}
+        {leadQr && qrButton}
+        {/* One name in both states, like Change; aria-expanded carries the state. */}
+        <button
+          type="button"
+          className={`button button-small button-ghost ${otherWays ? "button-active" : ""}`}
+          aria-expanded={otherWays}
+          aria-controls={otherWays ? otherWaysId : undefined}
+          aria-label={t.sync.otherWaysName}
+          onClick={props.onToggleOtherWays}
+        >
+          {t.sync.otherWays} <Icon name={otherWays ? "chevron-up" : "chevron-down"} size={14} />
+        </button>
+      </div>
+      {leadLink && linkText}
+      {leadQr && qr}
+      <p className="field-hint">{t.sync.linkHint}</p>
+      {otherWays && (
+        <div className="sync-other-ways" id={otherWaysId}>
+          {(!leadLink || !leadQr) && (
+            <div className="field-actions">
+              {!leadLink && linkButton}
+              {!leadQr && qrButton}
+            </div>
+          )}
+          {!leadLink && linkText}
+          {!leadQr && qr}
+          <span className="field-label">{t.sync.keyLabel}</span>
+          <div className="field-actions">
+            <code className="path sync-key sync-copy-text">{syncKey}</code>
+            <button type="button" className="button button-small" onClick={() => props.onCopy(syncKey, "key")}>
+              {copied === "key" ? t.sync.copied : t.sync.copy}
+            </button>
+          </div>
+          {byHand === "key" && <p className="field-hint">{t.sync.copyByHand}</p>}
+          <p className="field-hint">{t.sync.keyHint}</p>
+        </div>
+      )}
     </div>
   );
 }
