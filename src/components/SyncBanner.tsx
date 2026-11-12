@@ -7,18 +7,23 @@ import { SyncConflictDialog } from "./SyncConflictDialog";
 export function SyncBanner() {
   const state = useSync((s) => s.state);
   const [open, setOpen] = useState(false);
-  if (state.kind !== "conflict") return null;
+  const conflict = state.kind === "conflict";
   return (
     <>
-      <div className="banner banner-info" role="status">
-        <span>{t.sync.bannerConflict}</span>
-        <span className="banner-actions">
-          <button type="button" className="button button-primary button-small" onClick={() => setOpen(true)}>
-            {t.sync.resolve}
-          </button>
-        </span>
+      {/* Always on the page, so a screen reader reads the banner when it appears; the dialog stays outside it. */}
+      <div aria-live="polite">
+        {conflict && (
+          <div className="banner banner-info">
+            <span>{t.sync.bannerConflict}</span>
+            <span className="banner-actions">
+              <button type="button" className="button button-primary button-small" onClick={() => setOpen(true)}>
+                {t.sync.resolve}
+              </button>
+            </span>
+          </div>
+        )}
       </div>
-      {open && <SyncConflictDialog onClose={() => setOpen(false)} />}
+      {conflict && open && <SyncConflictDialog onClose={() => setOpen(false)} />}
     </>
   );
 }

@@ -110,7 +110,6 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
         const game: Game = {
           id,
           ...input,
-          platform: order.platform,
           status: "pending",
           hoursPlayed: 0,
           position: null,
@@ -122,7 +121,7 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
         const games = withPlanOrder(
           [...s.games, game],
           order.ids.map((slot) => (slot === "new" ? id : slot)),
-          order.platform,
+          order.plan,
         );
         return { ...s, games, nextGameId: id + 1 };
       });
@@ -146,13 +145,13 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
         games: withPlanOrder(
           s.games.filter((g) => g.id !== id),
           planOrder.ids,
-          planOrder.platform,
+          planOrder.plan,
         ),
       }));
     },
 
     setPlanOrder(planOrder) {
-      return commit((s) => ({ ...s, games: withPlanOrder(s.games, planOrder.ids, planOrder.platform) }));
+      return commit((s) => ({ ...s, games: withPlanOrder(s.games, planOrder.ids, planOrder.plan) }));
     },
 
     finishGame(id, input, planOrder) {
@@ -163,7 +162,7 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
             ? { ...g, status: "completed" as const, position: null, completedOrder: order, completedAt: input.completedAt, rating: input.rating, review: input.review }
             : g,
         );
-        games = withPlanOrder(games, planOrder.ids, planOrder.platform);
+        games = withPlanOrder(games, planOrder.ids, planOrder.plan);
         const nextId = planOrder.ids[0];
         if (input.startNext && nextId !== undefined) {
           games = games.map((g) => (g.id === nextId && g.status !== "completed" ? { ...g, status: "in_progress" as const } : g));
@@ -181,7 +180,7 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
       return commit((s) => {
         const order = nextCompletedOrder(s.games);
         const games = s.games.map((g) => (g.id === id ? { ...g, status: "dropped" as const, position: null, completedOrder: order, completedAt: droppedAt } : g));
-        return { ...s, games: withPlanOrder(games, planOrder.ids, planOrder.platform) };
+        return { ...s, games: withPlanOrder(games, planOrder.ids, planOrder.plan) };
       });
     },
 
@@ -208,7 +207,7 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
     reinsertGame(game, restored, planOrder, completedOrder) {
       return commit((s) => {
         let games: Game[] = [...s.games, { ...game, position: null, completedOrder: null }];
-        if (planOrder) games = withPlanOrder(games, planOrder.ids, planOrder.platform);
+        if (planOrder) games = withPlanOrder(games, planOrder.ids, planOrder.plan);
         if (completedOrder) games = withCompletedOrder(games, completedOrder);
         return { ...s, games, sessions: [...s.sessions, ...restored.map((x) => ({ ...x }))] };
       });
@@ -221,7 +220,7 @@ export function createSnapshotRepository(store: SnapshotStore | null = null, opt
             ? { ...g, status: game.status, position: null, completedOrder: null, completedAt: game.completedAt, rating: game.rating, review: game.review }
             : g,
         );
-        if (planOrder) games = withPlanOrder(games, planOrder.ids, planOrder.platform);
+        if (planOrder) games = withPlanOrder(games, planOrder.ids, planOrder.plan);
         if (completedOrder) games = withCompletedOrder(games, completedOrder);
         return { ...s, games };
       });

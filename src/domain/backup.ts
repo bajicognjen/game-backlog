@@ -3,7 +3,7 @@ import { withPlanOrder } from "./plan";
 import { completedGames, plannedGames } from "./schedule";
 import { parseDetails } from "./details";
 import { withHoursPlayed } from "./sessions";
-import { GAME_STATUSES, GAME_TYPES, GENRES, LEGACY_GAME_TYPES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
+import { ALL_PLANS, GAME_STATUSES, GAME_TYPES, GENRES, LEGACY_GAME_TYPES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
 
 /**
  * Bump when the file format changes. Older versions still import:
@@ -18,8 +18,9 @@ import { GAME_STATUSES, GAME_TYPES, GENRES, LEGACY_GAME_TYPES, PLATFORMS, isGame
  *  9 — series tag and order per game.
  * 10 — cached IGDB details per game.
  * 11 — `type` is the game's design; the old giant / medium / relaxed map to open world / semi-open / linear.
+ * 12 — `together` per game: played with others, planned in the Together list; older files have none.
  */
-export const BACKUP_VERSION = 11;
+export const BACKUP_VERSION = 12;
 
 export interface Backup {
   app: "game-backlog";
@@ -65,7 +66,7 @@ export function createBackup(
       steamHiddenApps: [],
       steamDismissedHints: [],
     },
-    games: [...PLATFORMS.flatMap((platform) => plannedGames(games, platform)), ...completedGames(games)].map((game) => ({
+    games: [...ALL_PLANS.flatMap((plan) => plannedGames(games, plan)), ...completedGames(games)].map((game) => ({
       ...game,
     })),
     sessions: sessions.map((session) => ({ ...session })),
@@ -85,7 +86,7 @@ export function backupFileName(now: Date = new Date()): string {
 /**
  * Parse and validate a backup file. Hard problems (wrong types, unknown enum
  * values, bad dates, duplicate ids) throw a `BackupError`. Soft ones are
- * normalised instead: positions are renumbered per platform in the stored
+ * normalised instead: positions are renumbered per plan in the stored
  * order and the finish order is renumbered. Statuses are kept as stored.
  */
 export function parseBackup(text: string): Backup {
@@ -144,11 +145,11 @@ function parseSession(obj: Record<string, unknown>, path: string, gameIds: Set<n
 function normaliseGames(games: Game[]): Game[] {
   const completed = completedGames(games).map((game, i) => ({ ...game, position: null, completedOrder: i + 1 }));
   let renumbered = games.map((game) => (game.status === "completed" ? game : { ...game, completedOrder: null }));
-  for (const platform of PLATFORMS) {
+  for (const plan of ALL_PLANS) {
     renumbered = withPlanOrder(
       renumbered,
-      plannedGames(games, platform).map((game) => game.id),
-      platform,
+      plannedGames(games, plan).map((game) => game.id),
+      plan,
     );
   }
   const byId = new Map(completed.map((game) => [game.id, game]));
@@ -206,6 +207,10 @@ function parseGame(obj: Record<string, unknown>, path: string, version: number):
   if (typeof platform !== "string") throw new BackupError(`${path}.platform`, "type");
   if (!(PLATFORMS as readonly string[]).includes(platform)) throw new BackupError(`${path}.platform`, "enum");
 
+  // Before version 12 every game was planned on its platform.
+  const together = obj.together ?? false;
+  if (typeof together !== "boolean") throw new BackupError(`${path}.together`, "type");
+
   const casualHours = obj.casualHours ?? 0;
   if (typeof casualHours !== "number" || !Number.isFinite(casualHours)) throw new BackupError(`${path}.casualHours`, "type");
   if (casualHours < 0) throw new BackupError(`${path}.casualHours`, "range");
@@ -228,6 +233,7 @@ function parseGame(obj: Record<string, unknown>, path: string, version: number):
     type: type as Game["type"],
     genre: genre as Game["genre"],
     platform: platform as Game["platform"],
+    together,
     status: status as Game["status"],
     casualHours,
     hoursPlayed: 0,

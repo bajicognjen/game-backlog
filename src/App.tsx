@@ -11,7 +11,7 @@ import { GameDialog } from "./components/GameDialog";
 import { Icon } from "./components/Icon";
 import { NowPlaying } from "./components/NowPlaying";
 import { PlanTable, type PlanRowView } from "./components/PlanTable";
-import { PlatformTabs, tabId } from "./components/PlatformTabs";
+import { PlanTabs, tabId } from "./components/PlanTabs";
 import { RatingDialog } from "./components/RatingDialog";
 import { SessionDialog } from "./components/SessionDialog";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -31,8 +31,8 @@ import { computeSchedule, plannedGames } from "./domain/schedule";
 import { steamConfigured, steamSearchTitle } from "./domain/steam";
 import { todayStatus } from "./domain/today";
 import { planWarnings } from "./domain/warnings";
-import { PLATFORMS, SCHEDULED_PLATFORM, isDone, type Game, type Platform } from "./domain/types";
-import { platformLabels, t } from "./i18n/en";
+import { ALL_PLANS, PLATFORMS, SCHEDULED_PLATFORM, TOGETHER, isDone, planOf, platformOfPlan, type Game, type PlanId, type Platform } from "./domain/types";
+import { planLabels, platformLabels, t } from "./i18n/en";
 import { setStoreMessages, useStore } from "./state/store";
 import { applyTheme } from "./state/theme";
 import { useSync } from "./state/sync";
@@ -49,6 +49,10 @@ setStoreMessages({
   deleted: (title) => t.undoNotice.deleted.replace("{title}", title),
   dropped: (title) => t.undoNotice.dropped.replace("{title}", title),
   restored: (title) => t.undoNotice.restored.replace("{title}", title),
+  movedToPlan: (title, together, platform) =>
+    together
+      ? t.undoNotice.movedToTogether.replace("{title}", title)
+      : t.undoNotice.movedToPlan.replace("{title}", title).replace("{platform}", platformLabels[platform]),
   finished: (title, rating, next) =>
     (rating === null
       ? t.undoNotice.finished.replace("{title}", title)
@@ -67,7 +71,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** Bumped when a dialog sends the user to the IGDB credentials; the panel focuses the Client ID field. */
   const [igdbFocus, setIgdbFocus] = useState(0);
-  const [platform, setPlatform] = useState<Platform>(SCHEDULED_PLATFORM);
+  const [plan, setPlan] = useState<PlanId>(SCHEDULED_PLATFORM);
   const [detailsId, setDetailsId] = useState<number | null>(null);
   /** A game whose edit form should open next; the section that owns it picks it up. */
   const [editRequest, setEditRequest] = useState<Game | null>(null);
@@ -163,20 +167,22 @@ export default function App() {
       </nav>
       <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
-        <UpdateBanner />
+        {/* A choice about the plan comes before news about the app. */}
         <SyncBanner />
+        <UpdateBanner />
         <Banner />
         {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
         <PlanSection
-          platform={platform}
-          onPlatformChange={setPlatform}
+          plan={plan}
+          onPlanChange={setPlan}
           onOpen={(game) => setDetailsId(game.id)}
           onSetupIgdb={openIgdbSetup}
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
         />
         <CompletedSection
-          defaultPlatform={platform}
+          defaultPlatform={platformOfPlan(plan)}
+          defaultTogether={plan === TOGETHER}
           onOpen={(game) => setDetailsId(game.id)}
           onSetupIgdb={openIgdbSetup}
           editRequest={editRequest}
@@ -227,8 +233,8 @@ type PlanDialog =
   | null;
 
 interface PlanSectionProps {
-  platform: Platform;
-  onPlatformChange(platform: Platform): void;
+  plan: PlanId;
+  onPlanChange(plan: PlanId): void;
   onOpen(game: Game): void;
   onSetupIgdb(): void;
   /** A planned game whose edit form should open (from the details dialog). */
@@ -243,7 +249,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
   return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
 }
 
-function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
+function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   /** Dated sessions: hours played since the plan started count as time already spent. */
@@ -256,6 +262,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
   const finishGame = useStore((s) => s.finishGame);
   const setGameStatus = useStore((s) => s.setGameStatus);
   const dropGame = useStore((s) => s.dropGame);
+  const setTogether = useStore((s) => s.setTogether);
   const [dialog, setDialog] = useState<PlanDialog>(null);
   /** The Steam library list stays open underneath while a game from it is being added. */
   const [steamLibraryOpen, setSteamLibraryOpen] = useState(false);
@@ -274,20 +281,23 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
   // Recomputed on every change to games, settings or logged hours: this is the "live" part.
   const schedule = useMemo(() => computeSchedule(games, settings, sessions), [games, settings, sessions]);
   const today = useMemo(() => todayStatus(schedule, Date.now()), [schedule]);
-  const scheduled = platform === SCHEDULED_PLATFORM;
+  const scheduled = plan === SCHEDULED_PLATFORM;
+  /** The Together list: games played with others, from any platform, outside the schedule. */
+  const together = plan === TOGETHER;
 
   const rows = useMemo<PlanRowView[]>(
     () =>
       scheduled
         ? schedule.rows.map((row) => ({ game: row.game, index: row.index, schedule: row }))
-        : plannedGames(games, platform).map((game, i) => ({ game, index: i + 1, schedule: null })),
-    [scheduled, schedule, games, platform],
+        : plannedGames(games, plan).map((game, i) => ({ game, index: i + 1, schedule: null })),
+    [scheduled, schedule, games, plan],
   );
   const filtering = isFilterActive(filter);
   const visibleRows = useMemo(() => (filtering ? rows.filter((row) => matchesFilter(row.game, filter)) : rows), [rows, filter, filtering]);
 
+  // Long games back to back and series order are about playing alone; the Together list goes by who is free.
   const warnings = useMemo(() => {
-    const planned = rows.map((row) => row.game);
+    const planned = together ? [] : rows.map((row) => row.game);
     const byGame = new Map<number, string>();
     const messages: string[] = [];
     for (const warning of planWarnings(planned)) {
@@ -301,18 +311,14 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
       byGame.set(game.id, byGame.has(game.id) ? `${byGame.get(game.id)} ${message}` : message);
     }
     return { byGame, messages };
-  }, [rows]);
+  }, [rows, together]);
 
   const planTitles = useMemo(
-    () =>
-      Object.fromEntries(PLATFORMS.map((p) => [p, plannedGames(games, p).map((g) => g.title)])) as Record<
-        Platform,
-        string[]
-      >,
+    () => Object.fromEntries(ALL_PLANS.map((p) => [p, plannedGames(games, p).map((g) => g.title)])) as Record<PlanId, string[]>,
     [games],
   );
   const counts = useMemo(
-    () => Object.fromEntries(PLATFORMS.map((p) => [p, plannedGames(games, p).length])) as Record<Platform, number>,
+    () => Object.fromEntries(ALL_PLANS.map((p) => [p, plannedGames(games, p).length])) as Record<PlanId, number>,
     [games],
   );
   const close = () => setDialog(null);
@@ -320,7 +326,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
     close();
     onSetupIgdb();
   };
-  const platformLabel = platformLabels[platform];
+  const planLabel = planLabels[plan];
 
   const addButton = (
     <button type="button" className="button button-primary" onClick={() => setDialog({ kind: "add" })}>
@@ -344,8 +350,10 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
     />
   ) : scheduled ? (
     <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} />
+  ) : together ? (
+    <EmptyState title={t.emptyTogether} hint={t.emptyTogetherHint} />
   ) : (
-    <EmptyState title={t.emptyQueue.replace("{platform}", platformLabel)} hint={t.emptyQueueHint.replace("{platform}", platformLabel)} />
+    <EmptyState title={t.emptyQueue.replace("{platform}", planLabel)} hint={t.emptyQueueHint.replace("{platform}", planLabel)} />
   );
 
   return (
@@ -353,14 +361,14 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
       <div className="section-head">
         <div className="section-title">
           <h2 id="plan-heading">{t.plan}</h2>
-          <PlatformTabs active={platform} counts={counts} onChange={onPlatformChange} panelId={PLAN_PANEL_ID} />
+          <PlanTabs active={plan} counts={counts} onChange={onPlanChange} panelId={PLAN_PANEL_ID} />
           {addButton}
           {steamButton}
-          {!scheduled && <p className="section-hint">{t.queueHint}</p>}
+          {!scheduled && <p className="section-hint">{together ? t.togetherHint : t.queueHint}</p>}
         </div>
         {scheduled && <TotalsBar totals={schedule.totals} />}
       </div>
-      <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(platform)}>
+      <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(plan)}>
         <NowPlaying
           rows={rows}
           today={scheduled ? today : null}
@@ -373,13 +381,14 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           onStart={(game) => void setGameStatus(game.id, "in_progress")}
         />
         <WarningsBar messages={warnings.messages} />
-        {scheduled && <SteamHintsBar onFinish={(game, date) => setDialog({ kind: "finish", game, date })} />}
+        {(scheduled || together) && <SteamHintsBar plan={plan} onFinish={(game, date) => setDialog({ kind: "finish", game, date })} />}
         {rows.length > 0 && filterable && (
           <FilterBar filter={filter} platforms={platforms} shown={visibleRows.length} total={rows.length} onChange={setFilter} />
         )}
         <PlanTable
           rows={visibleRows}
           showSchedule={scheduled}
+          showPlatform={together}
           todayGameId={scheduled ? (today.expected?.game.id ?? null) : null}
           cardGameId={rows.find((row) => row.game.status === "in_progress")?.game.id ?? null}
           warnings={warnings.byGame}
@@ -392,6 +401,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
           onLog={(game) => setDialog({ kind: "log", game })}
           onOpen={onOpen}
           onStatus={(game, status) => void setGameStatus(game.id, status)}
+          onTogether={(game, value) => void setTogether(game.id, value)}
           onMove={(activeId, overId) => void moveGame(activeId, overId)}
         />
       </div>
@@ -404,7 +414,7 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
       {dialog?.kind === "add" && (
         <GameDialog
           mode="add"
-          defaultPlatform={dialog.steamName ? SCHEDULED_PLATFORM : platform}
+          defaultPlan={dialog.steamName && !together ? SCHEDULED_PLATFORM : plan}
           initialQuery={dialog.steamName ? steamSearchTitle(dialog.steamName) : undefined}
           planTitles={planTitles}
           onSubmit={(values, index) => addGame(values, index)}
@@ -416,9 +426,9 @@ function PlanSection({ platform, onPlatformChange, onOpen, onSetupIgdb, editRequ
         <GameDialog
           mode="edit"
           game={dialog.game}
-          defaultPlatform={platform}
+          defaultPlan={plan}
           planTitles={planTitles}
-          currentIndex={rows.findIndex((row) => row.game.id === dialog.game.id)}
+          currentIndex={plannedGames(games, planOf(dialog.game)).findIndex((g) => g.id === dialog.game.id)}
           onSubmit={(values, index) => editGame(dialog.game.id, values, index)}
           onClose={close}
           onSetupIgdb={leaveForIgdb}
@@ -467,6 +477,8 @@ type CompletedDialog =
 
 interface CompletedSectionProps {
   defaultPlatform: Platform;
+  /** The Together tab is open: a finished game added now was played with others. */
+  defaultTogether: boolean;
   onOpen(game: Game): void;
   onSetupIgdb(): void;
   /** A finished game whose edit form should open (from the details dialog). */
@@ -474,7 +486,7 @@ interface CompletedSectionProps {
   onEditHandled(): void;
 }
 
-function CompletedSection({ defaultPlatform, onOpen, onSetupIgdb, editRequest, onEditHandled }: CompletedSectionProps) {
+function CompletedSection({ defaultPlatform, defaultTogether, onOpen, onSetupIgdb, editRequest, onEditHandled }: CompletedSectionProps) {
   const games = useStore((s) => s.games);
   const arrivedId = useStore((s) => s.recentlyFinishedId);
   const filterable = useMemo(() => hasIgdbData(games), [games]);
@@ -585,6 +597,7 @@ function CompletedSection({ defaultPlatform, onOpen, onSetupIgdb, editRequest, o
         <CompletedGameDialog
           mode="add"
           defaultPlatform={defaultPlatform}
+          defaultTogether={defaultTogether}
           onSubmit={addCompletedGame}
           onClose={close}
           onSetupIgdb={leaveForIgdb}

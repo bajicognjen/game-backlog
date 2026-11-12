@@ -13,6 +13,7 @@ function game(overrides: Partial<Game> & Pick<Game, "id" | "casualHours">): Game
     type: "linear",
     genre: null,
     platform: "pc",
+    together: false,
     status: "pending",
     hoursPlayed: 0,
     series: null,
@@ -92,6 +93,22 @@ describe("schedule rules", () => {
     const days = (batman.endMs - batman.startMs) / MS_PER_DAY;
     expect(days).toBeCloseTo(13.4615, 4);
     expect(formatDate(batman.endMs)).toBe("15.11.2026");
+  });
+
+  it("leaves games played together out, with the hours logged on them", () => {
+    const games = [
+      game({ id: 1, casualHours: 13, position: 1, status: "in_progress" }),
+      game({ id: 2, casualHours: 26, position: 1, together: true, status: "in_progress" }),
+      game({ id: 3, casualHours: 13, position: 2 }),
+    ];
+    const sessions: PlaySession[] = [{ id: 1, gameId: 2, playedOn: settings.startDate, hours: 13, note: null }];
+    const { rows, totals } = computeSchedule(games, settings, sessions);
+    expect(rows.map((row) => row.game.id)).toEqual([1, 3]);
+    expect(totals.hours).toBe(26);
+    // A week of co-op does not push the singleplayer dates back.
+    expect(rows[0].endMs).toBe(parseIsoDate(settings.startDate) + 7 * MS_PER_DAY);
+    expect(plannedGames(games, "together").map((g) => g.id)).toEqual([2]);
+    expect(plannedGames(games, "pc").map((g) => g.id)).toEqual([1, 3]);
   });
 
   it("ignores completed games and follows position, not array order", () => {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatSyncKey, normaliseSyncKey, reconcile, syncKeyFromBytes } from "./sync";
+import { formatSyncKey, normaliseSyncKey, reconcile, summarizePlan, syncKeyFromBytes } from "./sync";
+
+describe("summarizePlan", () => {
+  it("counts games still in the plan, finished games and the hours logged", () => {
+    const games = [{ status: "in_progress" }, { status: "pending" }, { status: "paused" }, { status: "completed" }, { status: "dropped" }] as const;
+    expect(summarizePlan(games, [{ hours: 1.25 }, { hours: 2 }, { hours: 0.1 }])).toEqual({ inPlan: 3, finished: 1, hoursLogged: 3.4 });
+    expect(summarizePlan([], [])).toEqual({ inPlan: 0, finished: 0, hoursLogged: 0 });
+  });
+});
 
 describe("sync keys", () => {
   it("come out of 20 bytes as 32 base32 characters", () => {

@@ -1,9 +1,12 @@
 # Game Backlog
 
-Personal desktop app for planning and tracking a singleplayer video game
-backlog. Single user, offline, local SQLite database. UI and code in English.
+Personal app for planning and tracking a singleplayer video game backlog:
+a desktop app with a local SQLite database, and the same UI as a web app
+that keeps its data in the browser, with optional sync between devices.
+Single user, offline-first, no accounts. UI and code in English.
 
-Stack: Tauri 2, React, TypeScript, Vite, tauri-plugin-sql (SQLite).
+Stack: Tauri 2, React, TypeScript, Vite, tauri-plugin-sql (SQLite); the web
+version adds a Cloudflare Worker and a D1 database for sync.
 
 ## Development
 
@@ -177,13 +180,20 @@ installers from Linux.
 1. Bump `version` in `package.json` (`npm version 0.5.0 --no-git-tag-version`),
    `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`. A unit test fails
    when the three disagree.
-2. Commit on `main`, then tag and push:
+2. Commit on `main`, then push the commit and the one new tag separately:
 
    ```bash
-   git tag v0.5.0 && git push origin main --tags
+   git push origin main
+   git tag v0.5.0 && git push origin v0.5.0
    ```
 
-3. The workflow runs tests, builds the NSIS installer and creates a **draft**
+   Never `git push --tags`: it also pushes any old local tags missing on
+   GitHub, and GitHub starts no workflows for a push of more than three tags,
+   so the release would silently not build. If that happens, start it by hand
+   with `gh workflow run release.yml --ref v0.5.0`.
+
+3. The tag also deploys the web app (`.github/workflows/deploy-web.yml`).
+   The release workflow runs tests, builds the NSIS installer and creates a **draft**
    GitHub release with `Game Backlog_0.5.0_x64-setup.exe` attached. Publish
    the draft when you are happy with it. The same `.exe` is also kept as a
    workflow artifact.

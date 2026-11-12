@@ -21,6 +21,7 @@ const gameInput = (title: string): GameInput => ({
   type: "linear",
   genre: null,
   platform: "pc",
+  together: false,
   casualHours: 10,
   series: null,
   seriesOrder: null,
@@ -38,7 +39,7 @@ const gameInput = (title: string): GameInput => ({
 async function addGame(repo: Repository, title: string) {
   const { games } = await repo.load();
   const ids = games.filter((g) => g.platform === "pc" && g.position !== null).sort((a, b) => a.position! - b.position!).map((g) => g.id);
-  await repo.addPlannedGame(gameInput(title), { platform: "pc", ids: [...ids, "new"] });
+  await repo.addPlannedGame(gameInput(title), { plan: "pc", ids: [...ids, "new"] });
   return (await repo.load()).games.find((g) => g.title === title)!;
 }
 
@@ -86,7 +87,7 @@ describe("web repository", () => {
   it("never hands out a game id twice, even after the newest game was deleted", async () => {
     const repo = createWebRepository();
     const first = await addGame(repo, "First");
-    await repo.deleteGame(first.id, { platform: "pc", ids: [] });
+    await repo.deleteGame(first.id, { plan: "pc", ids: [] });
 
     const second = await addGame(createWebRepository(), "Second");
     expect(second.id).toBe(first.id + 1);

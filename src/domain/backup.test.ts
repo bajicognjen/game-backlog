@@ -92,6 +92,7 @@ describe("parseBackup normalisation", () => {
       position: 1,
       status: "pending",
       platform: "pc",
+      together: false,
     });
   });
 
@@ -247,6 +248,37 @@ describe("parseBackup normalisation", () => {
     };
     expect(parseBackup(JSON.stringify(v10)).games.map((g) => g.type)).toEqual(["open_world", "semi_open", "linear", "open_world"]);
     expect(reasonOf(() => parseBackup(JSON.stringify({ ...v10, version: 11 })))).toBe("games[0].type: enum");
+  });
+
+  it("reads files before version 12 as games played alone, and numbers the Together list on its own", () => {
+    const v11 = {
+      version: 11,
+      settings: { startDate: "2026-11-02", hoursPerWeek: 13 },
+      games: [{ id: 1, title: "A", type: "linear", status: "in_progress", position: 1, platform: "pc" }],
+    };
+    expect(parseBackup(JSON.stringify(v11)).games[0].together).toBe(false);
+
+    const v12 = {
+      version: 12,
+      settings: { startDate: "2026-11-02", hoursPerWeek: 13 },
+      games: [
+        { id: 1, title: "Solo", type: "linear", status: "in_progress", position: 1, platform: "pc", together: false },
+        { id: 2, title: "It Takes Two", type: "linear", status: "pending", position: 1, platform: "pc", together: true },
+        { id: 3, title: "Split Fiction", type: "linear", status: "pending", position: 7, platform: "ps5", together: true },
+        { id: 4, title: "Remnant II", type: "linear", status: "completed", completedOrder: 1, platform: "pc", together: true },
+      ],
+    };
+    const parsed = parseBackup(JSON.stringify(v12));
+    expect(parsed.games.map((g) => [g.title, g.together, g.position])).toEqual([
+      ["Solo", false, 1],
+      ["It Takes Two", true, 1],
+      ["Split Fiction", true, 2],
+      ["Remnant II", true, null],
+    ]);
+    // The Together list survives a round trip, in its order.
+    const again = parseBackup(serializeBackup(createBackup(parsed.games, parsed.settings)));
+    expect(again.games.filter((g) => g.together).map((g) => g.title)).toEqual(["It Takes Two", "Split Fiction", "Remnant II"]);
+    expect(reasonOf(() => parseBackup(JSON.stringify({ ...v12, games: [{ ...v12.games[0], together: "yes" }] })))).toBe("games[0].together: type");
   });
 });
 

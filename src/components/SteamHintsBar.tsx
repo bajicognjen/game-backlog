@@ -2,23 +2,25 @@ import { useMemo } from "react";
 import { formatDate, todayIso } from "../domain/dates";
 import { formatHours } from "../domain/format";
 import { dismissHint, statusHints, type StatusHint } from "../domain/steamHints";
-import { SCHEDULED_PLATFORM, type Game } from "../domain/types";
+import { SCHEDULED_PLATFORM, planOf, type Game, type PlanId } from "../domain/types";
 import { t } from "../i18n/en";
 import { useRecentSteam, useSteamAchievements } from "../state/steam";
 import { useStore } from "../state/store";
 import { Icon } from "./Icon";
 
 interface Props {
+  /** The open plan tab: PC, or Together; each shows the hints about its own games. */
+  plan: PlanId;
   /** Open the Finish dialog for a game, with the finish date set to `day`. */
   onFinish(game: Game, day: string): void;
 }
 
 /**
- * Above the PC plan: what Steam suggests about a game's status (finished,
+ * Above the PC plan and the Together list: what Steam suggests about a game's status (finished,
  * being played, gone quiet), each with the change one click away and
  * "Not now". Hidden without hints.
  */
-export function SteamHintsBar({ onFinish }: Props) {
+export function SteamHintsBar({ plan, onFinish }: Props) {
   const snapshot = useRecentSteam();
   const games = useStore((s) => s.games);
   const sessions = useStore((s) => s.sessions);
@@ -40,8 +42,10 @@ export function SteamHintsBar({ onFinish }: Props) {
       snapshot ? statusHints(games, sessions, snapshot.owned, snapshot.baseApps, todayIso(), dismissed, currentSince, achievements) : [],
     [snapshot, games, sessions, dismissed, currentSince, achievements],
   );
-  if (hints.length === 0) return null;
+  const shown = hints.filter((hint) => planOf(hint.game) === plan);
+  if (shown.length === 0) return null;
 
+  // Against every hint, not just this tab's: the other tab's dismissals stay.
   function notNow(hint: StatusHint) {
     void updateSettings({ steamDismissedHints: dismissHint(dismissed, hints, hint.key) });
   }
@@ -57,7 +61,7 @@ export function SteamHintsBar({ onFinish }: Props) {
       <div className="steam-hints-body">
         <strong>{t.steamHints.title}</strong>
         <ul>
-          {hints.map((hint) => (
+          {shown.map((hint) => (
             <li key={hint.key}>
               <span>{describe(hint)}</span>
               <span className="steam-hints-actions">

@@ -15,10 +15,11 @@ import { formatHours } from "../domain/format";
 import { progressOf } from "../domain/sessions";
 import type { ScheduleRow } from "../domain/schedule";
 import type { Game, GameStatus } from "../domain/types";
-import { t } from "../i18n/en";
+import { platformLabels, t } from "../i18n/en";
 import { GenreChip } from "./GenreChip";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
+import { PlatformChip } from "./PlatformChip";
 import { RowMenu, type RowMenuItem } from "./RowMenu";
 import { StatusBadge } from "./StatusBadge";
 import { TitleCell } from "./TitleCell";
@@ -28,7 +29,7 @@ import { useRovingGroup } from "./useRoving";
 /** The row's controls form one Tab stop; the title is where Tab lands. */
 const ROW_ROVING = { selector: 'button, [role="button"]', entry: ".title-cell-link", exclude: '[role="menu"]' };
 
-/** One row of a plan: the PC plan carries schedule numbers, a plain queue does not. */
+/** One row of a plan: the PC plan carries schedule numbers, a queue or the Together list does not. */
 export interface PlanRowView {
   game: Game;
   index: number;
@@ -39,6 +40,8 @@ interface Props {
   rows: PlanRowView[];
   /** Show hours, weeks, cumulative hours and dates (the PC plan). */
   showSchedule: boolean;
+  /** Show each game's platform (the Together list mixes platforms). */
+  showPlatform?: boolean;
   /** Id of the game whose planned span contains today, if any. */
   todayGameId?: number | null;
   /** The game the Now playing card shows; its row menu skips the actions the card already offers. */
@@ -56,6 +59,8 @@ interface Props {
   onLog(game: Game): void;
   onOpen(game: Game): void;
   onStatus(game: Game, status: PlanStatus): void;
+  /** Move a game into the Together list (true) or back to its platform's plan (false). */
+  onTogether(game: Game, together: boolean): void;
   onMove(activeId: number, overId: number): void;
 }
 
@@ -64,6 +69,7 @@ export type PlanStatus = Extract<GameStatus, "in_progress" | "pending" | "paused
 export function PlanTable({
   rows,
   showSchedule,
+  showPlatform = false,
   empty,
   todayGameId = null,
   cardGameId = null,
@@ -76,6 +82,7 @@ export function PlanTable({
   onLog,
   onOpen,
   onStatus,
+  onTogether,
   onMove,
 }: Props) {
   const sensors = useSensors(
@@ -97,50 +104,57 @@ export function PlanTable({
   return (
     <div className="table-wrap">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <table className="table plan-table" aria-label={t.plan}>
-          <thead>
-            <tr>
-              <th scope="col" className="drag-col" aria-label={t.actions.drag} />
-              <th scope="col" className="num">
+        {/* Explicit roles throughout: on a phone the rows become flex boxes, and browsers then stop exposing a table. */}
+        <table role="table" className="table plan-table" aria-label={t.plan}>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader" className="drag-col" aria-label={t.actions.drag} />
+              <th scope="col" role="columnheader" className="num">
                 {t.columns.index}
               </th>
-              <th scope="col">{t.columns.title}</th>
-              <th scope="col" title={t.columns.typeHint}>
+              <th scope="col" role="columnheader">{t.columns.title}</th>
+              <th scope="col" role="columnheader" title={t.columns.typeHint}>
                 {t.columns.type}
               </th>
-              <th scope="col" className="col-opt-2">
+              <th scope="col" role="columnheader" className="col-opt-2">
                 {t.columns.genre}
               </th>
-              <th scope="col">{t.columns.status}</th>
+              {showPlatform && (
+                <th scope="col" role="columnheader">
+                  {t.columns.platform}
+                </th>
+              )}
+              <th scope="col" role="columnheader">{t.columns.status}</th>
               {showSchedule && (
                 <>
-                  <th scope="col" className="num">
+                  <th scope="col" role="columnheader" className="num">
                     {t.columns.hours}
                   </th>
-                  <th scope="col" className="num col-opt">
+                  <th scope="col" role="columnheader" className="num col-opt">
                     {t.columns.cumulative}
                   </th>
-                  <th scope="col" className="date">
+                  <th scope="col" role="columnheader" className="date">
                     {t.columns.start}
                   </th>
-                  <th scope="col" className="date">
+                  <th scope="col" role="columnheader" className="date">
                     {t.columns.end}
                   </th>
                 </>
               )}
-              <th scope="col" className="col-opt-2">
+              <th scope="col" role="columnheader" className="col-opt-2">
                 {t.columns.note}
               </th>
-              <th scope="col" className="actions-col" aria-label={t.actions.more} />
+              <th scope="col" role="columnheader" className="actions-col" aria-label={t.actions.more} />
             </tr>
           </thead>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            <tbody>
+            <tbody role="rowgroup">
               {rows.map((row) => (
                 <SortableRow
                   key={row.game.id}
                   row={row}
                   showSchedule={showSchedule}
+                  showPlatform={showPlatform}
                   isToday={row.game.id === todayGameId}
                   onCard={row.game.id === cardGameId}
                   warning={warnings?.get(row.game.id) ?? null}
@@ -152,6 +166,7 @@ export function PlanTable({
                   onLog={onLog}
                   onOpen={onOpen}
                   onStatus={onStatus}
+                  onTogether={onTogether}
                 />
               ))}
             </tbody>
@@ -165,6 +180,7 @@ export function PlanTable({
 interface RowProps {
   row: PlanRowView;
   showSchedule: boolean;
+  showPlatform: boolean;
   isToday: boolean;
   onCard: boolean;
   warning: string | null;
@@ -176,9 +192,26 @@ interface RowProps {
   onLog(game: Game): void;
   onOpen(game: Game): void;
   onStatus(game: Game, status: PlanStatus): void;
+  onTogether(game: Game, together: boolean): void;
 }
 
-function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, onEdit, onDelete, onFinish, onDrop, onLog, onOpen, onStatus }: RowProps) {
+function SortableRow({
+  row,
+  showSchedule,
+  showPlatform,
+  isToday,
+  onCard,
+  warning,
+  canReorder,
+  onEdit,
+  onDelete,
+  onFinish,
+  onDrop,
+  onLog,
+  onOpen,
+  onStatus,
+  onTogether,
+}: RowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: row.game.id,
     disabled: !canReorder,
@@ -217,13 +250,16 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
       : []),
     ...(game.status === "paused" ? [{ label: t.actions.logHours, onSelect: () => onLog(game) }] : []),
     { label: t.actions.details, onSelect: () => onOpen(game) },
+    game.together
+      ? { label: t.actions.moveToPlan.replace("{platform}", platformLabels[game.platform]), onSelect: () => onTogether(game, false) }
+      : { label: t.actions.moveToTogether, onSelect: () => onTogether(game, true) },
     ...(active ? [{ label: t.actions.drop, danger: true, onSelect: () => onDrop(game) }] : []),
     { label: t.actions.delete, danger: true, onSelect: () => onDelete(game) },
   ];
 
   return (
-    <tr ref={setRowRef} style={style} className={classes || undefined} onFocus={roving.onFocus} onKeyDown={roving.onKeyDown}>
-      <td className="drag-col">
+    <tr role="row" ref={setRowRef} style={style} className={classes || undefined} onFocus={roving.onFocus} onKeyDown={roving.onKeyDown}>
+      <td role="cell" className="drag-col">
         <button
           ref={setActivatorNodeRef}
           type="button"
@@ -237,8 +273,8 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
           <Icon name="grip" />
         </button>
       </td>
-      <td className="num muted index">{row.index}</td>
-      <td className="title">
+      <td role="cell" className="num muted index">{row.index}</td>
+      <td role="cell" className="title">
         <TitleCell game={game} onOpen={onOpen} />
         {warning && (
           <span className="warning-icon" title={warning} role="img" aria-label={warning}>
@@ -246,18 +282,23 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
           </span>
         )}
       </td>
-      <td className="design">
+      <td role="cell" className="design">
         <TypeChip type={game.type} />
       </td>
-      <td className="col-opt-2">
+      <td role="cell" className="col-opt-2">
         <GenreChip genre={game.genre} />
       </td>
-      <td className="status">
+      {showPlatform && (
+        <td role="cell" className="platform">
+          <PlatformChip platform={game.platform} />
+        </td>
+      )}
+      <td role="cell" className="status">
         <StatusBadge status={game.status} />
       </td>
       {showSchedule && schedule && (
         <>
-          <td className="num hours">
+          <td role="cell" className="num hours">
             {game.hoursPlayed > 0 ? (
               <span className="hours-cell" title={hoursTitle(game, schedule.hours)}>
                 <span>
@@ -274,9 +315,9 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
               formatHours(schedule.hours)
             )}
           </td>
-          <td className="num col-opt">{formatHours(schedule.cumulativeHours)}</td>
-          <td className="date">{formatDate(schedule.startMs)}</td>
-          <td className="date">
+          <td role="cell" className="num col-opt">{formatHours(schedule.cumulativeHours)}</td>
+          <td role="cell" className="date">{formatDate(schedule.startMs)}</td>
+          <td role="cell" className="date">
             {formatDate(schedule.endMs)}
             {isToday && (
               <>
@@ -287,14 +328,14 @@ function SortableRow({ row, showSchedule, isToday, onCard, warning, canReorder, 
           </td>
         </>
       )}
-      <td className="note col-opt-2">
+      <td role="cell" className="note col-opt-2">
         {game.note && (
           <span className="clamp-2" title={game.note}>
             {game.note}
           </span>
         )}
       </td>
-      <td className="actions-col">
+      <td role="cell" className="actions-col">
         <div className="row-actions">
           {game.status === "pending" && <IconButton label={t.actions.start} icon="play" onClick={() => onStatus(game, "in_progress")} />}
           {game.status === "paused" && <IconButton label={t.actions.resume} icon="play" onClick={() => onStatus(game, "in_progress")} />}

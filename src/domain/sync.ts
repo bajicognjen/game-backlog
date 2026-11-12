@@ -3,6 +3,26 @@
  * key format, the wire protocol's names, and the rule that decides what to
  * do when the local and the server copy differ. Pure; shared with the Worker.
  */
+import type { Game, PlaySession } from "./types";
+
+/** What the conflict dialog compares for each copy of the plan. */
+export interface PlanSummary {
+  /** Games not finished or dropped yet: in progress, paused or not started. */
+  inPlan: number;
+  finished: number;
+  hoursLogged: number;
+}
+
+export function summarizePlan(games: readonly Pick<Game, "status">[], sessions: readonly Pick<PlaySession, "hours">[]): PlanSummary {
+  let inPlan = 0;
+  let finished = 0;
+  for (const game of games) {
+    if (game.status === "completed") finished++;
+    else if (game.status !== "dropped") inPlan++;
+  }
+  const hoursLogged = Math.round(sessions.reduce((sum, session) => sum + session.hours, 0) * 10) / 10;
+  return { inPlan, finished, hoursLogged };
+}
 
 /** 32 characters of the base32 alphabet, 160 random bits. Case does not matter; dashes and spaces are allowed when typing it. */
 export const SYNC_KEY_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";

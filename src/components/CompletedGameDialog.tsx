@@ -18,6 +18,8 @@ interface Props {
   mode: "add" | "edit";
   game?: Game;
   defaultPlatform: Platform;
+  /** Adding from the Together tab: the game was played with others. */
+  defaultTogether?: boolean;
   onSubmit(values: GameInput & CompletedDetails): Promise<boolean>;
   onClose(): void;
   /** Leave for the IGDB credentials in Settings. */
@@ -31,11 +33,12 @@ interface Errors {
 }
 
 /** Add a game finished before the app existed, or edit a completed game. */
-export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onClose, onSetupIgdb }: Props) {
+export function CompletedGameDialog({ mode, game, defaultPlatform, defaultTogether = false, onSubmit, onClose, onSetupIgdb }: Props) {
   const [title, setTitle] = useState(game?.title ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
   const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
   const [platform, setPlatform] = useState<Platform>(game?.platform ?? defaultPlatform);
+  const [together, setTogether] = useState(game?.together ?? defaultTogether);
   const [hours, setHours] = useState(game && game.casualHours > 0 ? String(game.casualHours) : "");
   const [note, setNote] = useState(game?.note ?? "");
   const [completedAt, setCompletedAt] = useState(game?.completedAt ?? "");
@@ -88,6 +91,7 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
       type,
       genre: genre === "" ? null : genre,
       platform,
+      together,
       casualHours: hoursNumber,
       series: series.trim() === "" ? null : series.trim(),
       seriesOrder: series.trim() !== "" && seriesOrder.trim() !== "" ? Math.trunc(Number(seriesOrder)) : null,
@@ -159,6 +163,16 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, onSubmit, onC
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="field-check">
+          <label className="checkbox">
+            <input type="checkbox" checked={together} onChange={(e) => setTogether(e.target.checked)} aria-describedby="together-done-hint" />
+            <span>{t.gameDialog.together}</span>
+          </label>
+          <span className="field-hint" id="together-done-hint">
+            {t.completedDialog.togetherHint}
+          </span>
         </div>
 
         <div className="form-row form-row-2">

@@ -1,5 +1,5 @@
 import { parseDetails } from "../domain/details";
-import { isGameSource, isGameStatus, isGameType, isGenre, isPlatform, type Game, type Platform } from "../domain/types";
+import { TOGETHER, isGameSource, isGameStatus, isGameType, isGenre, isPlatform, type Game, type PlanId } from "../domain/types";
 import { getDb } from "./client";
 import { lit, type SqlValue } from "./sql";
 import type { CompletedDetails, GameInput, GamePatch } from "./repository";
@@ -10,6 +10,7 @@ interface GameRow {
   type: string;
   genre: string | null;
   platform: string;
+  together: number;
   status: string;
   casual_hours: number;
   hours_played: number;
@@ -31,7 +32,7 @@ interface GameRow {
 }
 
 const COLUMNS =
-  "id, title, type, genre, platform, status, casual_hours, series, series_order, note, position, completed_order, completed_at, rating, review, " +
+  "id, title, type, genre, platform, together, status, casual_hours, series, series_order, note, position, completed_order, completed_at, rating, review, " +
   "source, external_id, cover_url, release_date, provider_genres, provider_tags, details";
 
 /** Next free finish-order number, evaluated inside the statement. */
@@ -77,7 +78,7 @@ export function dropGameStatement(id: number, droppedAt: string): string {
 
 function insertValues(id: number | null, game: NewGame, completedOrderSql: string): string {
   const columns = [
-    "title", "type", "genre", "platform", "status", "casual_hours", "series", "series_order", "note", "position", "completed_order",
+    "title", "type", "genre", "platform", "together", "status", "casual_hours", "series", "series_order", "note", "position", "completed_order",
     "completed_at", "rating", "review", "source", "external_id", "cover_url", "release_date", "provider_genres", "provider_tags", "details",
   ];
   const values = [
@@ -85,6 +86,7 @@ function insertValues(id: number | null, game: NewGame, completedOrderSql: strin
     lit(game.type),
     lit(game.genre),
     lit(game.platform),
+    lit(game.together),
     lit(game.status),
     lit(game.casualHours),
     lit(game.series),
@@ -122,6 +124,9 @@ export function updateGameQuery(id: number, patch: GamePatch): { sql: string; va
   if (patch.type !== undefined) add("type", patch.type);
   if (patch.genre !== undefined) add("genre", patch.genre);
   if (patch.platform !== undefined) add("platform", patch.platform);
+  if (patch.together !== undefined) add("together", patch.together ? 1 : 0);
+  // Cleared together with a move to another plan, so the old slot cannot collide there; the new plan's order sets it again.
+  if (patch.position !== undefined) add("position", patch.position);
   if (patch.status !== undefined) add("status", patch.status);
   if (patch.casualHours !== undefined) add("casual_hours", patch.casualHours);
   if (patch.series !== undefined) add("series", patch.series);
@@ -173,16 +178,21 @@ export function startGameStatement(id: number): string {
 }
 
 /**
- * Statements that rewrite one platform's plan order inside a batch: clear
- * its planned positions first (the unique index allows NULLs), then assign
- * 1..n in the given order. Statuses are left alone.
+ * Statements that rewrite one plan's order inside a batch: clear its planned
+ * positions first (the unique index allows NULLs), then assign 1..n in the
+ * given order. Statuses are left alone.
  */
-export function planOrderStatements(order: readonly number[], platform: Platform): string[] {
-  return [resetPlanPositions(platform), ...order.map((id, index) => positionStatement(id, index + 1))];
+export function planOrderStatements(order: readonly number[], plan: PlanId): string[] {
+  return [resetPlanPositions(plan), ...order.map((id, index) => positionStatement(id, index + 1))];
 }
 
-export function resetPlanPositions(platform: Platform): string {
-  return `UPDATE games SET position = NULL WHERE status NOT IN ('completed', 'dropped') AND platform = ${lit(platform)}`;
+export function resetPlanPositions(plan: PlanId): string {
+  return `UPDATE games SET position = NULL WHERE status NOT IN ('completed', 'dropped') AND ${inPlan(plan)}`;
+}
+
+/** The rows of one plan: the Together list spans platforms, a platform's plan holds its games not played together. */
+function inPlan(plan: PlanId): string {
+  return plan === TOGETHER ? "together = 1" : `together = 0 AND platform = ${lit(plan)}`;
 }
 
 export function positionStatement(id: number, position: number): string {
@@ -208,6 +218,7 @@ function rowToGame(row: GameRow): Game {
     // An unknown code (e.g. from a newer version) is shown as no genre rather than failing.
     genre: row.genre !== null && isGenre(row.genre) ? row.genre : null,
     platform: row.platform,
+    together: row.together === 1,
     status: row.status,
     casualHours: row.casual_hours,
     hoursPlayed: row.hours_played ?? 0,

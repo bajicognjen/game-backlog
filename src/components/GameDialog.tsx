@@ -5,9 +5,13 @@ import {
   GENRES,
   PLAN_PLATFORMS,
   SCHEDULED_PLATFORM,
+  TOGETHER,
+  planOf,
+  platformOfPlan,
   type Game,
   type GameType,
   type Genre,
+  type PlanId,
   type Platform,
 } from "../domain/types";
 import { NO_METADATA } from "../domain/seed";
@@ -23,11 +27,11 @@ interface Props {
   mode: "add" | "edit";
   /** The game being edited (edit mode only). */
   game?: Game;
-  /** Platform preselected when adding (the open tab). */
-  defaultPlatform: Platform;
-  /** Titles of each platform's planned games in plan order, for the position hint. */
-  planTitles: Record<Platform, readonly string[]>;
-  /** 0-based index of `game` in its platform's plan (edit mode only). */
+  /** The open tab when adding: its platform is preselected, and the Together tab ticks "Played with others". */
+  defaultPlan: PlanId;
+  /** Titles of each plan's games in plan order, for the position hint. */
+  planTitles: Record<PlanId, readonly string[]>;
+  /** 0-based index of `game` in its plan (edit mode only). */
   currentIndex?: number;
   /** Resolves true when saved; the dialog then closes itself. */
   onSubmit(values: GameInput, index: number): Promise<boolean>;
@@ -44,11 +48,12 @@ interface Errors {
   position?: string;
 }
 
-export function GameDialog({ mode, game, defaultPlatform, planTitles, currentIndex, onSubmit, onClose, onSetupIgdb, initialQuery }: Props) {
+export function GameDialog({ mode, game, defaultPlan, planTitles, currentIndex, onSubmit, onClose, onSetupIgdb, initialQuery }: Props) {
   const [title, setTitle] = useState(game?.title ?? initialQuery ?? "");
   const [type, setType] = useState<GameType>(game?.type ?? "linear");
   const [genre, setGenre] = useState<Genre | "">(game?.genre ?? "");
-  const [platform, setPlatform] = useState<Platform>(game?.platform ?? defaultPlatform);
+  const [platform, setPlatform] = useState<Platform>(game?.platform ?? platformOfPlan(defaultPlan));
+  const [together, setTogether] = useState(game?.together ?? defaultPlan === TOGETHER);
   const [hours, setHours] = useState(game && game.casualHours > 0 ? String(game.casualHours) : "");
   const [note, setNote] = useState(game?.note ?? "");
   const [series, setSeries] = useState(game?.series ?? "");
@@ -83,11 +88,14 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
     setPick({ note: t.search.filled.replace("{source}", sourceLabels[m.source]), tone: "hint" });
   }
 
-  // The position picks a slot among the other planned games of the chosen platform.
-  const samePlatform = mode === "edit" && game?.platform === platform && currentIndex !== undefined;
-  const others = samePlatform ? planTitles[platform].filter((_, i) => i !== currentIndex) : planTitles[platform];
+  // The position picks a slot among the other games of the chosen plan: the platform's, or Together.
+  const plan = planOf({ platform, together });
+  /** The game stays in the plan it is in: its own slot does not count as another game. */
+  const inOwnPlan = (target: PlanId) => mode === "edit" && game !== undefined && planOf(game) === target && currentIndex !== undefined;
+  const othersIn = (target: PlanId) => (inOwnPlan(target) ? planTitles[target].filter((_, i) => i !== currentIndex) : planTitles[target]);
+  const others = othersIn(plan);
   const maxPosition = others.length + 1;
-  const [position, setPosition] = useState(String(samePlatform ? currentIndex + 1 : maxPosition));
+  const [position, setPosition] = useState(String(inOwnPlan(plan) && currentIndex !== undefined ? currentIndex + 1 : maxPosition));
 
   const positionNumber = Number(position);
   const positionValid = Number.isInteger(positionNumber) && positionNumber >= 1 && positionNumber <= maxPosition;
@@ -96,15 +104,21 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
     : positionNumber === maxPosition
       ? t.gameDialog.atEnd
       : `${t.gameDialog.before} ${others[positionNumber - 1]}`;
-  const scheduled = platform === SCHEDULED_PLATFORM;
+  const scheduled = plan === SCHEDULED_PLATFORM;
+
+  /** A different plan has its own order: start from the game's own slot there, or the end. */
+  function changePlan(next: PlanId) {
+    setPosition(String(inOwnPlan(next) && currentIndex !== undefined ? currentIndex + 1 : othersIn(next).length + 1));
+  }
 
   function changePlatform(next: Platform) {
     setPlatform(next);
-    const nextOthers =
-      mode === "edit" && game?.platform === next && currentIndex !== undefined
-        ? planTitles[next].filter((_, i) => i !== currentIndex)
-        : planTitles[next];
-    setPosition(String(mode === "edit" && game?.platform === next && currentIndex !== undefined ? currentIndex + 1 : nextOthers.length + 1));
+    changePlan(planOf({ platform: next, together }));
+  }
+
+  function changeTogether(next: boolean) {
+    setTogether(next);
+    changePlan(planOf({ platform, together: next }));
   }
 
   async function submit(event: FormEvent) {
@@ -126,6 +140,7 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
         type,
         genre: genre === "" ? null : genre,
         platform,
+        together,
         casualHours: hoursNumber,
         series: series.trim() === "" ? null : series.trim(),
         seriesOrder: series.trim() !== "" && seriesOrder.trim() !== "" ? Math.trunc(Number(seriesOrder)) : null,
@@ -198,6 +213,16 @@ export function GameDialog({ mode, game, defaultPlatform, planTitles, currentInd
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="field-check">
+          <label className="checkbox">
+            <input type="checkbox" checked={together} onChange={(e) => changeTogether(e.target.checked)} aria-describedby="together-hint" />
+            <span>{t.gameDialog.together}</span>
+          </label>
+          <span className="field-hint" id="together-hint">
+            {t.gameDialog.togetherHint}
+          </span>
         </div>
 
         <div className="form-row form-row-2">

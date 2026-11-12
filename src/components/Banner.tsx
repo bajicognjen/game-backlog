@@ -85,7 +85,7 @@ export function Banner() {
       {error && (
         <div className="banner banner-error" role="alert">
           <span>{error}</span>
-          <button type="button" className="button button-ghost" onClick={dismissError}>
+          <button type="button" className="button button-ghost button-small" onClick={dismissError}>
             {t.dismiss}
           </button>
         </div>
@@ -132,7 +132,7 @@ export function Banner() {
             )}
             <button
               type="button"
-              className="button button-ghost"
+              className="button button-ghost button-small"
               onClick={() => {
                 focusCard();
                 dismissNotice();
