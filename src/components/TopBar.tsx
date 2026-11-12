@@ -2,7 +2,7 @@ import { APP_VERSION } from "../platform/updates";
 import { t } from "../i18n/en";
 import { useSync } from "../state/sync";
 import { Icon } from "./Icon";
-import { statusOf, sinceText } from "./syncStatus";
+import { statusOf, whenText } from "./syncStatus";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 interface Props {
@@ -59,7 +59,8 @@ function SyncButton({ onOpen }: { onOpen(): void }) {
   const status = state.kind === "off" ? null : statusOf(state);
   // The name says the state, so a screen reader hears it without opening Settings; the time is in the tooltip.
   const name = status ? t.sync.topbarName.replace("{state}", status.word) : t.sync.topbarOff;
-  const tooltip = status?.when ? `${name}, ${sinceText(status.when, new Date())}` : name;
+  const when = status ? whenText(status, new Date()) : null;
+  const tooltip = when ? `${name}, ${when}` : name;
   return (
     <button type="button" className="button button-ghost topbar-sync" onClick={onOpen} aria-label={name} title={tooltip}>
       <span className="topbar-sync-icon">

@@ -192,7 +192,8 @@ export function createSyncApi(fetchImpl: typeof fetch = (...args) => fetch(...ar
 export type SyncState =
   | { kind: "off" }
   /** Everything this browser has is on the server. */
-  | { kind: "idle"; meta: SyncMeta }
+  /** In step as far as this device knows; `unreachable` when the last check could not get through (nothing waits to go up). */
+  | { kind: "idle"; meta: SyncMeta; unreachable?: boolean }
   | { kind: "syncing"; meta: SyncMeta }
   /** A local change is waiting to be pushed; `reason` says why the last attempt failed. */
   | { kind: "pending"; meta: SyncMeta; reason: "offline" | "error" | "too-large"; detail: string | null }
@@ -209,8 +210,8 @@ export type SyncState =
 
 export type ConflictChoice = "keep-mine" | "take-server";
 
-/** How a check went: the server answered (whatever followed), it could not be reached, or there was nothing to check. */
-export type CheckResult = "answered" | "unreachable" | "skipped";
+/** How a check went: the server answered (whatever followed), could not be reached, answered with an error, or there was nothing to check. */
+export type CheckResult = "answered" | "unreachable" | "server-error" | "skipped";
 
 /** How joining a key went: `not-found` means nothing is stored under it, and nothing was saved on this device. */
 export type ConnectResult = "connected" | "not-found";
@@ -369,20 +370,22 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     await deps.onPulled();
   }
 
-  /** Ask the server and act on what it says; false when it could not be reached. */
-  async function compare(current: SyncMeta): Promise<boolean> {
+  /** Ask the server and act on what it says. */
+  async function compare(current: SyncMeta): Promise<Exclude<CheckResult, "skipped">> {
     let result: FetchResult;
     try {
       result = await deps.api.get(current.key, current.revision);
     } catch (error) {
-      if (current.dirty) set({ kind: "pending", meta: current, reason: error instanceof SyncError && error.reason === "network" ? "offline" : "error", detail: null });
-      else set({ kind: "idle", meta: current });
-      return false;
+      const offline = error instanceof SyncError && error.reason === "network";
+      if (current.dirty) set({ kind: "pending", meta: current, reason: offline ? "offline" : "error", detail: null });
+      // Nothing waits to go up, but the copy here may be behind the server: say the check didn't get through.
+      else set({ kind: "idle", meta: current, unreachable: true });
+      return offline ? "unreachable" : "server-error";
     }
     // Synced before and now nothing under the key: the copy was deleted. Say so rather than quietly storing it again.
     if (result.kind === "missing" && current.revision > 0) {
       set({ kind: "gone", meta: current });
-      return true;
+      return "answered";
     }
     const remoteRevision = result.kind === "missing" ? null : result.kind === "unchanged" ? result.revision : result.remote.revision;
     switch (reconcile(current, remoteRevision)) {
@@ -403,7 +406,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         break;
       }
     }
-    return true;
+    return "answered";
   }
 
   return {
@@ -493,7 +496,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       run(async (): Promise<CheckResult> => {
         const current = meta();
         if (!current || state.kind === "conflict" || state.kind === "invite-required") return "skipped";
-        return (await compare(current)) ? "answered" : "unreachable";
+        return compare(current);
       }),
 
     noteSaved(saved) {

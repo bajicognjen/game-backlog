@@ -501,7 +501,12 @@ describe("sync engine", () => {
     expect(await engine.check()).toBe("answered");
     server.offline = true;
     expect(await engine.check()).toBe("unreachable");
-    expect(engine.state().kind).toBe("idle"); // nothing was waiting, so nothing is pending either
+    // Nothing was waiting, so nothing is pending, but the state says the check didn't get through.
+    expect(engine.state()).toMatchObject({ kind: "idle", unreachable: true });
+    server.offline = false;
+    expect(await engine.check()).toBe("answered");
+    expect(engine.state()).toMatchObject({ kind: "idle" });
+    expect((engine.state() as { unreachable?: boolean }).unreachable).toBeUndefined();
   });
 
   it("rejoining a key with the same plan joins without asking, whatever the theme", async () => {

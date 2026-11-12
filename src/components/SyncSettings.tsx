@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { formatDateTime } from "../domain/dates";
+import { formatClock, formatDateTime } from "../domain/dates";
 import { formatSyncKey, joinLink, readSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import { useStore } from "../state/store";
@@ -10,7 +10,7 @@ import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
 import { SyncQrCode } from "./SyncQrCode";
 import { useMediaQuery } from "./useMediaQuery";
-import { sinceText, statusOf, type SyncStatus } from "./syncStatus";
+import { statusOf, whenText, type SyncStatus } from "./syncStatus";
 
 /**
  * Sent from outside: "join" (a join link, the empty plan) opens the join form, with the key from the link
@@ -55,7 +55,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   /** Starting again after a deleted copy, until it lands or stops: its way out is "Stop syncing here", not Cancel. */
   const [restarting, setRestarting] = useState(false);
   /** What the last Check now found, when the status alone can't say it (nothing new, or the server out of reach). */
-  const [checkNote, setCheckNote] = useState<string | null>(null);
+  const [checkNote, setCheckNote] = useState<{ text: string; announce: boolean } | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
   /** What happened to a join link opened while this device already syncs. */
   const [requestNote, setRequestNote] = useState<string | null>(null);
@@ -225,15 +225,35 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
     await enable(undefined, "sync");
   }
 
+  /**
+   * Check now always says what it found, with the time it tried (a time of day stays true as minutes pass): up to
+   * date, the server out of reach or failing again, or a change that still didn't go up. A pulled plan, a conflict
+   * or a deleted copy say so themselves. The note is read out only when the state word didn't change; when it did,
+   * the announcer reads the new state instead, so nothing is said twice.
+   */
   async function checkNow() {
     setCheckNote(null);
     const before = useSync.getState().state;
     const result = await check();
     const after = useSync.getState().state;
-    if (after.kind !== "idle") return; // the status (and any notice) says what changed
-    const pulled = before.kind !== "off" && after.meta.revision !== before.meta.revision;
-    if (result === "unreachable") setCheckNote(t.sync.checkUnreachable);
-    else if (result === "answered" && !pulled) setCheckNote(t.sync.checkedUpToDate);
+    if (result === null || result === "skipped" || after.kind === "off" || after.kind === "conflict" || after.kind === "gone") return;
+    // A new revision with nothing waiting here is the server's plan arriving (its notice says so); with a change
+    // waiting, it is this device's change going up.
+    const moved = after.kind === "idle" && before.kind !== "off" && after.meta.revision !== before.meta.revision;
+    if (result === "answered" && moved && !before.meta.dirty) return;
+    const time = formatClock(new Date());
+    const text =
+      result === "unreachable"
+        ? t.sync.checkUnreachable
+        : result === "server-error"
+          ? t.sync.checkServerError
+          : after.kind !== "idle"
+            ? t.sync.checkStill
+            : moved
+              ? t.sync.checkSent
+              : t.sync.checkedUpToDate;
+    const wordBefore = before.kind === "off" ? null : statusOf(before).word;
+    setCheckNote({ text: text.replace("{time}", time), announce: statusOf(after).word === wordBefore });
   }
 
   function cancelStep() {
@@ -416,7 +436,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   <span className={`sync-state sync-state-${status.tone}`}>{status.word}</span>
                   {status.when && (
                     <time className="muted" dateTime={status.when} title={formatDateTime(status.when)}>
-                      {sinceText(status.when, now)}
+                      {whenText(status, now)}
                     </time>
                   )}
                 </span>
@@ -454,10 +474,10 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
               </span>
             </div>
             {requestNote && <p className="field-hint sync-request-note">{requestNote}</p>}
-            {checkNote && <p className="field-hint sync-request-note">{checkNote}</p>}
+            {checkNote && <p className="field-hint sync-request-note">{checkNote.text}</p>}
             {/* Always on the page and holding only the words, so what a check found is read out when it appears. */}
             <span className="visually-hidden" role="status">
-              {checkNote ?? ""}
+              {checkNote?.announce ? checkNote.text : ""}
             </span>
 
             {/* The copy is gone: two equal ways on, each with what it does, as when sync is off. */}

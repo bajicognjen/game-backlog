@@ -62,6 +62,11 @@ export function elapsedSince(value: string, now: Date): { unit: "now" } | { unit
   return null;
 }
 
+/** The time of day as people read it here: local `HH:mm`. */
+export function formatClock(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 /** A moment (a server timestamp) as people read it here: local `dd.mm.yyyy, HH:mm`. Not a date: the input unchanged. */
 export function formatDateTime(value: string | Date): string {
   const d = typeof value === "string" ? new Date(value) : value;
