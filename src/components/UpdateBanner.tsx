@@ -27,7 +27,8 @@ function UpdateBannerContent() {
       <div className="banner banner-info">
         <span>{t.updates.webReady}</span>
         <span className="banner-actions">
-          <button type="button" className="button button-primary button-small" onClick={reload}>
+          {/* News about the app, not a move of the plan: no Plan Blue (The One Blue Rule). */}
+          <button type="button" className="button button-small" onClick={reload}>
             {t.updates.reload}
           </button>
           <button type="button" className="button button-ghost button-small" onClick={dismiss}>
@@ -43,7 +44,7 @@ function UpdateBannerContent() {
       <div className="banner banner-info">
         <span>{t.updates.available.replace("{version}", version ?? "")}</span>
         <span className="banner-actions">
-          <button type="button" className="button button-primary button-small" onClick={() => void install()}>
+          <button type="button" className="button button-small" onClick={() => void install()}>
             {t.updates.install}
           </button>
           <button type="button" className="button button-ghost button-small" onClick={dismiss}>

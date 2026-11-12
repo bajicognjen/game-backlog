@@ -416,7 +416,9 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onJoinSync, edit
         {scheduled && <TotalsBar totals={schedule.totals} />}
       </div>
       <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(plan)}>
+        {/* Keyed by the tab, so switching tabs shows the other card at once; the handover plays only when the current game changes. */}
         <NowPlaying
+          key={plan}
           rows={rows}
           today={scheduled ? today : null}
           plan={scheduled ? { startDate: settings.startDate, hoursPerWeek: settings.hoursPerWeek } : null}

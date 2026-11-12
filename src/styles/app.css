@@ -407,10 +407,6 @@ main {
   margin-left: -2px;
 }
 
-.button:hover {
-  background: var(--surface-2);
-}
-
 .button-ghost {
   border-color: transparent;
   background: transparent;
@@ -438,20 +434,10 @@ main {
   color: var(--on-accent);
 }
 
-.button-primary:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
-}
-
 .button-success {
   border-color: var(--success);
   background: var(--success);
   color: var(--on-success);
-}
-
-.button-success:hover {
-  border-color: var(--success-hover);
-  background: var(--success-hover);
 }
 
 .button-danger {
@@ -460,17 +446,8 @@ main {
   color: var(--on-danger);
 }
 
-.button-danger:hover {
-  border-color: var(--danger-hover);
-  background: var(--danger-hover);
-}
-
 .button-danger-ghost {
   color: var(--danger);
-}
-
-.button-danger-ghost:hover {
-  background: var(--danger-soft);
 }
 
 .button-small {
@@ -493,18 +470,45 @@ main {
   margin-left: 0;
 }
 
-.button-icon-sm:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .button-icon-success {
   color: var(--success);
 }
 
-.button-icon-success:hover {
-  background: var(--success-soft);
-  color: var(--success);
+/* Hover tints only where there is a hover: on a touch screen a tapped button would keep its tint. Before the
+   disabled rule, which has the same specificity and must win over them. */
+@media (hover: hover) {
+  .button:hover {
+    background: var(--surface-2);
+  }
+
+  .button-primary:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+  }
+
+  .button-success:hover {
+    border-color: var(--success-hover);
+    background: var(--success-hover);
+  }
+
+  .button-danger:hover {
+    border-color: var(--danger-hover);
+    background: var(--danger-hover);
+  }
+
+  .button-danger-ghost:hover {
+    background: var(--danger-soft);
+  }
+
+  .button-icon-sm:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .button-icon-success:hover {
+    background: var(--success-soft);
+    color: var(--success);
+  }
 }
 
 .button:disabled {
@@ -841,6 +845,11 @@ textarea {
 }
 
 /* Behind Change: Turn off and Delete server copy, each with its own hint under it. */
+/* Delete server copy is a ghost button: its words line up with the hint under it, the padding hangs left. */
+.sync-manage .button-danger-ghost {
+  margin-left: -13px; /* 12px padding + 1px border */
+}
+
 .sync-manage {
   flex-basis: 100%;
   display: flex;
@@ -916,6 +925,12 @@ textarea {
   margin-bottom: 16px;
   border-radius: var(--radius-panel);
   border: 1px solid transparent;
+}
+
+/* A caution in running text (Caution Amber ink): something to know about, not something that failed. */
+.field-caution {
+  font-size: var(--text-sm);
+  color: var(--warning-text);
 }
 
 /* A notice of an action taken in Settings → Sync shows there, at the top of the group, the full width of it. */
@@ -2322,6 +2337,14 @@ tr:focus-within .row-actions {
   white-space: nowrap;
 }
 
+/* The narrowest phones: plan tabs tighten so PC, PS5 and Together with two-digit counts still fit. */
+@media (max-width: 359px) {
+  .tabs[role="tablist"] .tab {
+    padding: 5px 10px;
+    gap: 6px;
+  }
+}
+
 /* On the narrowest phones a change time stacks under its date, so two of them fit beside the labels. */
 @media (max-width: 379px) {
   .sync-compare-time {
@@ -3112,6 +3135,28 @@ h2[tabindex="-1"]:focus {
     flex: 1 1 100%;
     min-width: 0;
     flex-wrap: wrap;
+  }
+
+  /* The current game's three actions as a deliberate block, not a wrap: Log hours and Pause side by side,
+     Finish game the full width under them, where a thumb ends up. The idle card keeps its single Start. */
+  .now:not(.now-idle) .now-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .now:not(.now-idle) .now-actions > .button-success {
+    grid-column: 1 / -1;
+  }
+
+  /* The bar takes the card's width and its line goes under it, instead of a stub beside a long sentence. */
+  .now-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .now-progress .progress {
+    max-width: none;
   }
 
   .now-title {

@@ -374,7 +374,8 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
                 <span className="field-label">{t.settings.dataTitle}</span>
                 <p className="field-hint">{t.settings.dataBrowser}</p>
                 <div className="field-actions">
-                  <span className={data.persisted === false ? "field-error" : "muted"}>
+                  {/* A caution, not an error: nothing failed, the browser only may clear the data. */}
+                  <span className={data.persisted === false ? "field-caution" : "muted"}>
                     {data.persisted === true ? t.settings.dataPersisted : data.persisted === false ? t.settings.dataNotPersisted : t.settings.dataUnknown}
                   </span>
                   {data.persisted !== true && (

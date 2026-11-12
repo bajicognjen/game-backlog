@@ -344,7 +344,7 @@ export const t = {
       "Nothing is merged. Keeping this device's plan replaces the server's copy, and your other devices get it when they next sync. Taking the server's plan replaces the plan on this device. Either way, Undo brings the other plan back for 20 seconds. Until you choose, nothing syncs.",
     compareDevice: "This device",
     compareServer: "Server",
-    compareInPlan: "Games in the plan",
+    compareInPlan: "Games in all plans",
     compareFinished: "Finished games",
     compareHours: "Hours logged",
     compareChanged: "Last changed",
