@@ -8,7 +8,7 @@ import { repository } from "../db";
 import { STATE_KEY, onWebStateSaved, type StoredState } from "../db/webRepository";
 import { getDocument, hasIndexedDb } from "../db/webStorage";
 import type { Backup } from "../domain/backup";
-import { normaliseSyncKey } from "../domain/sync";
+import { readSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
 import {
   createSyncApi,
@@ -77,7 +77,7 @@ export const useSync = create<SyncUiState>((set, get) => {
     start: () => attempt((e) => e.start()),
     enable: (inviteCode) => attempt((e) => e.enable(inviteCode ?? null)),
     async connect(input) {
-      if (!normaliseSyncKey(input)) return "invalid";
+      if (!readSyncKey(input)) return "invalid";
       let result: ConnectResult | "failed" = "failed";
       await attempt(async (e) => {
         result = await e.connect(input);

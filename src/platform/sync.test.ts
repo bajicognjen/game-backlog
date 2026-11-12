@@ -6,7 +6,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSeedGames } from "../domain/seed";
-import type { SyncMeta } from "../domain/sync";
+import { joinLink, type SyncMeta } from "../domain/sync";
 import type { GameInput, Repository } from "../db/repository";
 import { createSnapshotRepository, emptyState, type SnapshotState, type SnapshotStore } from "../db/snapshotRepository";
 import { STATE_KEY, createWebRepository, onWebStateSaved, type StoredState } from "../db/webRepository";
@@ -127,7 +127,7 @@ function browserWithOwnMeta(server: ReturnType<typeof fakeServer>) {
  * A separate device: its own plan store and its own sync record, so two of
  * them share nothing but the fake server (fake-indexeddb is one browser).
  */
-function device(server: ReturnType<typeof fakeServer>) {
+function device(server: ReturnType<typeof fakeServer>, now?: () => Date) {
   let saved: SnapshotState | null = null;
   let engine: SyncEngine | null = null;
   const store: SnapshotStore = {
@@ -153,7 +153,7 @@ function device(server: ReturnType<typeof fakeServer>) {
     },
   };
   const onPulled = vi.fn();
-  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes, metaStore });
+  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes, metaStore, now });
   return { repository, engine, onPulled };
 }
 
@@ -210,6 +210,35 @@ describe("sync engine", () => {
     await engine.check();
     expect(engine.state().kind).toBe("idle");
     expect(await server.titles()).toEqual(["Offline game"]);
+  });
+
+  it("joins from a whole join link pasted into the key field", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Shared game");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+
+    const second = device(server);
+    await second.repository.load();
+    expect(await second.engine.connect(joinLink("https://backlog.example", key))).toBe("connected");
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { key } });
+    expect((await second.repository.load()).games.map((g) => g.title)).toEqual(["Shared game"]);
+  });
+
+  it("counts a joined plan as synced when it was pulled, not when the server last stored it", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    server.remote!.updatedAt = "2026-11-12T08:00:00.000Z";
+
+    const second = device(server, () => new Date("2026-11-12T08:09:00.000Z"));
+    await second.repository.load();
+    await second.engine.connect(key);
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { lastSyncedAt: "2026-11-12T08:09:00.000Z" } });
   });
 
   it("pulls what another device pushed, keeps local credentials, and does not push it back", async () => {

@@ -22,6 +22,8 @@ import { SteamLibraryDialog } from "./components/SteamLibraryDialog";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
 import { SyncBanner } from "./components/SyncBanner";
+import type { SyncJoinRequest } from "./components/SyncSettings";
+import { keyInJoinLink } from "./domain/sync";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
@@ -76,6 +78,29 @@ export default function App() {
   /** A game whose edit form should open next; the section that owns it picks it up. */
   const [editRequest, setEditRequest] = useState<Game | null>(null);
   const [pendingImport, setPendingImport] = useState<{ name: string; backup: Backup } | null>(null);
+  /** Web app: open Settings → Sync at the join form (from a join link, or the empty plan). */
+  const [syncRequest, setSyncRequest] = useState<SyncJoinRequest | null>(null);
+
+  function openSyncJoin(key: string | null) {
+    setIgdbFocus(0);
+    setSettingsOpen(true);
+    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key }));
+  }
+
+  // Web app: a join link (…/#join=KEY) opens the join form with the key filled in. The key leaves the
+  // address bar at once, so it is not left in this tab's history or copied along with the page's address.
+  useEffect(() => {
+    if (!useSync.getState().supported) return;
+    const readLink = () => {
+      const key = keyInJoinLink(window.location.hash);
+      if (key === null) return;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      openSyncJoin(key);
+    };
+    readLink();
+    window.addEventListener("hashchange", readLink);
+    return () => window.removeEventListener("hashchange", readLink);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -171,12 +196,13 @@ export default function App() {
         <SyncBanner />
         <UpdateBanner />
         <Banner />
-        {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
+        {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} syncRequest={syncRequest} />}
         <PlanSection
           plan={plan}
           onPlanChange={setPlan}
           onOpen={(game) => setDetailsId(game.id)}
           onSetupIgdb={openIgdbSetup}
+          onJoinSync={() => openSyncJoin(null)}
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
         />
@@ -237,6 +263,8 @@ interface PlanSectionProps {
   onPlanChange(plan: PlanId): void;
   onOpen(game: Game): void;
   onSetupIgdb(): void;
+  /** Web app: open Settings → Sync at the join form. */
+  onJoinSync(): void;
   /** A planned game whose edit form should open (from the details dialog). */
   editRequest: Game | null;
   onEditHandled(): void;
@@ -249,7 +277,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
   return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
 }
 
-function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
+function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onJoinSync, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   /** Dated sessions: hours played since the plan started count as time already spent. */
@@ -269,6 +297,8 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
   const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
   const platforms = useMemo(() => availablePlatforms(games), [games]);
   const filterable = useMemo(() => hasIgdbData(games), [games]);
+  /** A web copy with nothing in it and sync off is likely a second device: the empty plan offers to join the first. */
+  const canJoin = useSync((s) => s.supported && s.state.kind === "off") && games.length === 0;
 
   // The details dialog can ask for a planned game's edit form.
   useEffect(() => {
@@ -349,7 +379,17 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
       }
     />
   ) : scheduled ? (
-    <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} />
+    <EmptyState
+      title={t.emptyPlan}
+      hint={canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint}
+      action={
+        canJoin && (
+          <button type="button" className="button" onClick={onJoinSync}>
+            {t.sync.joinOther}
+          </button>
+        )
+      }
+    />
   ) : together ? (
     <EmptyState title={t.emptyTogether} hint={t.emptyTogetherHint} />
   ) : (

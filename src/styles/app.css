@@ -845,6 +845,24 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+/* The join link as a QR code. Cameras read dark modules on light, so the tile is Paper and Ink in both
+   themes (the dark theme's paper would invert it); the four-module quiet zone is inside the tile. */
+.sync-qr {
+  display: block;
+  width: 168px;
+  height: 168px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: #1b1f24;
+}
+
+/* A join link opened on a device that already syncs: what happened, right under the state. */
+.sync-request-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .settings-form .settings-steps {
   flex-basis: auto;
 }
@@ -2337,8 +2355,9 @@ tr:focus-within .row-actions {
   gap: 2px;
 }
 
-/* Headings that skip links and hashes land on stop below the sticky bar. */
-h2[id] {
+/* Headings that skip links and hashes land on stop below the sticky bar; so does Sync when a join link opens it. */
+h2[id],
+#sync-settings {
   scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 

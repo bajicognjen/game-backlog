@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSyncKey, normaliseSyncKey, reconcile, summarizePlan, syncKeyFromBytes } from "./sync";
+import { formatSyncKey, joinLink, keyInJoinLink, normaliseSyncKey, readSyncKey, reconcile, summarizePlan, syncKeyFromBytes } from "./sync";
 
 describe("summarizePlan", () => {
   it("counts games still in the plan, finished games and the hours logged", () => {
@@ -25,6 +25,25 @@ describe("sync keys", () => {
     expect(normaliseSyncKey("abcd efgh ijkl mnop qrst uvwx yz23 4567")).toBe(key);
     expect(normaliseSyncKey(key.slice(1))).toBeNull();
     expect(normaliseSyncKey(key.replace("A", "1"))).toBeNull();
+  });
+
+  it("reads what a person typed: the digits a key never has as the letters they look like", () => {
+    const key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    const byEye = key.replace("O", "0").replace("I", "1").replace("B", "8");
+    expect(readSyncKey(byEye)).toBe(key);
+    expect(normaliseSyncKey(byEye)).toBeNull(); // the stored form stays strict
+    expect(readSyncKey(key.replace("A", "9"))).toBeNull();
+  });
+
+  it("makes a join link and takes the key back out of it", () => {
+    const key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    const link = joinLink("https://backlog.example", key);
+    expect(link).toBe("https://backlog.example/#join=ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567");
+    expect(keyInJoinLink(link)).toBe("ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567");
+    expect(readSyncKey(link)).toBe(key);
+    expect(readSyncKey(`  ${link}  `)).toBe(key);
+    expect(keyInJoinLink("#completed-heading")).toBeNull();
+    expect(keyInJoinLink("#join=")).toBe("");
     expect(formatSyncKey(key)).toBe("ABCD-EFGH-IJKL-MNOP-QRST-UVWX-YZ23-4567");
   });
 });

@@ -5,7 +5,8 @@ import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
 import { dataLocation, keepDataPersistent, type DataLocation } from "../platform/storage";
-import { SyncSettings } from "./SyncSettings";
+import { SyncSettings, type SyncJoinRequest } from "./SyncSettings";
+import { useSync } from "../state/sync";
 import { APP_VERSION, appVersion } from "../platform/updates";
 import { fetchDesignRefresh } from "../state/designs";
 import { useStore } from "../state/store";
@@ -26,12 +27,14 @@ interface Props {
   onClose(): void;
   /** Changes when a dialog sends the user here for IGDB; the Client ID field takes focus. */
   focusIgdb?: number;
+  /** A join link or the empty plan sent the user here to join a synced plan (web app). */
+  syncRequest?: SyncJoinRequest | null;
 }
 
 const TWITCH_CONSOLE_URL = "https://dev.twitch.tv/console";
 const STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey";
 
-export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
+export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Props) {
   const settings = useStore((s) => s.settings);
   const clientIdRef = useRef<HTMLInputElement>(null);
   /** A connection that is set up folds to one status line; its form opens again with "Change". */
@@ -39,8 +42,13 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
   const [steamEditing, setSteamEditing] = useState(false);
   const igdbReady = settings.igdbClientId !== "" && settings.igdbClientSecret !== "";
   const steamSaved = steamConfigured(settings);
-  const showIgdbForm = !igdbReady || igdbEditing;
-  const showSteamForm = !steamSaved || steamEditing;
+  /**
+   * The web app folds a connection that isn't set up yet too: on a phone the two forms would push Sync,
+   * the setting a new device needs first, a screen and a half down. The desktop app shows the steps.
+   */
+  const foldUnset = useSync((s) => s.supported);
+  const showIgdbForm = igdbEditing || (!igdbReady && !foldUnset);
+  const showSteamForm = steamEditing || (!steamSaved && !foldUnset);
   useEffect(() => {
     if (focusIgdb <= 0) return;
     // A dialog sent the user here for IGDB: open the form and put them in the Client ID field.
@@ -231,14 +239,14 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
                 <button type="button" className="button button-small" onClick={() => void openExternal(TWITCH_CONSOLE_URL)}>
                   {t.settings.igdbConsole} <Icon name="external" size={14} />
                 </button>
-                {igdbReady && (
+                {(igdbReady || foldUnset) && (
                   <button type="button" className="button button-small" onClick={() => setIgdbEditing(false)}>
                     {t.settings.done}
                   </button>
                 )}
               </div>
             </div>
-          ) : (
+          ) : igdbReady ? (
             <div className="settings-status">
               <Icon name="check" size={16} className="settings-status-icon" />
               <span>
@@ -247,6 +255,13 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
               </span>
               <button type="button" className="button button-small button-ghost" onClick={() => setIgdbEditing(true)} aria-label={t.settings.changeIgdb}>
                 <Icon name="pencil" size={14} /> {t.settings.change}
+              </button>
+            </div>
+          ) : (
+            <div className="settings-status">
+              <span className="muted">{t.settings.notSetUp}</span>
+              <button type="button" className="button button-small" onClick={() => setIgdbEditing(true)} aria-label={t.settings.setUpIgdb}>
+                {t.settings.setUp}
               </button>
             </div>
           )}
@@ -310,33 +325,43 @@ export function SettingsPanel({ onClose, focusIgdb = 0 }: Props) {
                 <button type="button" className="button button-small" onClick={() => void openExternal(STEAM_KEY_URL)}>
                   {t.steam.openKeyPage} <Icon name="external" size={14} />
                 </button>
-                {steamSaved && (
+                {(steamSaved || foldUnset) && (
                   <button type="button" className="button button-small" onClick={() => setSteamEditing(false)}>
                     {t.settings.done}
                   </button>
                 )}
               </div>
             </div>
-          ) : (
+          ) : steamSaved ? (
             <div className="settings-status">
               <SteamAccount />
               <button type="button" className="button button-small button-ghost" onClick={() => setSteamEditing(true)} aria-label={t.settings.changeSteam}>
                 <Icon name="pencil" size={14} /> {t.settings.change}
               </button>
             </div>
-          )}
-          <div className="settings-action">
-            <div className="field-actions">
-              <button type="button" className="button" onClick={() => setSteamImportOpen(true)} disabled={!steamReady}>
-                <Icon name="download" /> {t.steam.import}
+          ) : (
+            <div className="settings-status">
+              <span className="muted">{t.settings.notSetUp}</span>
+              <button type="button" className="button button-small" onClick={() => setSteamEditing(true)} aria-label={t.settings.setUpSteam}>
+                {t.settings.setUp}
               </button>
-              {!steamReady && <span className="muted">{t.steam.setupFirst}</span>}
             </div>
-          </div>
+          )}
+          {/* Folded and not set up, the import has nothing to offer yet: it waits for the form. */}
+          {(steamReady || showSteamForm) && (
+            <div className="settings-action">
+              <div className="field-actions">
+                <button type="button" className="button" onClick={() => setSteamImportOpen(true)} disabled={!steamReady}>
+                  <Icon name="download" /> {t.steam.import}
+                </button>
+                {!steamReady && <span className="muted">{t.steam.setupFirst}</span>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {inBrowser && <SyncSettings />}
+      {inBrowser && <SyncSettings request={syncRequest} />}
 
       {(version || backupFolder || inBrowser) && (
         <div className="settings-group">

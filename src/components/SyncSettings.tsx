@@ -1,14 +1,27 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { elapsedSince, formatDateTime } from "../domain/dates";
-import { formatSyncKey } from "../domain/sync";
+import { formatSyncKey, joinLink, readSyncKey } from "../domain/sync";
 import { t } from "../i18n/en";
+import { useStore } from "../state/store";
 import { useSync } from "../state/sync";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
+import { SyncQrCode } from "./SyncQrCode";
 
-/** The Settings group for sync (web build only): turn it on, join a key, see the state, turn it off. */
-export function SyncSettings() {
+/** Sent from outside (a join link, the empty plan): open the join form, with the key from the link when there is one. */
+export interface SyncJoinRequest {
+  /** Changes with every request, so the same link opened twice is handled twice. */
+  n: number;
+  /** The key as it came in, not yet checked; null to open an empty form. */
+  key: string | null;
+}
+
+/** Off: a question first. "start" turns sync on here (with an invite code, if any); "connect" joins a plan from another device. */
+type OffStep = "choose" | "start" | "connect";
+
+/** The Settings group for sync (web build only): start or join, see the state, add another device, turn it off. */
+export function SyncSettings({ request = null }: { request?: SyncJoinRequest | null }) {
   const state = useSync((s) => s.state);
   const actionError = useSync((s) => s.actionError);
   const enable = useSync((s) => s.enable);
@@ -16,35 +29,51 @@ export function SyncSettings() {
   const disable = useSync((s) => s.disable);
   const deleteServerCopy = useSync((s) => s.deleteServerCopy);
   const check = useSync((s) => s.check);
+  /** A device with no games is most likely the second one: joining is its main action. */
+  const emptyPlan = useStore((s) => s.games.length === 0);
 
   const [busy, setBusy] = useState(false);
-  const [joining, setJoining] = useState(false);
+  const [step, setStep] = useState<OffStep>("choose");
+  /** The step as of the last render, for the join request that arrives a frame later. */
+  const stepRef = useRef(step);
+  stepRef.current = step;
   const [keyInput, setKeyInput] = useState("");
   const [invite, setInvite] = useState("");
   /** The invite code sent with the last "Turn on sync", to tell a missing code from a refused one. */
   const [sentInvite, setSentInvite] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
+  /** What happened to a join link opened while this device already syncs. */
+  const [requestNote, setRequestNote] = useState<string | null>(null);
   const keyRef = useRef<HTMLInputElement>(null);
-  const haveKeyRef = useRef<HTMLButtonElement>(null);
+  const connectRef = useRef<HTMLButtonElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
+  const joinRef = useRef<HTMLButtonElement>(null);
   const inviteNoteId = useId();
-  const keyErrorId = useId();
-  /** Set by Cancel on the key form, so focus goes back to the button that opened it. */
-  const refocusHaveKey = useRef(false);
-  // Opening the key form puts the cursor in it; cancelling it returns focus to "Use an existing key".
-  useEffect(() => {
-    if (joining) keyRef.current?.focus();
-    else if (refocusHaveKey.current) haveKeyRef.current?.focus();
-    refocusHaveKey.current = false;
-  }, [joining]);
+  const keyNoteId = useId();
+  /** Where focus goes when the step changes: into the new form, or back to the button that opened it. */
+  const focusAfterStep = useRef<"field" | "connect" | "opener" | null>(null);
+  const opener = useRef<"start" | "connect">("start");
+
+  function goTo(next: OffStep, focus: "field" | "connect" | "opener") {
+    if (next !== "choose") opener.current = next;
+    focusAfterStep.current = focus;
+    setStep(next);
+  }
+
   const [showKey, setShowKey] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"key" | "link" | null>(null);
+  const [showQr, setShowQr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
   /** Change is open: Turn off and Delete server copy are shown. Folded again whenever sync goes off. */
   const [managing, setManaging] = useState(false);
   const manageId = useId();
+  const qrId = useId();
   useEffect(() => {
-    if (state.kind === "off") setManaging(false);
+    if (state.kind === "off") {
+      setManaging(false);
+      setShowQr(false);
+    }
   }, [state.kind]);
   // "5 min ago" keeps up while Settings stays open.
   const [now, setNow] = useState(() => new Date());
@@ -82,12 +111,49 @@ export function SyncSettings() {
     target?.focus();
   }, [busy, confirmDelete, state.kind]);
 
+  // A step opens with the cursor in its field (or on Connect when a link filled the key); Cancel returns to its opener.
+  useEffect(() => {
+    const focus = focusAfterStep.current;
+    focusAfterStep.current = null;
+    if (focus === "field") (step === "start" ? inviteRef : keyRef).current?.focus();
+    else if (focus === "connect") connectRef.current?.focus();
+    else if (focus === "opener") (opener.current === "start" ? startRef : joinRef).current?.focus();
+  }, [step]);
+
+  // A join link, or the empty plan's button, sends the user here: open the join form, filled when the link had a key.
+  useEffect(() => {
+    if (!request) return;
+    const current = useSync.getState().state;
+    if (current.kind !== "off") {
+      // Already syncing: say whether the link is this plan or another one, and change nothing.
+      const key = request.key === null ? null : readSyncKey(request.key);
+      setRequestNote(key !== null && key === current.meta.key ? t.sync.joinSame : t.sync.joinOtherPlan);
+      requestAnimationFrame(() => groupRef.current?.scrollIntoView({ block: "start" }));
+      return;
+    }
+    setRequestNote(null);
+    setKeyError(null);
+    setKeyInput(request.key ?? "");
+    opener.current = "connect";
+    // After Settings has opened and scrolled itself into view, bring this group up and put focus where the next step is.
+    requestAnimationFrame(() => {
+      groupRef.current?.scrollIntoView({ block: "start" });
+      if (stepRef.current === "connect") (request.key ? connectRef : keyRef).current?.focus();
+      else goTo("connect", request.key ? "connect" : "field");
+    });
+    // Only a new request counts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.n]);
+
   async function turnOn() {
     const code = invite.trim();
     setSentInvite(code);
     await enable(code || undefined);
     // Accepted (or not needed): the code has done its job and should not linger in the field.
-    if (useSync.getState().state.kind !== "invite-required") setInvite("");
+    if (useSync.getState().state.kind !== "invite-required") {
+      setInvite("");
+      setStep("choose");
+    }
   }
 
   async function join() {
@@ -96,25 +162,38 @@ export function SyncSettings() {
     if (result === "invalid") setKeyError(t.sync.invalidKey);
     else if (result === "not-found") setKeyError(t.sync.keyNotFound);
     else if (result === "connected") {
-      setJoining(false);
+      setStep("choose");
       setKeyInput("");
+      // Both devices have a plan: the choice is the next step, so ask it now rather than showing a red state.
+      if (useSync.getState().state.kind === "conflict") setConflictOpen(true);
     }
     // "failed": actionError below says why, and the form stays open to try again.
   }
 
-  function closeJoin() {
-    refocusHaveKey.current = true;
-    setJoining(false);
+  function cancelStep() {
     setKeyError(null);
+    setKeyInput("");
+    setInvite("");
+    goTo("choose", "opener");
   }
 
-  async function copyKey(key: string) {
+  /** Enter in a field does what its form's main button does. */
+  const submitOnEnter = (submit: () => void, ready: boolean) => (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && ready && !busy) {
+      event.preventDefault();
+      submit();
+    }
+  };
+
+  async function copyText(text: string, what: "key" | "link") {
     try {
-      await navigator.clipboard.writeText(formatSyncKey(key));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      setTimeout(() => setCopied((c) => (c === what ? null : c)), 2000);
     } catch {
-      setShowKey(true); // no clipboard access: show it to copy by hand
+      // No clipboard access: show what was meant to be copied, to copy by hand.
+      if (what === "key") setShowKey(true);
+      else setShowQr(true);
     }
   }
 
@@ -122,21 +201,42 @@ export function SyncSettings() {
   const refused = state.kind === "invite-required";
   const typedInvite = invite.trim();
   const inviteError = !refused ? null : typedInvite === "" ? t.sync.inviteNeeded : typedInvite === sentInvite ? t.sync.inviteWrong : null;
+  const offStep: OffStep = refused ? "start" : step;
+  const link = state.kind !== "off" ? joinLink(window.location.origin, state.meta.key) : null;
 
   return (
-    <div className="settings-group" ref={groupRef}>
+    <div className="settings-group" ref={groupRef} id="sync-settings">
       <h3>{t.sync.title}</h3>
       <p className="settings-group-note">{t.sync.note}</p>
       <div className="settings-group-body">
-        {(state.kind === "off" || refused) && !joining && (
+        {state.kind === "off" && offStep === "choose" && (
           <div className="settings-action">
-            <label className="field sync-field">
-              <span className="field-label">{t.sync.inviteLabel}</span>
+            <div className="field-actions">
+              {/* The likely path is the primary one: joining on a device with no games, starting on one with a plan. */}
+              <button ref={startRef} type="button" className={`button ${emptyPlan ? "" : "button-primary"}`} disabled={busy} onClick={() => goTo("start", "field")}>
+                {t.sync.startHere}
+              </button>
+              <button ref={joinRef} type="button" className={`button ${emptyPlan ? "button-primary" : ""}`} disabled={busy} onClick={() => goTo("connect", "field")}>
+                {t.sync.joinOther}
+              </button>
+            </div>
+            <p className="field-hint">{t.sync.chooseHint}</p>
+          </div>
+        )}
+
+        {(state.kind === "off" || refused) && offStep === "start" && (
+          <div className="settings-action">
+            <div className="field sync-field">
+              <label className="field-label" htmlFor={`${inviteNoteId}-input`}>
+                {t.sync.inviteLabel}
+              </label>
               <input
+                id={`${inviteNoteId}-input`}
                 ref={inviteRef}
                 type="text"
                 value={invite}
                 onChange={(e) => setInvite(e.target.value)}
+                onKeyDown={submitOnEnter(() => void run(turnOn), !(refused && typedInvite === ""))}
                 autoComplete="off"
                 spellCheck={false}
                 aria-invalid={inviteError !== null}
@@ -151,51 +251,59 @@ export function SyncSettings() {
                   {t.sync.inviteHint}
                 </span>
               )}
-            </label>
+            </div>
             <div className="field-actions">
               <button type="button" className="button button-primary" disabled={busy || (refused && typedInvite === "")} onClick={() => void run(turnOn)}>
                 {t.sync.turnOn}
               </button>
-              {refused ? (
-                // Give up on the new key: back to "off", where "Use an existing key" is offered again.
-                <button type="button" className="button" disabled={busy} onClick={() => void run(disable)}>
-                  {t.cancel}
-                </button>
-              ) : (
-                <button ref={haveKeyRef} type="button" className="button" disabled={busy} onClick={() => setJoining(true)}>
-                  {t.sync.haveKey}
-                </button>
-              )}
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={busy}
+                // A refused new key is given up (back to off); otherwise this only steps back to the question.
+                onClick={() => (refused ? void run(disable).then(cancelStep) : cancelStep())}
+              >
+                {t.cancel}
+              </button>
             </div>
           </div>
         )}
 
-        {state.kind === "off" && joining && (
+        {state.kind === "off" && offStep === "connect" && (
           <div className="settings-action">
-            <label className="field sync-field">
-              <span className="field-label">{t.sync.keyLabel}</span>
+            <div className="field sync-field">
+              <label className="field-label" htmlFor={`${keyNoteId}-input`}>
+                {t.sync.keyOrLinkLabel}
+              </label>
               <input
+                id={`${keyNoteId}-input`}
                 ref={keyRef}
                 type="text"
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
+                onKeyDown={submitOnEnter(() => void run(join), keyInput.trim() !== "")}
                 placeholder={t.sync.keyPlaceholder}
                 autoComplete="off"
+                autoCapitalize="characters"
                 spellCheck={false}
                 aria-invalid={keyError !== null}
-                aria-describedby={keyError ? keyErrorId : undefined}
+                aria-describedby={keyNoteId}
               />
-              {keyError && (
-                <span className="field-error" id={keyErrorId}>
+              {keyError ? (
+                <span className="field-error" id={keyNoteId} role="alert">
                   {keyError}
                 </span>
+              ) : (
+                <span className="field-hint" id={keyNoteId}>
+                  {t.sync.connectHint}
+                </span>
               )}
-            </label>
+            </div>
             <div className="field-actions">
-              <button type="button" className="button button-primary" disabled={busy || keyInput.trim() === ""} onClick={() => void run(join)}>
+              <button ref={connectRef} type="button" className="button button-primary" disabled={busy || keyInput.trim() === ""} onClick={() => void run(join)}>
                 {t.sync.connect}
               </button>
-              <button type="button" className="button button-ghost" disabled={busy} onClick={closeJoin}>
+              <button type="button" className="button button-ghost" disabled={busy} onClick={cancelStep}>
                 {t.cancel}
               </button>
             </div>
@@ -246,8 +354,9 @@ export function SyncSettings() {
                 </button>
               </span>
             </div>
+            {requestNote && <p className="field-hint sync-request-note">{requestNote}</p>}
 
-            {/* The key stays in view: setting up another device is what people come back here for. */}
+            {/* The key and the join link stay in view: setting up another device is what people come back here for. */}
             <div className="settings-action">
               <span className="field-label">{t.sync.keyLabel}</span>
               <div className="field-actions">
@@ -255,10 +364,25 @@ export function SyncSettings() {
                 <button type="button" className="button button-small" onClick={() => setShowKey((v) => !v)}>
                   {showKey ? t.sync.hide : t.sync.show}
                 </button>
-                <button type="button" className="button button-small" onClick={() => void copyKey(state.meta.key)}>
-                  {copied ? t.sync.copied : t.sync.copy}
+                <button type="button" className="button button-small" onClick={() => void copyText(formatSyncKey(state.meta.key), "key")}>
+                  {copied === "key" ? t.sync.copied : t.sync.copy}
                 </button>
               </div>
+              <div className="field-actions">
+                <button type="button" className="button button-small" onClick={() => link && void copyText(link, "link")}>
+                  <Icon name="link" size={14} /> {copied === "link" ? t.sync.linkCopied : t.sync.copyLink}
+                </button>
+                <button
+                  type="button"
+                  className="button button-small"
+                  aria-expanded={showQr}
+                  aria-controls={showQr ? qrId : undefined}
+                  onClick={() => setShowQr((v) => !v)}
+                >
+                  <Icon name="qr" size={14} /> {showQr ? t.sync.hideQr : t.sync.showQr}
+                </button>
+              </div>
+              {showQr && link && <SyncQrCode id={qrId} text={link} label={t.sync.qrLabel} />}
               <p className="field-hint">{t.sync.keyHint}</p>
             </div>
 

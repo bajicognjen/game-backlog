@@ -20,6 +20,7 @@ import {
   SYNC_PATH,
   UPDATED_AT_HEADER,
   normaliseSyncKey,
+  readSyncKey,
   reconcile,
   summarizePlan,
   syncKeyFromBytes,
@@ -300,7 +301,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       applyingRemote = false;
     }
     unsent = null;
-    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: remote.updatedAt }) });
+    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: now().toISOString() }) });
     await deps.onPulled();
   }
 
@@ -349,7 +350,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
     connect: (input) =>
       run(async (): Promise<ConnectResult> => {
-        const key = normaliseSyncKey(input);
+        const key = readSyncKey(input);
         if (!key) throw new Error("Not a sync key");
         const remote = await fetchRemote(key);
         if (!remote) return "not-found";
