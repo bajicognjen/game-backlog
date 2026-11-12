@@ -29,6 +29,7 @@ import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
 import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type GameFilter } from "./domain/filters";
+import { formatHours } from "./domain/format";
 import { computeSchedule, plannedGames } from "./domain/schedule";
 import { steamConfigured, steamSearchTitle } from "./domain/steam";
 import { todayStatus } from "./domain/today";
@@ -389,7 +390,7 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, edi
   ) : scheduled ? (
     <EmptyState
       title={t.emptyPlan}
-      hint={canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint}
+      hint={(canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint).replace("{hours}", formatHours(settings.hoursPerWeek))}
       action={
         canJoin && (
           <button type="button" className="button" onClick={onSetUpSync}>

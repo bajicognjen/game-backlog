@@ -3285,13 +3285,15 @@ h3[tabindex="-1"]:focus {
     width: 100%;
   }
 
+  /* The indent is the row's own left padding, and line one's handle and number reach back into it: every line
+     under the title, a wrapped one too (a finished game with its Together tag and rating), starts at the title. */
   .plan-table tr,
   .completed-table tr {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 8px;
-    padding: 8px 10px;
+    padding: 8px 10px 8px calc(10px + var(--fold-indent));
     border-bottom: 1px solid var(--border);
   }
 
@@ -3323,6 +3325,7 @@ h3[tabindex="-1"]:focus {
     order: 1;
     width: auto;
     padding: 0 !important;
+    margin-left: calc(-1 * var(--fold-indent));
   }
 
   /* The number takes a fixed two-digit slot, so every title starts at the same edge and the lines
@@ -3383,11 +3386,6 @@ h3[tabindex="-1"]:focus {
     font-size: var(--text-sm);
   }
 
-  .plan-table td.design,
-  .completed-table td:nth-child(4) {
-    margin-left: var(--fold-indent);
-  }
-
   .plan-table td.hours::after {
     content: " h";
     color: var(--text-muted);
@@ -3405,10 +3403,6 @@ h3[tabindex="-1"]:focus {
     order: 8;
   }
 
-  .plan-table td.date {
-    margin-left: var(--fold-indent);
-  }
-
   /* Half the row gap before the dash, so it sits evenly between the two dates. */
   .plan-table td.date + td.date {
     margin-left: -4px;
@@ -3422,7 +3416,6 @@ h3[tabindex="-1"]:focus {
   .completed-table td.note {
     order: 7;
     flex-basis: 100%;
-    margin-left: var(--fold-indent);
     max-width: none;
   }
 
@@ -3556,5 +3549,26 @@ h3[tabindex="-1"]:focus {
     content: "";
     position: absolute;
     inset: -10px 0;
+  }
+
+  /* Now playing's "Next" line and the plan's inputs under it sit 6px apart: their taller touch areas meet halfway
+     instead of overlapping by 14px, so a tap between them goes to the nearer one. */
+  .now-status .link-button::after {
+    inset: -10px 0 -3px;
+  }
+
+  .now-anchor .inline-edit::after {
+    inset: -3px 0 -10px;
+  }
+
+  /* A finished game's rating answers a 42px-tall touch, like the Rate link it replaces. */
+  .rating-value {
+    position: relative;
+  }
+
+  .rating-value::after {
+    content: "";
+    position: absolute;
+    inset: -8px -2px;
   }
 }

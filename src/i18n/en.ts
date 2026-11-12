@@ -415,8 +415,11 @@ export const t = {
     hint: "The app also asks GitHub for a newer release once at every start. Installing downloads that release's installer and runs it: click through it and the app opens again. Your games and settings stay where they are.",
   },
   emptyPlan: "The plan is empty.",
-  emptyPlanHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week.",
-  emptyPlanJoinHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week. Planning on another device too? Sync keeps both on one plan.",
+  emptyPlanHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings).",
+  emptyPlanJoinHint: "Add the games you want to play on PC, in order. The dates follow from your hours per week (now {hours}\u00a0h; change it in Settings). Planning on another device too? Sync keeps both on one plan.",
+  // A plan tab's count as a screen reader hears it, after the plan's name: "PC, 26 games".
+  tabCount: ", {n} games",
+  tabCountOne: ", 1 game",
   emptyQueue: "Nothing queued for {platform} yet.",
   emptyQueueHint: "Add games to play on {platform}. The list keeps its order, without dates.",
   emptyTogether: "Nothing to play together yet.",
