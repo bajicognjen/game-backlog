@@ -84,7 +84,13 @@ export function NowPlaying({ rows, today, plan, onPlanChange, onOpen, onFinish, 
         </div>
         {next && (
           <div className="now-actions">
-            <button type="button" className="button button-primary" onClick={() => onStart(next.game)}>
+            {/* The name says which game, as the visible word alone does not. */}
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => onStart(next.game)}
+              aria-label={`${next.game.status === "paused" ? t.actions.resume : t.actions.start} ${next.game.title}`}
+            >
               <Icon name="play" /> {next.game.status === "paused" ? t.actions.resume : t.actions.start}
             </button>
           </div>

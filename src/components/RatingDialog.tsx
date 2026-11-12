@@ -35,14 +35,14 @@ export function RatingDialog({ game, onSubmit, onClose }: Props) {
           <span className="field-label">{t.rating.review}</span>
           <textarea rows={3} value={review} onChange={(e) => setReview(e.target.value)} />
         </label>
-        <footer className="modal-actions">
+        <div className="modal-actions">
           <button type="button" className="button" onClick={onClose} disabled={busy}>
             {t.cancel}
           </button>
           <button type="submit" className="button button-primary" disabled={busy}>
             {t.save}
           </button>
-        </footer>
+        </div>
       </form>
     </Modal>
   );

@@ -62,6 +62,7 @@ export function TopBar({ settingsOpen, onToggleSettings, onExport, onImport }: P
           onClick={onToggleSettings}
           aria-expanded={settingsOpen}
           aria-controls="settings-panel"
+          title={t.settings.open}
         >
           <Icon name="sliders" /> <span className="label">{t.settings.open}</span>
         </button>

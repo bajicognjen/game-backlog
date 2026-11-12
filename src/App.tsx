@@ -22,11 +22,14 @@ import { SteamLibraryDialog } from "./components/SteamLibraryDialog";
 import { TopBar } from "./components/TopBar";
 import { TotalsBar } from "./components/TotalsBar";
 import { SyncBanner } from "./components/SyncBanner";
+import type { SyncJoinRequest } from "./components/SyncSettings";
+import { keyInJoinLink } from "./domain/sync";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { WarningsBar } from "./components/WarningsBar";
 import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
 import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type GameFilter } from "./domain/filters";
+import { formatHours } from "./domain/format";
 import { computeSchedule, plannedGames } from "./domain/schedule";
 import { steamConfigured, steamSearchTitle } from "./domain/steam";
 import { todayStatus } from "./domain/today";
@@ -76,6 +79,36 @@ export default function App() {
   /** A game whose edit form should open next; the section that owns it picks it up. */
   const [editRequest, setEditRequest] = useState<Game | null>(null);
   const [pendingImport, setPendingImport] = useState<{ name: string; backup: Backup } | null>(null);
+  /** Web app: open Settings → Sync at the join form (from a join link, or the empty plan). */
+  const [syncRequest, setSyncRequest] = useState<SyncJoinRequest | null>(null);
+
+  function openSyncJoin(key: string | null) {
+    setIgdbFocus(0);
+    setSettingsOpen(true);
+    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key, mode: "join" }));
+  }
+
+  /** Bring Settings → Sync into view (from a banner about stopped sync). */
+  function openSync() {
+    setIgdbFocus(0);
+    setSettingsOpen(true);
+    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key: null, mode: "show" }));
+  }
+
+  // Web app: a join link (…/#join=KEY) opens the join form with the key filled in. The key leaves the
+  // address bar at once, so it is not left in this tab's history or copied along with the page's address.
+  useEffect(() => {
+    if (!useSync.getState().supported) return;
+    const readLink = () => {
+      const key = keyInJoinLink(window.location.hash);
+      if (key === null) return;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      openSyncJoin(key);
+    };
+    readLink();
+    window.addEventListener("hashchange", readLink);
+    return () => window.removeEventListener("hashchange", readLink);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -168,15 +201,16 @@ export default function App() {
       <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
         {/* A choice about the plan comes before news about the app. */}
-        <SyncBanner />
+        <SyncBanner onOpenSync={openSync} />
         <UpdateBanner />
         <Banner />
-        {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} />}
+        {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} syncRequest={syncRequest} />}
         <PlanSection
           plan={plan}
           onPlanChange={setPlan}
           onOpen={(game) => setDetailsId(game.id)}
           onSetupIgdb={openIgdbSetup}
+          onSetUpSync={openSync}
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
         />
@@ -237,6 +271,8 @@ interface PlanSectionProps {
   onPlanChange(plan: PlanId): void;
   onOpen(game: Game): void;
   onSetupIgdb(): void;
+  /** Web app: bring Settings → Sync into view, at its two choices (start here, or join). */
+  onSetUpSync(): void;
   /** A planned game whose edit form should open (from the details dialog). */
   editRequest: Game | null;
   onEditHandled(): void;
@@ -249,7 +285,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
   return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
 }
 
-function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onEditHandled }: PlanSectionProps) {
+function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, editRequest, onEditHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   /** Dated sessions: hours played since the plan started count as time already spent. */
@@ -269,6 +305,8 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
   const [filter, setFilter] = useState<GameFilter>(NO_FILTER);
   const platforms = useMemo(() => availablePlatforms(games), [games]);
   const filterable = useMemo(() => hasIgdbData(games), [games]);
+  /** A web copy with nothing in it and sync off may be a first device or a second: the empty plan offers to set up sync, not to guess. */
+  const canJoin = useSync((s) => s.supported && s.state.kind === "off") && games.length === 0;
 
   // The details dialog can ask for a planned game's edit form.
   useEffect(() => {
@@ -342,6 +380,7 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
     <EmptyState
       title={t.emptyFiltered}
       hint={t.emptyFilteredHint}
+      announce
       action={
         <button type="button" className="button" onClick={() => setFilter(NO_FILTER)}>
           {t.filters.clear}
@@ -349,7 +388,17 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
       }
     />
   ) : scheduled ? (
-    <EmptyState title={t.emptyPlan} hint={t.emptyPlanHint} />
+    <EmptyState
+      title={t.emptyPlan}
+      hint={(canJoin ? t.emptyPlanJoinHint : t.emptyPlanHint).replace("{hours}", formatHours(settings.hoursPerWeek))}
+      action={
+        canJoin && (
+          <button type="button" className="button" onClick={onSetUpSync}>
+            {t.sync.setUp}
+          </button>
+        )
+      }
+    />
   ) : together ? (
     <EmptyState title={t.emptyTogether} hint={t.emptyTogetherHint} />
   ) : (
@@ -369,7 +418,9 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, editRequest, onE
         {scheduled && <TotalsBar totals={schedule.totals} />}
       </div>
       <div id={PLAN_PANEL_ID} role="tabpanel" aria-labelledby={tabId(plan)}>
+        {/* Keyed by the tab, so switching tabs shows the other card at once; the handover plays only when the current game changes. */}
         <NowPlaying
+          key={plan}
           rows={rows}
           today={scheduled ? today : null}
           plan={scheduled ? { startDate: settings.startDate, hoursPerWeek: settings.hoursPerWeek } : null}
@@ -528,11 +579,13 @@ function CompletedSection({ defaultPlatform, defaultTogether, onOpen, onSetupIgd
   );
   const empty =
     allCompleted.length === 0 ? (
-      <EmptyState title={t.emptyCompleted} hint={t.emptyCompletedHint} action={addButton} />
+      // No second "Add finished game": the section head's is a line above, as the plan's empty state leaves Add game to its head.
+      <EmptyState title={t.emptyCompleted} hint={t.emptyCompletedHint} />
     ) : (
       <EmptyState
         title={t.emptyFiltered}
         hint={t.emptyFilteredHint}
+        announce
         action={
           <button
             type="button"

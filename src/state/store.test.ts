@@ -112,3 +112,39 @@ describe("the Together list", () => {
     expect(store().games.filter((g) => g.status === "in_progress" && !g.together).map((g) => g.title)).toEqual(current);
   });
 });
+
+describe("routine confirmations", () => {
+  afterEach(() => {
+    store().setSyncPanelOpen(false);
+    store().dismissNotice();
+  });
+
+  it("clear themselves after 8 s, but not while the pointer or focus holds them", () => {
+    store().notify("Exported.");
+    vi.advanceTimersByTime(5000);
+    store().pauseNotice();
+    vi.advanceTimersByTime(60_000);
+    expect(store().notice).toBe("Exported.");
+    store().resumeNotice();
+    vi.advanceTimersByTime(2900);
+    expect(store().notice).toBe("Exported.");
+    vi.advanceTimersByTime(200);
+    expect(store().notice).toBeNull();
+  });
+
+  it("one shown in Settings → Sync stays while Sync is open, and clears itself once Settings closes", () => {
+    store().setSyncPanelOpen(true);
+    store().notify("Sync is on.", "sync");
+    vi.advanceTimersByTime(60_000);
+    expect(store().notice).toBe("Sync is on.");
+    store().resumeNotice(); // leaving the notice while Sync is open starts nothing
+    vi.advanceTimersByTime(60_000);
+    expect(store().notice).toBe("Sync is on.");
+
+    store().setSyncPanelOpen(false);
+    vi.advanceTimersByTime(7900);
+    expect(store().notice).toBe("Sync is on.");
+    vi.advanceTimersByTime(200);
+    expect(store().notice).toBeNull();
+  });
+});

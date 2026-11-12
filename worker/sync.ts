@@ -82,8 +82,9 @@ export async function handleSync(request: Request, db: SyncDatabase, options: Sy
       if (document.byteLength === 0) return problem(400, "Empty document.");
       if (document.byteLength > MAX_DOCUMENT_BYTES) return problem(413, `The document is too large (limit ${MAX_DOCUMENT_BYTES} bytes).`);
 
-      const invite = options.inviteCode?.trim() ?? "";
-      if (base === 0 && invite !== "" && (await db.get(keyHash)) === null && request.headers.get(INVITE_HEADER)?.trim() !== invite) {
+      // Compared without regard to capitals: a phone keyboard capitalises the first letter of what a friend types.
+      const invite = options.inviteCode?.trim().toLowerCase() ?? "";
+      if (base === 0 && invite !== "" && (await db.get(keyHash)) === null && request.headers.get(INVITE_HEADER)?.trim().toLowerCase() !== invite) {
         return problem(403, "A new sync key needs the invite code.");
       }
 

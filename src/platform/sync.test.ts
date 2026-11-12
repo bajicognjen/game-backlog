@@ -6,7 +6,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSeedGames } from "../domain/seed";
-import type { SyncMeta } from "../domain/sync";
+import { joinLink, type SyncMeta } from "../domain/sync";
 import type { GameInput, Repository } from "../db/repository";
 import { createSnapshotRepository, emptyState, type SnapshotState, type SnapshotStore } from "../db/snapshotRepository";
 import { STATE_KEY, createWebRepository, onWebStateSaved, type StoredState } from "../db/webRepository";
@@ -127,7 +127,7 @@ function browserWithOwnMeta(server: ReturnType<typeof fakeServer>) {
  * A separate device: its own plan store and its own sync record, so two of
  * them share nothing but the fake server (fake-indexeddb is one browser).
  */
-function device(server: ReturnType<typeof fakeServer>) {
+function device(server: ReturnType<typeof fakeServer>, now?: () => Date, random: (n: number) => Uint8Array = randomBytes) {
   let saved: SnapshotState | null = null;
   let engine: SyncEngine | null = null;
   const store: SnapshotStore = {
@@ -153,7 +153,7 @@ function device(server: ReturnType<typeof fakeServer>) {
     },
   };
   const onPulled = vi.fn();
-  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes, metaStore });
+  engine = createSyncEngine({ repository, api: server.api, onChange: () => undefined, onPulled, randomBytes: random, metaStore, now });
   return { repository, engine, onPulled };
 }
 
@@ -210,6 +210,35 @@ describe("sync engine", () => {
     await engine.check();
     expect(engine.state().kind).toBe("idle");
     expect(await server.titles()).toEqual(["Offline game"]);
+  });
+
+  it("joins from a whole join link pasted into the key field", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Shared game");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+
+    const second = device(server);
+    await second.repository.load();
+    expect(await second.engine.connect(joinLink("https://backlog.example", key))).toBe("connected");
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { key } });
+    expect((await second.repository.load()).games.map((g) => g.title)).toEqual(["Shared game"]);
+  });
+
+  it("counts a joined plan as synced when it was pulled, not when the server last stored it", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    server.remote!.updatedAt = "2026-11-12T08:00:00.000Z";
+
+    const second = device(server, () => new Date("2026-11-12T08:09:00.000Z"));
+    await second.repository.load();
+    await second.engine.connect(key);
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { lastSyncedAt: "2026-11-12T08:09:00.000Z" } });
   });
 
   it("pulls what another device pushed, keeps local credentials, and does not push it back", async () => {
@@ -329,8 +358,8 @@ describe("sync engine", () => {
     const remote = { revision: 3, updatedAt: "2026-11-11T12:00:00.000Z", bytes: await encodeDocument(toRemoteDocument(theirs)) };
 
     const sides = await describeConflict(local, remote);
-    expect(sides.device).toEqual({ inPlan: 1, finished: 0, hoursLogged: 0, changedAt: local!.exportedAt });
-    expect(sides.server).toEqual({ inPlan: 1, finished: 1, hoursLogged: 2.5, changedAt: "2026-11-11T12:00:00.000Z" });
+    expect(sides.device).toEqual({ inPlan: 1, finished: 0, hoursLogged: 0, changedAt: local!.exportedAt, titles: ["Mine"] });
+    expect(sides.server).toEqual({ inPlan: 1, finished: 1, hoursLogged: 2.5, changedAt: "2026-11-11T12:00:00.000Z", titles: ["Mine", "Theirs"] });
   });
 
   it("joining a key with nothing stored under it saves nothing and creates nothing", async () => {
@@ -379,6 +408,110 @@ describe("sync engine", () => {
     await again.engine.start();
     expect(again.engine.state()).toMatchObject({ kind: "idle", meta: { revision: 1 } });
     expect(server.gets).toBeGreaterThan(0);
+  });
+
+  it("restore undoes turning sync off: same key again, and a change made meanwhile is sent", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const before = first.engine.state();
+    if (before.kind !== "idle") throw new Error("expected idle");
+
+    await first.engine.disable();
+    await addGame(first.repository, "Added while off");
+    await first.engine.restore(before.meta);
+    expect(first.engine.state()).toMatchObject({ kind: "idle", meta: { key: before.meta.key, dirty: false } });
+    expect(await server.titles()).toEqual(["Added while off"]);
+  });
+
+  it("restore after the server moved on asks which plan to keep", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    const before = first.engine.state();
+    if (before.kind !== "idle") throw new Error("expected idle");
+    const second = device(server);
+    await second.repository.load();
+    await second.engine.connect(before.meta.key);
+
+    await first.engine.disable();
+    await addGame(second.repository, "From the other device");
+    await second.engine.check();
+    await first.engine.restore(before.meta);
+    expect(first.engine.state().kind).toBe("conflict");
+  });
+
+  it("a server copy deleted from another device is reported, not quietly stored again; starting again takes a new key", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Shared");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    const second = device(server, undefined, (n) => new Uint8Array(n).map((_, i) => i * 11 + 3));
+    await second.repository.load();
+    await second.engine.connect(key);
+
+    await first.engine.deleteServerCopy();
+    await second.engine.check();
+    expect(second.engine.state()).toMatchObject({ kind: "gone", meta: { key } });
+    expect(server.remote).toBeNull();
+
+    // A change made meanwhile is not pushed on its own either.
+    await addGame(second.repository, "Made while gone");
+    expect(server.remote).toBeNull();
+
+    // The deleted key stays dead (its links and QR codes with it): this device's plan goes up under a new one.
+    await second.engine.enable();
+    const restarted = second.engine.state();
+    expect(restarted).toMatchObject({ kind: "idle", meta: { revision: 1, dirty: false } });
+    expect((restarted as { meta: { key: string } }).meta.key).not.toBe(key);
+    expect(await server.titles()).toEqual(["Shared", "Made while gone"]);
+  });
+
+  it("starting again after a deleted copy keeps its new key through a refused invite code", async () => {
+    const server = fakeServer();
+    let calls = 0;
+    const first = device(server, undefined, (n) => new Uint8Array(n).map((_, i) => i * 7 + ++calls));
+    await first.repository.load();
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    server.remote = null; // deleted from another device
+    await first.engine.check();
+    expect(first.engine.state().kind).toBe("gone");
+
+    server.inviteCode = "friends-only";
+    await first.engine.enable();
+    const refused = first.engine.state() as { kind: string; meta: { key: string } };
+    expect(refused.kind).toBe("invite-required");
+    expect(refused.meta.key).not.toBe(key);
+    await first.engine.enable("friends-only");
+    expect(first.engine.state()).toMatchObject({ kind: "idle", meta: { key: refused.meta.key } });
+  });
+
+  it("check says whether the server answered, so a manual check can report it", async () => {
+    const server = fakeServer();
+    const { repository, engine } = device(server);
+    await repository.load();
+    expect(await engine.check()).toBe("skipped"); // sync is off
+    await engine.enable();
+    expect(await engine.check()).toBe("answered");
+    server.offline = true;
+    expect(await engine.check()).toBe("unreachable");
+    expect(engine.state().kind).toBe("idle"); // nothing was waiting, so nothing is pending either
+  });
+
+  it("a push based on a copy that is gone reports it too", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    server.remote = null; // deleted behind this device's back
+    await addGame(first.repository, "After the delete");
+    await first.engine.check();
+    expect(first.engine.state().kind).toBe("gone");
   });
 
   it("disable keeps the server copy; deleteServerCopy removes it", async () => {

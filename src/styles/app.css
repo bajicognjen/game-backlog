@@ -407,13 +407,19 @@ main {
   margin-left: -2px;
 }
 
-.button:hover {
-  background: var(--surface-2);
-}
-
 .button-ghost {
   border-color: transparent;
   background: transparent;
+}
+
+/* Read by screen readers, not shown: an announcement's words, or a name the layout has no room for. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .button-active {
@@ -428,20 +434,10 @@ main {
   color: var(--on-accent);
 }
 
-.button-primary:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
-}
-
 .button-success {
   border-color: var(--success);
   background: var(--success);
   color: var(--on-success);
-}
-
-.button-success:hover {
-  border-color: var(--success-hover);
-  background: var(--success-hover);
 }
 
 .button-danger {
@@ -450,17 +446,8 @@ main {
   color: var(--on-danger);
 }
 
-.button-danger:hover {
-  border-color: var(--danger-hover);
-  background: var(--danger-hover);
-}
-
 .button-danger-ghost {
   color: var(--danger);
-}
-
-.button-danger-ghost:hover {
-  background: var(--danger-soft);
 }
 
 .button-small {
@@ -483,18 +470,45 @@ main {
   margin-left: 0;
 }
 
-.button-icon-sm:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .button-icon-success {
   color: var(--success);
 }
 
-.button-icon-success:hover {
-  background: var(--success-soft);
-  color: var(--success);
+/* Hover tints only where there is a hover: on a touch screen a tapped button would keep its tint. Before the
+   disabled rule, which has the same specificity and must win over them. */
+@media (hover: hover) {
+  .button:hover {
+    background: var(--surface-2);
+  }
+
+  .button-primary:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+  }
+
+  .button-success:hover {
+    border-color: var(--success-hover);
+    background: var(--success-hover);
+  }
+
+  .button-danger:hover {
+    border-color: var(--danger-hover);
+    background: var(--danger-hover);
+  }
+
+  .button-danger-ghost:hover {
+    background: var(--danger-soft);
+  }
+
+  .button-icon-sm:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .button-icon-success:hover {
+    background: var(--success-soft);
+    color: var(--success);
+  }
 }
 
 .button:disabled {
@@ -830,12 +844,34 @@ textarea {
   max-width: 78ch;
 }
 
-/* Behind Change: Turn off and Delete server copy, each with its own hint under it. */
+/* Behind Change, right under the state: Turn off and Delete server copy, each with its own hint under it. */
+/* Delete server copy is a ghost button: its words line up with the hint under it, the padding hangs left. */
+.sync-manage .button-danger-ghost {
+  margin-left: -13px; /* 12px padding + 1px border */
+}
+
 .sync-manage {
   flex-basis: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 8px; /* opened under the state: the ways to stop end before the ways to add a device begin */
+}
+
+/* Behind "Other ways": the rest of the ways to add a device, opening under the hint of the one that leads. */
+.sync-other-ways {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Something to copy by hand (the key, or a link the clipboard refused): one tap selects all of it. */
+.sync-copy-text {
+  font-family: inherit; /* The One Family Rule */
+  user-select: all;
+  -webkit-user-select: all;
 }
 
 /* The key in the app's one face (The One Family Rule); tabular figures keep its groups even. */
@@ -843,6 +879,38 @@ textarea {
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+/* A narrow phone wraps the key at a dash, between groups, never inside one (`.path` breaks anywhere). */
+.path.sync-key {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Sync off: the two ways in, one under the other, each with what it is for right under its button. */
+.sync-choices {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The join link as a QR code. Cameras read dark modules on light, so the tile is Paper and Ink in both
+   themes (the dark theme's paper would invert it); the four-module quiet zone is inside the tile. */
+.sync-qr {
+  display: block;
+  width: 168px;
+  height: 168px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: #1b1f24;
+}
+
+/* A join link opened on a device that already syncs: what happened, right under the state. */
+.sync-request-note {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .settings-form .settings-steps {
@@ -890,6 +958,18 @@ textarea {
   border: 1px solid transparent;
 }
 
+/* A caution in running text (Caution Amber ink): something to know about, not something that failed. */
+.field-caution {
+  font-size: var(--text-sm);
+  color: var(--warning-text);
+}
+
+/* A notice of an action taken in Settings → Sync shows there, at the top of the group, the full width of it. */
+.settings-group-body > .banner {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+
 .banner-error {
   background: var(--danger-soft);
   color: var(--danger);
@@ -900,6 +980,25 @@ textarea {
   background: var(--accent-soft);
   color: var(--text);
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Sync that has stopped: a caution, not an error, in the warnings' amber with their alert icon. */
+.banner-warn {
+  background: var(--warning-soft);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--warning-border) 55%, transparent);
+}
+
+.banner-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.banner-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--warning);
 }
 
 .banner-actions {
@@ -2261,8 +2360,91 @@ tr:focus-within .row-actions {
   border-bottom: 0;
 }
 
+/* What only one copy has, under the totals: the label in 600 so the titles read as a list after it. */
+.sync-diffs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -6px 0 10px;
+}
+
+.sync-diff {
+  margin: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.sync-diff-label {
+  font-weight: 600;
+}
+
+.sync-export {
+  margin: 0 0 12px -8px; /* the words line up with the text; the small button's padding hangs left */
+}
+
 .sync-compare-strong {
   font-weight: 650;
+}
+
+.sync-compare-time {
+  white-space: nowrap;
+}
+
+/* A phone (a touch screen in the folded layout, or anything under 600px): the current game's three actions as a
+   deliberate block, Log hours and Pause side by side and Finish game the full width under them, where a thumb
+   ends up. A narrow window with a mouse keeps them in a row; the idle card keeps its single Start. */
+@media (max-width: 599px), (max-width: 899px) and (pointer: coarse) {
+  /* Dialogs 8px from each edge. The browser's own dialog rule caps a modal at 100% - 2em - 6px, which would win
+     and leave 17px margins; on a 320px phone that cost the sync comparison its last column. A narrow window with
+     a mouse keeps each dialog's own width. */
+  .modal,
+  .modal-lg,
+  .modal-xl {
+    width: calc(100vw - 16px);
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+  }
+
+  /* Choices too long to share a row (the sync conflict) stack full width in the order they're written, the way
+     out last, where a thumb ends up. */
+  .modal-actions-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .now:not(.now-idle) .now-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .now:not(.now-idle) .now-actions > .button-success {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Touch phones: fields at 16px, or iOS Safari zooms the page whenever one takes focus. */
+@media (max-width: 899px) and (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  input.inline-edit-input {
+    font-size: 16px;
+  }
+}
+
+/* The narrowest phones: plan tabs tighten so PC, PS5 and Together with two-digit counts still fit. */
+@media (max-width: 359px) {
+  .tabs[role="tablist"] .tab {
+    padding: 5px 10px;
+    gap: 6px;
+  }
+}
+
+/* On the narrowest phones a change time stacks under its date, so two of them fit beside the labels. */
+@media (max-width: 379px) {
+  .sync-compare-time {
+    display: block;
+  }
 }
 
 /* ---------- Rating ---------- */
@@ -2337,12 +2519,18 @@ tr:focus-within .row-actions {
   gap: 2px;
 }
 
-/* Headings that skip links and hashes land on stop below the sticky bar. */
-h2[id] {
+/* Headings that skip links and hashes land on stop below the sticky bar; so does Sync when a join link opens it. */
+/* Headings that skip links and hashes land on, Sync when a link or banner opens it, and a notice that takes
+   focus all stop below the sticky bar, never under it. */
+h2[id],
+#sync-settings,
+#sync-settings h3,
+.banner {
   scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 
-h2[tabindex="-1"]:focus {
+h2[tabindex="-1"]:focus,
+h3[tabindex="-1"]:focus {
   outline: none;
 }
 
@@ -2842,7 +3030,9 @@ h2[tabindex="-1"]:focus {
 
 /* ---------- Short windows: the card gives rows back ---------- */
 
-@media (max-height: 700px) {
+/* The desktop window made short, not a phone: a phone is short by nature (Safari's bars take 100px and more), and
+   its folded card already gives rows back; hiding the status and the explanation there cost what it says. */
+@media (max-height: 700px) and (min-width: 900px) {
   .now {
     padding: 12px 16px;
     gap: 14px;
@@ -2919,14 +3109,15 @@ h2[tabindex="-1"]:focus {
 
 /* Columns leave where the plan stops fitting, so the page never scrolls sideways (measured on a full
    27-game plan with notes and the Today marker): the derived schedule column below 1240px, the numbers
-   stay in Hours and the details view; genre and note below 1160px, both stay in the details view. */
+   stay in Hours and the details view; genre and note below 1184px (the full table needs ~1118px of wrapper, which a
+   classic 15px scrollbar takes away until about there), both stay in the details view. */
 @media (max-width: 1239px) {
   .col-opt {
     display: none;
   }
 }
 
-@media (max-width: 1159px) {
+@media (max-width: 1183px) {
   .col-opt-2 {
     display: none;
   }
@@ -2972,9 +3163,12 @@ h2[tabindex="-1"]:focus {
     overflow: hidden;
   }
 
+  /* The name stays whole: where the controls leave it too little room for one line (under ~350px) it takes two,
+     "Game" over "Backlog", inside the 52px bar; only a word that still can't fit is cut. */
   .topbar-brand h1 {
     font-size: var(--text-base);
-    white-space: nowrap;
+    line-height: 1.15;
+    text-wrap: balance;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -3038,6 +3232,11 @@ h2[tabindex="-1"]:focus {
     padding: 14px;
   }
 
+  /* The quiet card keeps the column's left edge (its centring is for the side-by-side layout). */
+  .now-idle {
+    align-items: stretch;
+  }
+
   .now-cover {
     width: 56px;
     height: 75px;
@@ -3047,6 +3246,19 @@ h2[tabindex="-1"]:focus {
     flex: 1 1 100%;
     min-width: 0;
     flex-wrap: wrap;
+  }
+
+  /* The bar takes the card's width and its line goes under it, instead of a stub beside a long sentence.
+     flex: none, or the base rule's flex: 1 would size it along the column, to nothing. */
+  .now-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .now-progress .progress {
+    flex: none;
+    max-width: none;
   }
 
   .now-title {
@@ -3073,13 +3285,15 @@ h2[tabindex="-1"]:focus {
     width: 100%;
   }
 
+  /* The indent is the row's own left padding, and line one's handle and number reach back into it: every line
+     under the title, a wrapped one too (a finished game with its Together tag and rating), starts at the title. */
   .plan-table tr,
   .completed-table tr {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 8px;
-    padding: 8px 10px;
+    padding: 8px 10px 8px calc(10px + var(--fold-indent));
     border-bottom: 1px solid var(--border);
   }
 
@@ -3111,6 +3325,7 @@ h2[tabindex="-1"]:focus {
     order: 1;
     width: auto;
     padding: 0 !important;
+    margin-left: calc(-1 * var(--fold-indent));
   }
 
   /* The number takes a fixed two-digit slot, so every title starts at the same edge and the lines
@@ -3171,11 +3386,6 @@ h2[tabindex="-1"]:focus {
     font-size: var(--text-sm);
   }
 
-  .plan-table td.design,
-  .completed-table td:nth-child(4) {
-    margin-left: var(--fold-indent);
-  }
-
   .plan-table td.hours::after {
     content: " h";
     color: var(--text-muted);
@@ -3193,10 +3403,6 @@ h2[tabindex="-1"]:focus {
     order: 8;
   }
 
-  .plan-table td.date {
-    margin-left: var(--fold-indent);
-  }
-
   /* Half the row gap before the dash, so it sits evenly between the two dates. */
   .plan-table td.date + td.date {
     margin-left: -4px;
@@ -3210,7 +3416,6 @@ h2[tabindex="-1"]:focus {
   .completed-table td.note {
     order: 7;
     flex-basis: 100%;
-    margin-left: var(--fold-indent);
     max-width: none;
   }
 
@@ -3226,22 +3431,14 @@ h2[tabindex="-1"]:focus {
     grid-template-columns: 1fr;
   }
 
-  .modal,
-  .modal-lg,
-  .modal-xl {
-    width: calc(100vw - 16px);
-    max-height: calc(100dvh - 16px);
+  /* The comparison keeps both columns in view: labels may wrap, cells sit closer. */
+  .sync-compare th,
+  .sync-compare td {
+    padding-left: 10px;
   }
 
-  /* Choices too long to share a row (the sync conflict) stack full width, in reading order. */
-  .modal-actions-stack {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  /* The way out ("Decide later") goes under the choices, where a thumb ends up. */
-  .modal-actions-stack .button-ghost {
-    order: 1;
+  .sync-compare tbody th {
+    white-space: normal;
   }
 
   .settings-group-body .input,
@@ -3259,7 +3456,7 @@ h2[tabindex="-1"]:focus {
     white-space: normal;
   }
 
-  /* The sync key takes its own line; Show key and Copy share the next one. */
+  /* The sync key takes its own line; Copy key goes under it. */
   .sync-key {
     flex-basis: 100%;
   }
@@ -3352,5 +3549,26 @@ h2[tabindex="-1"]:focus {
     content: "";
     position: absolute;
     inset: -10px 0;
+  }
+
+  /* Now playing's "Next" line and the plan's inputs under it sit 6px apart: their taller touch areas meet halfway
+     instead of overlapping by 14px, so a tap between them goes to the nearer one. */
+  .now-status .link-button::after {
+    inset: -10px 0 -3px;
+  }
+
+  .now-anchor .inline-edit::after {
+    inset: -3px 0 -10px;
+  }
+
+  /* A finished game's rating answers a 42px-tall touch, like the Rate link it replaces. */
+  .rating-value {
+    position: relative;
+  }
+
+  .rating-value::after {
+    content: "";
+    position: absolute;
+    inset: -8px -2px;
   }
 }

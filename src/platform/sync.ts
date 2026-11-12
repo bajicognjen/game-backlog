@@ -20,6 +20,7 @@ import {
   SYNC_PATH,
   UPDATED_AT_HEADER,
   normaliseSyncKey,
+  readSyncKey,
   reconcile,
   summarizePlan,
   syncKeyFromBytes,
@@ -66,6 +67,8 @@ function asBackup(plan: Pick<SnapshotState, "settings" | "games" | "sessions">, 
 /** One copy of the plan as the conflict dialog shows it; `changedAt` is when that copy was last written (ISO). */
 export interface ConflictSide extends PlanSummary {
   changedAt: string | null;
+  /** Every game's title on this copy (planned and finished), for what only one copy has. */
+  titles: string[];
 }
 
 export interface ConflictSides {
@@ -77,8 +80,8 @@ export interface ConflictSides {
 export async function describeConflict(local: StoredState | undefined, remote: RemoteDocument): Promise<ConflictSides> {
   const server = await decodeDocument(remote.bytes);
   return {
-    device: { ...summarizePlan(local?.games ?? [], local?.sessions ?? []), changedAt: local?.exportedAt ?? null },
-    server: { ...summarizePlan(server.games, server.sessions), changedAt: remote.updatedAt },
+    device: { ...summarizePlan(local?.games ?? [], local?.sessions ?? []), changedAt: local?.exportedAt ?? null, titles: (local?.games ?? []).map((g) => g.title) },
+    server: { ...summarizePlan(server.games, server.sessions), changedAt: remote.updatedAt, titles: server.games.map((g) => g.title) },
   };
 }
 
@@ -169,9 +172,18 @@ export type SyncState =
   /** Both sides changed; the user picks a side with `resolve`. */
   | { kind: "conflict"; meta: SyncMeta; remote: RemoteDocument }
   /** The server wants the invite code before it stores a new key; `enable` again with it, or `disable` to give up. */
-  | { kind: "invite-required"; meta: SyncMeta };
+  | { kind: "invite-required"; meta: SyncMeta }
+  /**
+   * The server copy this device synced with is gone (deleted from another device). Nothing is put back
+   * on its own: `enable` starts again under a new key with this device's plan (the deleted key, and every
+   * link and QR code made from it, stays dead), `disable` stops here.
+   */
+  | { kind: "gone"; meta: SyncMeta };
 
 export type ConflictChoice = "keep-mine" | "take-server";
+
+/** How a check went: the server answered (whatever followed), it could not be reached, or there was nothing to check. */
+export type CheckResult = "answered" | "unreachable" | "skipped";
 
 /** How joining a key went: `not-found` means nothing is stored under it, and nothing was saved on this device. */
 export type ConnectResult = "connected" | "not-found";
@@ -179,7 +191,7 @@ export type ConnectResult = "connected" | "not-found";
 export interface SyncEngine {
   /** Load what this browser knows and compare with the server once. */
   start(): Promise<void>;
-  /** Make a new key and put this browser's plan on the server under it. */
+  /** Make a new key and put this browser's plan on the server under it (after a refused invite code, the key already made). */
   enable(inviteCode?: string | null): Promise<void>;
   /**
    * Join an existing key: take its plan when this browser has none, otherwise ask (a conflict) which side to keep.
@@ -188,6 +200,11 @@ export interface SyncEngine {
   connect(key: string): Promise<ConnectResult>;
   /** Stop syncing on this browser; the server copy stays. */
   disable(): Promise<void>;
+  /**
+   * Undo of `disable`: sync again with the same key, as it was. Marked as having a change to send,
+   * since a save made while sync was off went nowhere; if the server moved on meanwhile, that is a conflict.
+   */
+  restore(previous: SyncMeta): Promise<void>;
   /** Remove the server copy and stop syncing. */
   deleteServerCopy(): Promise<void>;
   /**
@@ -196,7 +213,7 @@ export interface SyncEngine {
    */
   resolve(choice: ConflictChoice): Promise<Backup | null>;
   /** Compare with the server now (on load, when the page becomes visible, when back online). */
-  check(): Promise<void>;
+  check(): Promise<CheckResult>;
   /** Hear about a local save (wired to `onWebStateSaved`). */
   noteSaved(state: SnapshotState): void;
   state(): SyncState;
@@ -274,6 +291,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       const remote = result.remote ?? (await fetchRemote(current.key));
       const dirty = await saveMeta({ ...current, dirty: true });
       if (remote) set({ kind: "conflict", meta: dirty, remote });
+      else if (baseRevision > 0) set({ kind: "gone", meta: dirty }); // the copy it was based on is no longer there
       else set({ kind: "pending", meta: dirty, reason: "error", detail: "conflict" });
       return;
     }
@@ -300,34 +318,44 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       applyingRemote = false;
     }
     unsent = null;
-    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: remote.updatedAt }) });
+    set({ kind: "idle", meta: await saveMeta({ ...current, revision: remote.revision, dirty: false, lastSyncedAt: now().toISOString() }) });
     await deps.onPulled();
   }
 
-  async function compare(current: SyncMeta): Promise<void> {
+  /** Ask the server and act on what it says; false when it could not be reached. */
+  async function compare(current: SyncMeta): Promise<boolean> {
     let result: FetchResult;
     try {
       result = await deps.api.get(current.key, current.revision);
     } catch (error) {
       if (current.dirty) set({ kind: "pending", meta: current, reason: error instanceof SyncError && error.reason === "network" ? "offline" : "error", detail: null });
       else set({ kind: "idle", meta: current });
-      return;
+      return false;
+    }
+    // Synced before and now nothing under the key: the copy was deleted. Say so rather than quietly storing it again.
+    if (result.kind === "missing" && current.revision > 0) {
+      set({ kind: "gone", meta: current });
+      return true;
     }
     const remoteRevision = result.kind === "missing" ? null : result.kind === "unchanged" ? result.revision : result.remote.revision;
     switch (reconcile(current, remoteRevision)) {
       case "nothing":
         set({ kind: "idle", meta: current });
-        return;
+        break;
       case "push":
-        return push(current, remoteRevision ?? 0);
+        await push(current, remoteRevision ?? 0);
+        break;
       case "pull":
-        return pull(current, result.kind === "document" ? result.remote : (await fetchRemote(current.key))!);
+        await pull(current, result.kind === "document" ? result.remote : (await fetchRemote(current.key))!);
+        break;
       case "conflict": {
         const remote = result.kind === "document" ? result.remote : await fetchRemote(current.key);
         if (remote) set({ kind: "conflict", meta: current, remote });
-        else return push(current, 0);
+        else await push(current, 0);
+        break;
       }
     }
+    return true;
   }
 
   return {
@@ -343,13 +371,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
     enable: (inviteCode = null) =>
       run(async () => {
-        const current = meta() ?? (await saveMeta({ key: syncKeyFromBytes(random(20)), revision: 0, dirty: true, lastSyncedAt: null }));
+        // A refused invite code keeps the key it was refused for; a deleted copy's key is never brought back.
+        const kept = state.kind === "gone" ? null : meta();
+        const current = kept ?? (await saveMeta({ key: syncKeyFromBytes(random(20)), revision: 0, dirty: true, lastSyncedAt: null }));
         await push(current, 0, inviteCode);
       }),
 
     connect: (input) =>
       run(async (): Promise<ConnectResult> => {
-        const key = normaliseSyncKey(input);
+        const key = readSyncKey(input);
         if (!key) throw new Error("Not a sync key");
         const remote = await fetchRemote(key);
         if (!remote) return "not-found";
@@ -368,6 +398,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         await metaStore.clear();
         unsent = null;
         set({ kind: "off" });
+      }),
+
+    restore: (previous) =>
+      run(async () => {
+        if (meta()) return; // turned on again some other way meanwhile
+        const current = await saveMeta({ ...previous, dirty: true });
+        set({ kind: "pending", meta: current, reason: "offline", detail: null });
+        await compare(current);
       }),
 
     deleteServerCopy: () =>
@@ -399,10 +437,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }),
 
     check: () =>
-      run(async () => {
+      run(async (): Promise<CheckResult> => {
         const current = meta();
-        if (!current || state.kind === "conflict" || state.kind === "invite-required") return;
-        await compare(current);
+        if (!current || state.kind === "conflict" || state.kind === "invite-required") return "skipped";
+        return (await compare(current)) ? "answered" : "unreachable";
       }),
 
     noteSaved(saved) {
@@ -412,7 +450,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       unsent = saved;
       void run(async () => {
         const latest = meta();
-        if (!latest || !unsent || state.kind === "conflict" || state.kind === "invite-required") return;
+        if (!latest || !unsent || state.kind === "conflict" || state.kind === "invite-required" || state.kind === "gone") return;
         await push(await saveMeta({ ...latest, dirty: true }), latest.revision);
       });
     },

@@ -228,14 +228,14 @@ export function CompletedGameDialog({ mode, game, defaultPlatform, defaultTogeth
           <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
 
-        <footer className="modal-actions">
+        <div className="modal-actions">
           <button type="button" className="button" onClick={onClose} disabled={busy}>
             {t.cancel}
           </button>
           <button type="submit" className="button button-primary" disabled={busy}>
             {t.save}
           </button>
-        </footer>
+        </div>
       </form>
     </Modal>
   );

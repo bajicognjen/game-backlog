@@ -47,7 +47,11 @@ export function PlanTabs({ active, counts, onChange, panelId }: Props) {
             onClick={() => onChange(plan)}
           >
             {planLabels[plan]}
-            <span className="tab-count">{counts[plan]}</span>
+            {/* Seen as a count chip, heard as "PC, 26 games" rather than "PC26". */}
+            <span className="tab-count" aria-hidden="true">
+              {counts[plan]}
+            </span>
+            <span className="visually-hidden">{counts[plan] === 1 ? t.tabCountOne : t.tabCount.replace("{n}", String(counts[plan]))}</span>
           </button>
         );
       })}

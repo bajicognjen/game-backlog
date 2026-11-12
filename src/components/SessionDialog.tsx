@@ -140,11 +140,11 @@ export function SessionDialog({ game: initial, onClose }: Props) {
         </table>
       )}
 
-      <footer className="modal-actions">
+      <div className="modal-actions">
         <button type="button" className="button" onClick={onClose}>
           {t.close}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
 }

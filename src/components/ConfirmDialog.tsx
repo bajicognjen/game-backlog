@@ -26,14 +26,14 @@ export function ConfirmDialog({ title, question, warning, confirmLabel, onConfir
     <Modal title={title} onClose={onClose}>
       <p className="modal-text">{question}</p>
       {warning && <p className="modal-text muted">{warning}</p>}
-      <footer className="modal-actions">
+      <div className="modal-actions">
         <button type="button" className="button" onClick={onClose} disabled={busy}>
           {t.cancel}
         </button>
         <button type="button" className="button button-danger" onClick={() => void confirm()} disabled={busy}>
           {confirmLabel}
         </button>
-      </footer>
+      </div>
     </Modal>
   );
 }

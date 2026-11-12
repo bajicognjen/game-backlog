@@ -335,7 +335,7 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
 
         {error && <p className="field-error">{error}</p>}
 
-        <footer className="modal-actions details-footer">
+        <div className="modal-actions details-footer">
           {linked && (
             <span className="muted details-fetched">
               {d ? t.details.fetchedAt.replace("{date}", formatDate(d.fetchedAt.slice(0, 10))) : t.details.noDetails}
@@ -360,7 +360,7 @@ export function GameDetailsDialog({ gameId, onClose, onEdit, onSetupIgdb }: Prop
           <button type="button" className={`button ${linked ? "button-primary" : ""}`} onClick={onClose}>
             {t.close}
           </button>
-        </footer>
+        </div>
       </div>
     </Modal>
   );

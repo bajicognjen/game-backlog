@@ -3,12 +3,25 @@ import { useUpdates } from "../state/updates";
 
 /**
  * Desktop: offers a newer release found on GitHub, then shows the download until the app restarts. Web: offers a reload into a new version.
- * The live region is always on the page, so a screen reader reads a banner when it appears, not only when it changes.
+ * A live region with the offer's words is always on the page, so a screen reader reads it when it appears.
  */
 export function UpdateBanner() {
   return (
-    <div aria-live="polite">
+    <>
+      <UpdateAnnouncement />
       <UpdateBannerContent />
+    </>
+  );
+}
+
+/** Only the words of the offer, in a region that is always on the page; the buttons are not read as part of it. */
+function UpdateAnnouncement() {
+  const status = useUpdates((s) => s.status);
+  const version = useUpdates((s) => s.version);
+  const message = status === "reloadReady" ? t.updates.webReady : status === "available" ? t.updates.available.replace("{version}", version ?? "") : "";
+  return (
+    <div className="visually-hidden" role="status">
+      {message}
     </div>
   );
 }
@@ -27,7 +40,8 @@ function UpdateBannerContent() {
       <div className="banner banner-info">
         <span>{t.updates.webReady}</span>
         <span className="banner-actions">
-          <button type="button" className="button button-primary button-small" onClick={reload}>
+          {/* News about the app, not a move of the plan: no Plan Blue (The One Blue Rule). */}
+          <button type="button" className="button button-small" onClick={reload}>
             {t.updates.reload}
           </button>
           <button type="button" className="button button-ghost button-small" onClick={dismiss}>
@@ -43,7 +57,7 @@ function UpdateBannerContent() {
       <div className="banner banner-info">
         <span>{t.updates.available.replace("{version}", version ?? "")}</span>
         <span className="banner-actions">
-          <button type="button" className="button button-primary button-small" onClick={() => void install()}>
+          <button type="button" className="button button-small" onClick={() => void install()}>
             {t.updates.install}
           </button>
           <button type="button" className="button button-ghost button-small" onClick={dismiss}>

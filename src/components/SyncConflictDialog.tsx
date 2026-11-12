@@ -1,15 +1,18 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { formatDateTime } from "../domain/dates";
 import { formatHours } from "../domain/format";
+import { titlesOnlyIn } from "../domain/sync";
 import { t } from "../i18n/en";
 import type { ConflictSide, ConflictSides } from "../platform/sync";
+import { useStore, type NoticePlace } from "../state/store";
 import { useSync } from "../state/sync";
+import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 
 interface CompareRow {
   label: string;
-  device: string;
-  server: string;
+  device: ReactNode;
+  server: ReactNode;
   /** Which values to set in bold: both where the counts differ, the newer one for the change time. */
   strong: { device: boolean; server: boolean };
 }
@@ -18,9 +21,10 @@ interface CompareRow {
  * When this device and the server both changed, or a device that already has a plan joins a key:
  * the user compares the two copies and picks one. Nothing is merged, and neither choice is favoured.
  */
-export function SyncConflictDialog({ onClose }: { onClose(): void }) {
+export function SyncConflictDialog({ onClose, place = "top" }: { onClose(): void; place?: NoticePlace }) {
   const state = useSync((s) => s.state);
   const resolve = useSync((s) => s.resolve);
+  const exportBackup = useStore((s) => s.exportBackup);
   const conflictSides = useSync((s) => s.conflictSides);
   const [busy, setBusy] = useState(false);
   const [sides, setSides] = useState<ConflictSides | null>(null);
@@ -42,7 +46,8 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
 
   async function choose(choice: "keep-mine" | "take-server") {
     setBusy(true);
-    await resolve(choice);
+    // Its result and Undo show where the dialog was opened from.
+    await resolve(choice, place);
     setBusy(false);
     onClose();
   }
@@ -51,7 +56,8 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
   const lead = state.meta.lastSyncedAt ? t.sync.conflictSince.replace("{time}", formatDateTime(state.meta.lastSyncedAt)) : t.sync.conflictFirst;
 
   return (
-    <Modal title={t.sync.conflictTitle} onClose={onClose} describedBy={`${leadId} ${outcomeId}`}>
+    // Focus on the question, not a button: the ledger is read first, and a short phone isn't scrolled past it.
+    <Modal title={t.sync.conflictTitle} onClose={onClose} describedBy={`${leadId} ${outcomeId}`} focusTitle>
       <p className="modal-text" id={leadId}>
         {lead}
       </p>
@@ -73,21 +79,27 @@ export function SyncConflictDialog({ onClose }: { onClose(): void }) {
           ))}
         </tbody>
       </table>
+      {/* The totals can match while the games differ: name what choosing the other copy would lose. */}
+      {sides && <SyncDiff sides={sides} />}
+      <button type="button" className="button button-ghost button-small sync-export" onClick={() => void exportBackup()}>
+        <Icon name="download" size={14} /> {t.sync.exportFirst}
+      </button>
       <p className="modal-text" id={outcomeId}>
         {t.sync.conflictOutcome}
       </p>
-      <footer className="modal-actions modal-actions-stack">
-        <button type="button" className="button button-ghost" onClick={onClose} disabled={busy} data-autofocus>
-          {t.sync.later}
-        </button>
-        {/* Same order as the table's columns: this device, then the server. */}
+      {/* Written in the order they're seen, so Tab goes the way the eye does: the two choices in the table's column
+          order (this device, then the server), then the way out. */}
+      <div className="modal-actions modal-actions-stack">
         <button type="button" className="button" onClick={() => void choose("keep-mine")} disabled={busy}>
           {t.sync.keepMine}
         </button>
         <button type="button" className="button" onClick={() => void choose("take-server")} disabled={busy}>
           {t.sync.takeServer}
         </button>
-      </footer>
+        <button type="button" className="button button-ghost" onClick={onClose} disabled={busy}>
+          {t.sync.later}
+        </button>
+      </div>
     </Modal>
   );
 }
@@ -99,9 +111,12 @@ function compareRows(sides: ConflictSides | null): CompareRow[] {
     const differs = value(sides.device) !== value(sides.server);
     return { label, device: show(value(sides.device)), server: show(value(sides.server)), strong: { device: differs, server: differs } };
   };
-  const changedAt = (side: ConflictSide | undefined) => (side?.changedAt ? formatDateTime(side.changedAt) : "–");
   const deviceTime = sides?.device.changedAt ? Date.parse(sides.device.changedAt) : NaN;
   const serverTime = sides?.server.changedAt ? Date.parse(sides.server.changedAt) : NaN;
+  // Two changes in the same minute would read as the same time with one marked newer: show the seconds then.
+  const sameMinute =
+    sides?.device.changedAt && sides.server.changedAt ? formatDateTime(sides.device.changedAt) === formatDateTime(sides.server.changedAt) : false;
+  const changedAt = (side: ConflictSide | undefined) => (side?.changedAt ? <ChangeTime iso={side.changedAt} seconds={sameMinute && deviceTime !== serverTime} /> : "–");
   return [
     count(t.sync.compareInPlan, (side) => side.inPlan),
     count(t.sync.compareFinished, (side) => side.finished),
@@ -113,4 +128,46 @@ function compareRows(sides: ConflictSides | null): CompareRow[] {
       strong: { device: deviceTime > serverTime, server: serverTime > deviceTime },
     },
   ];
+}
+
+/** "12.11.2026, 12:53" as a date and a time that can stack on a narrow phone; with seconds when two changes share a minute. */
+function ChangeTime({ iso, seconds }: { iso: string; seconds: boolean }) {
+  const [date, time] = formatDateTime(iso).split(", ");
+  if (time === undefined) return <>{date}</>; // not a readable time: shown as stored
+  const withSeconds = seconds ? `${time}:${String(new Date(iso).getSeconds()).padStart(2, "0")}` : time;
+  return (
+    <>
+      {date},{" "}
+      <span className="sync-compare-time">{withSeconds}</span>
+    </>
+  );
+}
+
+/** How many titles a line names before "+N more": enough to recognise the copy, short enough for a phone. */
+const TITLES_SHOWN = 3;
+
+/** "Only on this device: …" and "Only on the server: …", or a line saying both have the same games. */
+function SyncDiff({ sides }: { sides: ConflictSides }) {
+  const here = titlesOnlyIn(sides.device.titles, sides.server.titles);
+  const there = titlesOnlyIn(sides.server.titles, sides.device.titles);
+  if (here.length === 0 && there.length === 0) {
+    return (
+      <div className="sync-diffs">
+        <p className="sync-diff muted">{t.sync.sameGames}</p>
+      </div>
+    );
+  }
+  const line = (label: string, titles: string[]) =>
+    titles.length > 0 && (
+      <p className="sync-diff">
+        <span className="sync-diff-label">{label}</span> {titles.slice(0, TITLES_SHOWN).join(", ")}
+        {titles.length > TITLES_SHOWN && <span className="muted"> ({t.sync.moreTitles.replace("{n}", String(titles.length - TITLES_SHOWN))})</span>}
+      </p>
+    );
+  return (
+    <div className="sync-diffs">
+      {line(t.sync.onlyHere, here)}
+      {line(t.sync.onlyThere, there)}
+    </div>
+  );
 }

@@ -37,10 +37,47 @@ export const REVISION_HEADER = "X-Sync-Revision";
 export const UPDATED_AT_HEADER = "X-Sync-Updated-At";
 export const INVITE_HEADER = "X-Invite-Code";
 
-/** The typed or pasted key, cleaned up; null when it is not a key. */
+/** Digits that are not in the alphabet but look like letters that are: 0 is O, 1 is I, 8 is B. */
+const LOOKALIKES: Readonly<Record<string, string>> = { "0": "O", "1": "I", "8": "B" };
+
+/** A key in its stored form, cleaned of case, dashes and spaces; null when it is not a key. Strict: the server uses it. */
 export function normaliseSyncKey(input: string): string | null {
   const key = input.replace(/[\s-]/g, "").toUpperCase();
   return SYNC_KEY_PATTERN.test(key) ? key : null;
+}
+
+/**
+ * What a person typed or pasted to join a plan: a key or a whole join link.
+ * The digits a key never has are read as the letters they look like, so a
+ * key copied by eye still works. Null when it is not a key.
+ */
+export function readSyncKey(input: string): string | null {
+  const typed = (keyInJoinLink(input) ?? input).replace(/[018]/g, (digit) => LOOKALIKES[digit]);
+  return normaliseSyncKey(typed);
+}
+
+/** The fragment that carries a key in a join link: `…/#join=ABCD-EFGH-…`. */
+export const JOIN_FRAGMENT = "join=";
+
+/**
+ * A link that opens the app on another device with the key filled in. The key
+ * sits in the fragment, which a browser never sends to the server; the app
+ * removes it from the address bar as soon as it has read it.
+ */
+export function joinLink(origin: string, key: string): string {
+  return `${origin}/#${JOIN_FRAGMENT}${formatSyncKey(key)}`;
+}
+
+/** What follows `join=` in a link or a location hash, as typed; null when there is none. */
+export function keyInJoinLink(text: string): string | null {
+  const at = text.indexOf(`#${JOIN_FRAGMENT}`);
+  if (at < 0) return null;
+  const value = text.slice(at + 1 + JOIN_FRAGMENT.length).split(/[&\s]/)[0];
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 /** The key in groups of four, easier to read out or compare: ABCD-EFGH-…. */
@@ -88,4 +125,20 @@ export function reconcile(meta: Pick<SyncMeta, "revision" | "dirty">, remoteRevi
   if (remoteRevision === meta.revision) return meta.dirty ? "push" : "nothing";
   if (remoteRevision > meta.revision) return meta.dirty ? "conflict" : "pull";
   return "conflict"; // the server went backwards: deleted and re-created elsewhere
+}
+
+/**
+ * The titles on one copy of the plan and not on the other, compared without case or surrounding spaces, in
+ * the order the first copy has them: what choosing the other copy would lose.
+ */
+export function titlesOnlyIn(these: readonly string[], those: readonly string[]): string[] {
+  const key = (title: string) => title.trim().toLowerCase();
+  const other = new Set(those.map(key));
+  const seen = new Set<string>();
+  return these.filter((title) => {
+    const k = key(title);
+    if (other.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
