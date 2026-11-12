@@ -443,6 +443,42 @@ describe("sync engine", () => {
     expect(first.engine.state().kind).toBe("conflict");
   });
 
+  it("a server copy deleted from another device is reported, not quietly stored again; starting again keeps the key", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await addGame(first.repository, "Shared");
+    await first.engine.enable();
+    const key = (first.engine.state() as { meta: { key: string } }).meta.key;
+    const second = device(server);
+    await second.repository.load();
+    await second.engine.connect(key);
+
+    await first.engine.deleteServerCopy();
+    await second.engine.check();
+    expect(second.engine.state()).toMatchObject({ kind: "gone", meta: { key } });
+    expect(server.remote).toBeNull();
+
+    // A change made meanwhile is not pushed on its own either.
+    await addGame(second.repository, "Made while gone");
+    expect(server.remote).toBeNull();
+
+    await second.engine.enable();
+    expect(second.engine.state()).toMatchObject({ kind: "idle", meta: { key } });
+    expect(await server.titles()).toEqual(["Shared", "Made while gone"]);
+  });
+
+  it("a push based on a copy that is gone reports it too", async () => {
+    const server = fakeServer();
+    const first = device(server);
+    await first.repository.load();
+    await first.engine.enable();
+    server.remote = null; // deleted behind this device's back
+    await addGame(first.repository, "After the delete");
+    await first.engine.check();
+    expect(first.engine.state().kind).toBe("gone");
+  });
+
   it("disable keeps the server copy; deleteServerCopy removes it", async () => {
     const server = fakeServer();
     const { repository, engine } = browser(server);

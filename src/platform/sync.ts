@@ -170,7 +170,12 @@ export type SyncState =
   /** Both sides changed; the user picks a side with `resolve`. */
   | { kind: "conflict"; meta: SyncMeta; remote: RemoteDocument }
   /** The server wants the invite code before it stores a new key; `enable` again with it, or `disable` to give up. */
-  | { kind: "invite-required"; meta: SyncMeta };
+  | { kind: "invite-required"; meta: SyncMeta }
+  /**
+   * The server copy this device synced with is gone (deleted from another device). Nothing is put back
+   * on its own: `enable` starts again under the same key with this device's plan, `disable` stops here.
+   */
+  | { kind: "gone"; meta: SyncMeta };
 
 export type ConflictChoice = "keep-mine" | "take-server";
 
@@ -280,6 +285,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       const remote = result.remote ?? (await fetchRemote(current.key));
       const dirty = await saveMeta({ ...current, dirty: true });
       if (remote) set({ kind: "conflict", meta: dirty, remote });
+      else if (baseRevision > 0) set({ kind: "gone", meta: dirty }); // the copy it was based on is no longer there
       else set({ kind: "pending", meta: dirty, reason: "error", detail: "conflict" });
       return;
     }
@@ -317,6 +323,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     } catch (error) {
       if (current.dirty) set({ kind: "pending", meta: current, reason: error instanceof SyncError && error.reason === "network" ? "offline" : "error", detail: null });
       else set({ kind: "idle", meta: current });
+      return;
+    }
+    // Synced before and now nothing under the key: the copy was deleted. Say so rather than quietly storing it again.
+    if (result.kind === "missing" && current.revision > 0) {
+      set({ kind: "gone", meta: current });
       return;
     }
     const remoteRevision = result.kind === "missing" ? null : result.kind === "unchanged" ? result.revision : result.remote.revision;
@@ -426,7 +437,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       unsent = saved;
       void run(async () => {
         const latest = meta();
-        if (!latest || !unsent || state.kind === "conflict" || state.kind === "invite-required") return;
+        if (!latest || !unsent || state.kind === "conflict" || state.kind === "invite-required" || state.kind === "gone") return;
         await push(await saveMeta({ ...latest, dirty: true }), latest.revision);
       });
     },

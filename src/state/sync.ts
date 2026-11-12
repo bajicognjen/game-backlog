@@ -13,6 +13,7 @@ import { t } from "../i18n/en";
 import {
   createSyncApi,
   createSyncEngine,
+  SyncError,
   describeConflict,
   type ConflictChoice,
   type ConflictSides,
@@ -68,13 +69,13 @@ function getEngine(): SyncEngine {
 }
 
 export const useSync = create<SyncUiState>((set, get) => {
-  /** Run an action; a failure thrown by the engine (network trouble on connect or delete) lands in `actionError`. */
+  /** Run an action; a failure thrown by the engine (network trouble on connect or delete) lands in `actionError`, in plain words. */
   async function attempt(action: (engine: SyncEngine) => Promise<void>): Promise<void> {
     set({ actionError: null });
     try {
       await action(getEngine());
     } catch (error) {
-      set({ actionError: describeError(error) });
+      set({ actionError: plainFailure(error) });
     }
   }
 
@@ -148,3 +149,9 @@ export const useSync = create<SyncUiState>((set, get) => {
     check: () => attempt((e) => e.check()),
   };
 });
+
+/** What went wrong, for a person: what happened and what to do, never a status code or an internal reason. */
+export function plainFailure(error: unknown): string {
+  if (error instanceof SyncError) return error.reason === "network" ? t.sync.failNetwork : t.sync.failServer;
+  return t.sync.failOther.replace("{detail}", describeError(error).replace(/\.$/, ""));
+}

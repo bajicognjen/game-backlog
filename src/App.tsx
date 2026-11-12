@@ -84,7 +84,14 @@ export default function App() {
   function openSyncJoin(key: string | null) {
     setIgdbFocus(0);
     setSettingsOpen(true);
-    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key }));
+    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key, mode: "join" }));
+  }
+
+  /** Bring Settings → Sync into view (from a banner about stopped sync). */
+  function openSync() {
+    setIgdbFocus(0);
+    setSettingsOpen(true);
+    setSyncRequest((previous) => ({ n: (previous?.n ?? 0) + 1, key: null, mode: "show" }));
   }
 
   // Web app: a join link (…/#join=KEY) opens the join form with the key filled in. The key leaves the
@@ -193,7 +200,7 @@ export default function App() {
       <TopBar settingsOpen={settingsOpen} onToggleSettings={toggleSettings} onExport={() => void exportBackup()} onImport={() => void startImport()} />
       <main>
         {/* A choice about the plan comes before news about the app. */}
-        <SyncBanner />
+        <SyncBanner onOpenSync={openSync} />
         <UpdateBanner />
         <Banner />
         {settingsOpen && <SettingsPanel onClose={closeSettings} focusIgdb={igdbFocus} syncRequest={syncRequest} />}

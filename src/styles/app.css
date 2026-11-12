@@ -926,6 +926,25 @@ textarea {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
+/* Sync that has stopped: a caution, not an error, in the warnings' amber with their alert icon. */
+.banner-warn {
+  background: var(--warning-soft);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--warning-border) 55%, transparent);
+}
+
+.banner-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.banner-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--warning);
+}
+
 .banner-actions {
   display: flex;
   align-items: center;

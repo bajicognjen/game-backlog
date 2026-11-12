@@ -10,12 +10,16 @@ import { Icon } from "./Icon";
 import { SyncConflictDialog } from "./SyncConflictDialog";
 import { SyncQrCode } from "./SyncQrCode";
 
-/** Sent from outside (a join link, the empty plan): open the join form, with the key from the link when there is one. */
+/**
+ * Sent from outside: "join" (a join link, the empty plan) opens the join form, with the key from the link
+ * when there is one; "show" (a banner about stopped sync) brings the group into view with focus on its action.
+ */
 export interface SyncJoinRequest {
   /** Changes with every request, so the same link opened twice is handled twice. */
   n: number;
   /** The key as it came in, not yet checked; null to open an empty form. */
   key: string | null;
+  mode?: "join" | "show";
 }
 
 /** Off: a question first. "start" turns sync on here (with an invite code, if any); "connect" joins a plan from another device. */
@@ -133,6 +137,13 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
   // A join link, or the empty plan's button, sends the user here: open the join form, filled when the link had a key.
   useEffect(() => {
     if (!request) return;
+    if (request.mode === "show") {
+      requestAnimationFrame(() => {
+        groupRef.current?.scrollIntoView({ block: "start" });
+        groupRef.current?.querySelector<HTMLElement>(".settings-group-body > :not(.banner) button:not(:disabled)")?.focus({ preventScroll: true });
+      });
+      return;
+    }
     const current = useSync.getState().state;
     if (current.kind !== "off") {
       // Already syncing: say whether the link is this plan or another one, and change nothing.
@@ -342,6 +353,11 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   <button type="button" className="button button-primary button-small" onClick={() => setConflictOpen(true)}>
                     {t.sync.resolve}
                   </button>
+                ) : state.kind === "gone" ? (
+                  // Puts this device's plan back on the server under the same key (asks for the invite code if the server wants it).
+                  <button type="button" className="button button-primary button-small" disabled={busy} onClick={() => void run(() => enable())}>
+                    {t.sync.startAgain}
+                  </button>
                 ) : (
                   <button type="button" className="button button-small" disabled={busy || state.kind === "syncing"} onClick={() => void run(check)}>
                     {t.sync.checkNow}
@@ -406,12 +422,15 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
                   </button>
                   <p className="field-hint">{t.sync.turnOffHint}</p>
                 </div>
-                <div className="settings-action">
-                  <button type="button" className="button button-ghost button-danger-ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>
-                    {t.sync.deleteServer}
-                  </button>
-                  <p className="field-hint">{t.sync.deleteHint}</p>
-                </div>
+                {/* Nothing to delete once the copy is gone. */}
+                {state.kind !== "gone" && (
+                  <div className="settings-action">
+                    <button type="button" className="button button-ghost button-danger-ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>
+                      {t.sync.deleteServer}
+                    </button>
+                    <p className="field-hint">{t.sync.deleteHint}</p>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -419,7 +438,7 @@ export function SyncSettings({ request = null }: { request?: SyncJoinRequest | n
 
         {actionError && (
           <span className="field-error" role="alert">
-            {t.sync.actionFailed.replace("{detail}", actionError)}
+            {actionError}
           </span>
         )}
       </div>
@@ -467,9 +486,11 @@ function statusOf(state: ReturnType<typeof useSync.getState>["state"]): SyncStat
     case "pending":
       if (state.reason === "offline") return status(t.sync.stateWaiting, "warn", t.sync.detailOffline);
       if (state.reason === "too-large") return status(t.sync.stateStopped, "bad", t.sync.detailTooLarge);
-      return status(t.sync.stateFailed, "bad", state.detail ? t.sync.detailError.replace("{detail}", state.detail) : t.sync.detailErrorPlain);
+      return status(t.sync.stateFailed, "bad", t.sync.detailError);
     case "conflict":
       return status(t.sync.stateConflict, "bad", t.sync.detailConflict);
+    case "gone":
+      return status(t.sync.stateGone, "bad", t.sync.detailGone);
     default:
       return status("", "quiet");
   }
