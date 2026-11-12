@@ -2337,6 +2337,30 @@ tr:focus-within .row-actions {
   white-space: nowrap;
 }
 
+/* A phone (a touch screen in the folded layout, or anything under 600px): the current game's three actions as a
+   deliberate block, Log hours and Pause side by side and Finish game the full width under them, where a thumb
+   ends up. A narrow window with a mouse keeps them in a row; the idle card keeps its single Start. */
+@media (max-width: 599px), (max-width: 899px) and (pointer: coarse) {
+  .now:not(.now-idle) .now-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .now:not(.now-idle) .now-actions > .button-success {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Touch phones: fields at 16px, or iOS Safari zooms the page whenever one takes focus. */
+@media (max-width: 899px) and (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  input.inline-edit-input {
+    font-size: 16px;
+  }
+}
+
 /* The narrowest phones: plan tabs tighten so PC, PS5 and Together with two-digit counts still fit. */
 @media (max-width: 359px) {
   .tabs[role="tablist"] .tab {
@@ -3012,14 +3036,15 @@ h3[tabindex="-1"]:focus {
 
 /* Columns leave where the plan stops fitting, so the page never scrolls sideways (measured on a full
    27-game plan with notes and the Today marker): the derived schedule column below 1240px, the numbers
-   stay in Hours and the details view; genre and note below 1160px, both stay in the details view. */
+   stay in Hours and the details view; genre and note below 1184px (the full table needs ~1118px of wrapper, which a
+   classic 15px scrollbar takes away until about there), both stay in the details view. */
 @media (max-width: 1239px) {
   .col-opt {
     display: none;
   }
 }
 
-@media (max-width: 1159px) {
+@media (max-width: 1183px) {
   .col-opt-2 {
     display: none;
   }
@@ -3142,18 +3167,8 @@ h3[tabindex="-1"]:focus {
     flex-wrap: wrap;
   }
 
-  /* The current game's three actions as a deliberate block, not a wrap: Log hours and Pause side by side,
-     Finish game the full width under them, where a thumb ends up. The idle card keeps its single Start. */
-  .now:not(.now-idle) .now-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .now:not(.now-idle) .now-actions > .button-success {
-    grid-column: 1 / -1;
-  }
-
-  /* The bar takes the card's width and its line goes under it, instead of a stub beside a long sentence. */
+  /* The bar takes the card's width and its line goes under it, instead of a stub beside a long sentence.
+     flex: none, or the base rule's flex: 1 would size it along the column, to nothing. */
   .now-progress {
     flex-direction: column;
     align-items: stretch;
@@ -3161,6 +3176,7 @@ h3[tabindex="-1"]:focus {
   }
 
   .now-progress .progress {
+    flex: none;
     max-width: none;
   }
 
