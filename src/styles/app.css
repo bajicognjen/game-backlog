@@ -2450,11 +2450,25 @@ tr:focus-within .row-actions {
   }
 
   /* Choices too long to share a row (the sync conflict) stack full width in the order they're written, the way
-     out last, where a thumb ends up. */
+     out last, where a thumb ends up. They stay pinned at the dialog's foot while the evidence above scrolls, so a
+     short phone shows them from the start. Their 12px top gap is a fade: what scrolls under it melts away, and
+     when nothing scrolls it covers only the gap, never the text above. */
   .modal-actions-stack {
+    position: sticky;
+    bottom: 0;
     flex-direction: column;
     align-items: stretch;
+    margin: 0 -24px -22px;
+    padding: 12px 24px 22px;
+    background: linear-gradient(to bottom, transparent, var(--surface) 12px);
   }
+
+  /* A control in the scrolling part, focused from the keyboard, scrolls into view above the pinned choices
+     (their height, three 40px buttons with gaps and padding, plus the fade), never under them. */
+  .modal-content:has(> .modal-actions-stack) :is(button, a, input, select, textarea):not(.modal-actions-stack *) {
+    scroll-margin-bottom: 200px;
+  }
+
 
   .now:not(.now-idle) .now-actions {
     display: grid;
@@ -3615,5 +3629,46 @@ h3[tabindex="-1"]:focus {
     content: "";
     position: absolute;
     inset: -8px -2px;
+  }
+}
+
+/* ---------- Folded rows at the edges of the one-column layout ---------- */
+
+/* 600–899px has room the phone doesn't: a plan row's dates join its chips line, so the row is two lines, not three. */
+@media (min-width: 600px) and (max-width: 899px) {
+  .plan-table tr::before {
+    display: none;
+  }
+
+  /* A wider step before the dates, so "18 h" and "15.11.2026" don't read as one figure. */
+  .plan-table td.date:not(td.date + td.date) {
+    margin-left: 8px;
+  }
+}
+
+/* The narrowest phones: a row's three actions (132px) would leave the title 72px, breaking it mid-word. They take
+   their own line under the row, at its right edge as elsewhere, and the title gets the width. */
+@media (max-width: 340px) {
+  .plan-table td.actions-col,
+  .completed-table td.actions-col {
+    order: 9;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+/* A folded finished row's title line and rating line sit 4px apart on a touch phone: the title's taller touch
+   reaches up, the rating's down, and they meet in the gap instead of overlapping. */
+@media (max-width: 899px) and (pointer: coarse) {
+  .completed-table .title-cell-link::after {
+    inset: -10px 0 -2px;
+  }
+
+  .completed-table .rating-link::after {
+    inset: -2px 0 -10px;
+  }
+
+  .completed-table .rating-value::after {
+    inset: -2px -2px -14px;
   }
 }
