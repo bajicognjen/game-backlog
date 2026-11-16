@@ -930,6 +930,78 @@ textarea {
   max-width: 360px;
 }
 
+/* A two-letter code. */
+.field-short input {
+  width: 6ch;
+  text-transform: uppercase;
+}
+
+/* --- Wishlist section ------------------------------------------------------ */
+
+.wishlist-summary {
+  font-size: var(--text-sm);
+}
+
+.wishlist-wrap {
+  overflow-x: auto;
+}
+
+/* The wrap scrolls sideways on narrow screens, which would make the sticky header stick inside it, over the first row. */
+.table.wishlist-table thead th {
+  position: static;
+}
+
+.wishlist-table .title {
+  white-space: normal;
+}
+
+.wishlist-table td.num {
+  white-space: nowrap;
+}
+
+.wishlist-table .price-was {
+  margin-right: 6px;
+}
+
+.wishlist-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.wishlist-actions .button + .button,
+.wishlist-actions .muted + .button,
+.wishlist-actions .button + .muted {
+  margin-left: 6px;
+}
+
+/* A game on sale: a green edge, and the percent off as a badge. */
+.row-sale td:first-child {
+  box-shadow: inset 3px 0 0 var(--success);
+}
+
+.sale-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.wishlist-status {
+  margin: 0;
+}
+
+.wishlist-status .button {
+  margin-left: 10px;
+}
+
+.wishlist-hint {
+  margin: 12px 0 0;
+  font-size: var(--text-sm);
+}
+
 .field-actions {
   display: flex;
   flex-wrap: wrap;

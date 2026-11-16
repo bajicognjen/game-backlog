@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { isValidIsoDate } from "../domain/dates";
 import { parseSteamIdInput, steamConfigured } from "../domain/steam";
+import { isSteamCountry } from "../domain/steamStore";
 import { autoBackupFolder } from "../platform/autoBackup";
 import { ProviderError } from "../platform/http";
 import { openExternal } from "../platform/links";
@@ -84,6 +85,7 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
   const [igdbClientSecret, setIgdbClientSecret] = useState(settings.igdbClientSecret);
   const [steamApiKey, setSteamApiKey] = useState(settings.steamApiKey);
   const [steamId, setSteamId] = useState(settings.steamId);
+  const [steamCountry, setSteamCountry] = useState(settings.steamCountry);
   const [steamImportOpen, setSteamImportOpen] = useState(false);
   const [backupFolder, setBackupFolder] = useState<string | null>(null);
   useEffect(() => {
@@ -110,6 +112,7 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
   useEffect(() => setIgdbClientSecret(settings.igdbClientSecret), [settings.igdbClientSecret]);
   useEffect(() => setSteamApiKey(settings.steamApiKey), [settings.steamApiKey]);
   useEffect(() => setSteamId(settings.steamId), [settings.steamId]);
+  useEffect(() => setSteamCountry(settings.steamCountry), [settings.steamCountry]);
 
   /** Save a credential on blur; a changed credential also forgets the cached token. */
   function commitCredential(field: "igdbClientId" | "igdbClientSecret", value: string) {
@@ -124,7 +127,15 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
     if (next !== settings[field]) void updateSettings({ [field]: next });
   }
 
+  /** Save the store country on blur, as a two-letter code in upper case; an invalid one is not saved. */
+  function commitSteamCountry(value: string) {
+    if (!isSteamCountry(value)) return;
+    const next = value.trim().toUpperCase();
+    if (next !== settings.steamCountry) void updateSettings({ steamCountry: next });
+  }
+
   const steamIdInvalid = steamId.trim() !== "" && parseSteamIdInput(steamId) === null;
+  const steamCountryInvalid = !isSteamCountry(steamCountry);
   // From what is typed, not what is saved: the fields save on blur, which the
   // click on the button causes, and the save reaches the store at once.
   const steamReady = steamConfigured({ steamApiKey, steamId });
@@ -318,6 +329,21 @@ export function SettingsPanel({ onClose, focusIgdb = 0, syncRequest = null }: Pr
                     aria-invalid={steamIdInvalid}
                   />
                   {steamIdInvalid && <span className="field-error">{t.steam.accountInvalid}</span>}
+                </label>
+                <label className="field field-short">
+                  <span className="field-label">{t.steam.country}</span>
+                  <input
+                    type="text"
+                    value={steamCountry}
+                    maxLength={2}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    onChange={(e) => setSteamCountry(e.target.value)}
+                    onBlur={() => commitSteamCountry(steamCountry)}
+                    aria-invalid={steamCountryInvalid}
+                  />
+                  {steamCountryInvalid && <span className="field-error">{t.steam.countryInvalid}</span>}
                 </label>
               </div>
               <SteamAccount />

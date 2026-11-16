@@ -11,6 +11,7 @@
  * it as opaque bytes.
  */
 import { BACKUP_VERSION, type Backup } from "../domain/backup";
+import { DEFAULT_STEAM_COUNTRY } from "../domain/steamStore";
 import {
   BASE_REVISION_HEADER,
   INVITE_HEADER,
@@ -42,7 +43,7 @@ export function toRemoteDocument(state: SnapshotState, now: Date = new Date()): 
   const stored = toStoredState(state, now);
   return {
     ...stored,
-    settings: { ...stored.settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0, steamApiKey: "", steamId: "", steamHiddenApps: [], steamDismissedHints: [] },
+    settings: { ...stored.settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0, steamApiKey: "", steamId: "", steamCountry: DEFAULT_STEAM_COUNTRY, steamHiddenApps: [], steamDismissedHints: [] },
   };
 }
 

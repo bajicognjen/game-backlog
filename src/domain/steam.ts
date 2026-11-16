@@ -331,6 +331,34 @@ export function steamWishlist(
   };
 }
 
+/** A line of the Wishlist section: the wish, whether the app already has the game, and what is off its price right now. */
+export interface WishlistRow {
+  entry: SteamWishlistEntry;
+  /** Already planned, playing or finished in the app, so there is nothing to add. */
+  inApp: boolean;
+  /** Percent off in the store; 0 at full price, free or without a price. */
+  discountPct: number;
+}
+
+/**
+ * The whole wishlist for the Wishlist section, nothing left out: games on
+ * sale first (biggest discount first), then the owner's ranked games in
+ * their order, then the rest newest first. Games already in the app are
+ * only marked, so a sale on one still shows.
+ */
+export function wishlistRows(games: readonly Game[], entries: readonly SteamWishlistEntry[], baseAppIds: ReadonlyMap<number, number> = new Map()): WishlistRow[] {
+  const inApp = inAppTest(games, baseAppIds);
+  const rank = (e: SteamWishlistEntry) => (e.priority > 0 ? e.priority : Number.MAX_SAFE_INTEGER);
+  return entries
+    .map((entry) => ({ entry, inApp: inApp(entry.appid, entry.name), discountPct: entry.store?.price?.discountPct ?? 0 }))
+    .sort((a, b) => b.discountPct - a.discountPct || rank(a.entry) - rank(b.entry) || b.entry.dateAdded - a.entry.dateAdded || a.entry.name.localeCompare(b.entry.name));
+}
+
+/** How many of these rows are on sale. */
+export function onSaleCount(rows: readonly WishlistRow[]): number {
+  return rows.filter((row) => row.discountPct > 0).length;
+}
+
 /** A Steam name made fit for an IGDB search: trademark signs dropped, spaces tidied. */
 export function steamSearchTitle(name: string): string {
   return name.replace(/[™®©]/g, "").replace(/\s+/g, " ").trim();

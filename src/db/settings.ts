@@ -1,6 +1,7 @@
 import { SEED_SETTINGS } from "../domain/seed";
 import { parseHiddenApps } from "../domain/steam";
 import { parseDismissedHints } from "../domain/steamHints";
+import { parseSteamCountry } from "../domain/steamStore";
 import type { Settings, Theme } from "../domain/types";
 import { getDb } from "./client";
 import { lit } from "./sql";
@@ -15,6 +16,7 @@ const KEYS: Record<keyof Settings, string> = {
   igdbTokenExpiresAt: "igdb_token_expires_at",
   steamApiKey: "steam_api_key",
   steamId: "steam_id",
+  steamCountry: "steam_country",
   steamHiddenApps: "steam_hidden_apps",
   steamDismissedHints: "steam_dismissed_hints",
 };
@@ -34,6 +36,7 @@ export async function loadSettings(): Promise<Settings> {
     igdbTokenExpiresAt: Number(map.get(KEYS.igdbTokenExpiresAt) ?? 0) || 0,
     steamApiKey: map.get(KEYS.steamApiKey) ?? "",
     steamId: map.get(KEYS.steamId) ?? "",
+    steamCountry: parseSteamCountry(map.get(KEYS.steamCountry)),
     steamHiddenApps: parseHiddenApps(map.get(KEYS.steamHiddenApps)),
     steamDismissedHints: parseDismissedHints(map.get(KEYS.steamDismissedHints)),
   };
