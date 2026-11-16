@@ -1,3 +1,4 @@
+import { DEFAULT_STEAM_COUNTRY } from "./steamStore";
 import type { Game, GameType, Genre, Settings } from "./types";
 
 /** Settings loaded on the first run. */
@@ -11,6 +12,7 @@ export const SEED_SETTINGS: Settings = {
   igdbTokenExpiresAt: 0,
   steamApiKey: "",
   steamId: "",
+  steamCountry: DEFAULT_STEAM_COUNTRY,
   steamHiddenApps: [],
   steamDismissedHints: [],
 };

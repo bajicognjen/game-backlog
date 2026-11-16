@@ -241,12 +241,13 @@ describe("fetchStoreItems", () => {
     const ids = Array.from({ length: 60 }, (_, i) => i + 1);
     const page = (from: number, to: number) => json({ response: { store_items: ids.slice(from, to).map((appid) => ({ appid, name: `Game ${appid}`, success: 1 })) } });
     const fetch = stubFetch(page(0, 50), page(50, 60));
-    const items = await fetchStoreItems(ids);
+    const items = await fetchStoreItems(ids, "DE");
     expect(items.size).toBe(60);
     expect(items.get(55)?.name).toBe("Game 55");
     expect(fetch).toHaveBeenCalledTimes(2);
-    const input = JSON.parse(requestedUrl(fetch, 1).searchParams.get("input_json") ?? "{}") as { ids: { appid: number }[] };
+    const input = JSON.parse(requestedUrl(fetch, 1).searchParams.get("input_json") ?? "{}") as { ids: { appid: number }[]; context: { country_code: string } };
     expect(input.ids.map((i) => i.appid)).toEqual(ids.slice(50));
+    expect(input.context.country_code).toBe("DE");
     expect(requestedUrl(fetch).pathname).toBe("/IStoreBrowseService/GetItems/v1/");
   });
 });

@@ -50,6 +50,7 @@ const credentials = {
   igdbTokenExpiresAt: 1_800_000_000_000,
   steamApiKey: "steam-key",
   steamId: "76561198000000000",
+  steamCountry: "DE",
   steamHiddenApps: [10, 20],
   steamDismissedHints: ["start:1"],
 };

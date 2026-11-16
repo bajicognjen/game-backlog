@@ -1,6 +1,7 @@
 import { BACKUP_VERSION, parseBackup, type Backup } from "../domain/backup";
 import { parseHiddenApps } from "../domain/steam";
 import { parseDismissedHints } from "../domain/steamHints";
+import { parseSteamCountry } from "../domain/steamStore";
 import type { Settings } from "../domain/types";
 import type { Repository } from "./repository";
 import { createSnapshotRepository, emptyState, nextIdAfter, type SnapshotState, type SnapshotStore } from "./snapshotRepository";
@@ -48,7 +49,7 @@ export function fromStoredState(raw: unknown): SnapshotState {
 
 type LocalSettings = Pick<
   Settings,
-  "igdbClientId" | "igdbClientSecret" | "igdbAccessToken" | "igdbTokenExpiresAt" | "steamApiKey" | "steamId" | "steamHiddenApps" | "steamDismissedHints"
+  "igdbClientId" | "igdbClientSecret" | "igdbAccessToken" | "igdbTokenExpiresAt" | "steamApiKey" | "steamId" | "steamCountry" | "steamHiddenApps" | "steamDismissedHints"
 >;
 
 /** The settings `parseBackup` blanks, read straight from the document with the same leniency as the SQLite settings table. */
@@ -63,6 +64,7 @@ function localSettingsOf(value: unknown): LocalSettings {
     igdbTokenExpiresAt: typeof s.igdbTokenExpiresAt === "number" && Number.isFinite(s.igdbTokenExpiresAt) ? s.igdbTokenExpiresAt : 0,
     steamApiKey: text(s.steamApiKey),
     steamId: text(s.steamId),
+    steamCountry: parseSteamCountry(s.steamCountry),
     steamHiddenApps: parseHiddenApps(asJson(s.steamHiddenApps)),
     steamDismissedHints: parseDismissedHints(asJson(s.steamDismissedHints)),
   };

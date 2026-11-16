@@ -26,6 +26,7 @@ import type { SyncJoinRequest } from "./components/SyncSettings";
 import { keyInJoinLink } from "./domain/sync";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { WarningsBar } from "./components/WarningsBar";
+import { WishlistSection } from "./components/WishlistSection";
 import type { Backup } from "./domain/backup";
 import { DEFAULT_SORT_DIRECTION, sortCompleted, type CompletedSortKey, type SortDirection } from "./domain/completed";
 import { NO_FILTER, availablePlatforms, isFilterActive, matchesFilter, type GameFilter } from "./domain/filters";
@@ -78,6 +79,8 @@ export default function App() {
   const [detailsId, setDetailsId] = useState<number | null>(null);
   /** A game whose edit form should open next; the section that owns it picks it up. */
   const [editRequest, setEditRequest] = useState<Game | null>(null);
+  /** A Steam name whose Add game form should open (from the Wishlist section). */
+  const [addRequest, setAddRequest] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<{ name: string; backup: Backup } | null>(null);
   /** Web app: open Settings → Sync at the join form (from a join link, or the empty plan). */
   const [syncRequest, setSyncRequest] = useState<SyncJoinRequest | null>(null);
@@ -160,6 +163,11 @@ export default function App() {
     setIgdbFocus((n) => n + 1);
   }
 
+  function openSteamSetup() {
+    setIgdbFocus(0);
+    setSettingsOpen(true);
+  }
+
   async function startImport() {
     const picked = await pickBackup();
     if (picked) setPendingImport(picked);
@@ -194,6 +202,9 @@ export default function App() {
         <a className="skip-link" href="#completed-heading">
           {t.skipToFinished}
         </a>
+        <a className="skip-link" href="#wishlist-heading">
+          {t.skipToWishlist}
+        </a>
         <a className="skip-link" href="#stats-heading">
           {t.skipToStats}
         </a>
@@ -219,6 +230,8 @@ export default function App() {
           onSetUpSync={openSync}
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
+          addRequest={addRequest}
+          onAddHandled={() => setAddRequest(null)}
         />
         <CompletedSection
           defaultPlatform={platformOfPlan(plan)}
@@ -228,6 +241,7 @@ export default function App() {
           editRequest={editRequest}
           onEditHandled={() => setEditRequest(null)}
         />
+        <WishlistSection onAdd={setAddRequest} onSetUpSteam={openSteamSetup} />
         <StatsSection />
       </main>
       {detailsId !== null && (
@@ -282,6 +296,9 @@ interface PlanSectionProps {
   /** A planned game whose edit form should open (from the details dialog). */
   editRequest: Game | null;
   onEditHandled(): void;
+  /** A Steam name whose Add game form should open (from the Wishlist section). */
+  addRequest: string | null;
+  onAddHandled(): void;
 }
 
 const PLAN_PANEL_ID = "plan-panel";
@@ -291,7 +308,7 @@ function hasIgdbData(games: readonly Game[]): boolean {
   return games.some((g) => g.providerTags.length > 0 || (g.details?.platforms.length ?? 0) > 0);
 }
 
-function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, editRequest, onEditHandled }: PlanSectionProps) {
+function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, editRequest, onEditHandled, addRequest, onAddHandled }: PlanSectionProps) {
   const games = useStore((s) => s.games);
   const settings = useStore((s) => s.settings);
   /** Dated sessions: hours played since the plan started count as time already spent. */
@@ -323,6 +340,14 @@ function PlanSection({ plan, onPlanChange, onOpen, onSetupIgdb, onSetUpSync, edi
       onEditHandled();
     }
   }, [editRequest, onEditHandled]);
+
+  // The Wishlist section can ask for the Add game form with a Steam name.
+  useEffect(() => {
+    if (addRequest !== null) {
+      setDialog({ kind: "add", steamName: addRequest });
+      onAddHandled();
+    }
+  }, [addRequest, onAddHandled]);
 
   // Recomputed on every change to games, settings or logged hours: this is the "live" part.
   const schedule = useMemo(() => computeSchedule(games, settings, sessions), [games, settings, sessions]);

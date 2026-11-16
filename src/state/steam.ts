@@ -190,17 +190,19 @@ export async function loadWishlist(signal: AbortSignal): Promise<SteamWishlistEn
   const items = await fetchWishlist(await steamIdFor(settings, signal), signal);
   const store = await fetchStoreItems(
     items.map((i) => i.appid),
+    settings.steamCountry,
     signal,
   );
-  for (const item of store.values()) storeCache.set(item.appid, { at: Date.now(), item });
+  for (const item of store.values()) storeCache.set(storeKey(settings.steamCountry, item.appid), { at: Date.now(), item });
   return items.map((i) => {
     const s = store.get(i.appid) ?? null;
     return { appid: i.appid, name: s?.name ?? `App ${i.appid}`, priority: i.priority, dateAdded: i.dateAdded, store: s };
   });
 }
 
-/** Store data per app; it changes slowly and needs no key, so it is shared by every view for a while. */
-const storeCache = new Map<number, { at: number; item: SteamStoreItem | null }>();
+/** Store data per country and app; it changes slowly and needs no key, so it is shared by every view for a while. */
+const storeCache = new Map<string, { at: number; item: SteamStoreItem | null }>();
+const storeKey = (country: string, appId: number) => `${country}:${appId}`;
 
 /**
  * Steam's store data for a game in the app (game details), or null when the
@@ -209,6 +211,7 @@ const storeCache = new Map<number, { at: number; item: SteamStoreItem | null }>(
  */
 export function useSteamStoreItem(game: Game | null): SteamStoreItem | null {
   const configured = useStore((s) => steamConfigured(s.settings));
+  const country = useStore((s) => s.settings.steamCountry);
   const [item, setItem] = useState<SteamStoreItem | null>(null);
   const gameId = game?.id ?? null;
 
@@ -220,11 +223,11 @@ export function useSteamStoreItem(game: Game | null): SteamStoreItem | null {
       try {
         const appId = steamAppIdOf(game) ?? (configured && game.platform === "pc" ? await steamAppFor(game, controller.signal) : null);
         if (appId === null || controller.signal.aborted) return;
-        const cached = storeCache.get(appId);
+        const cached = storeCache.get(storeKey(country, appId));
         let found = cached && Date.now() - cached.at < RECENT_MS ? cached.item : undefined;
         if (found === undefined) {
-          found = (await fetchStoreItems([appId], controller.signal)).get(appId) ?? null;
-          storeCache.set(appId, { at: Date.now(), item: found });
+          found = (await fetchStoreItems([appId], country, controller.signal)).get(appId) ?? null;
+          storeCache.set(storeKey(country, appId), { at: Date.now(), item: found });
         }
         if (!controller.signal.aborted) setItem(found);
       } catch {
@@ -233,7 +236,7 @@ export function useSteamStoreItem(game: Game | null): SteamStoreItem | null {
     })();
     return () => controller.abort();
     // Keyed by the game's id: the object is replaced on every reload.
-  }, [gameId, configured]);
+  }, [gameId, configured, country]);
 
   return item;
 }

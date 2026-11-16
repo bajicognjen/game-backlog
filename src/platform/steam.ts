@@ -99,13 +99,14 @@ export async function fetchWishlist(steamId: string, signal?: AbortSignal): Prom
 
 /**
  * Store data for these apps (`IStoreBrowseService/GetItems`, no key needed),
- * by app id, asked in batches; apps Steam has no store page for are left out.
+ * by app id, priced for `country` (a two-letter code), asked in batches; apps
+ * Steam has no store page for are left out.
  */
-export async function fetchStoreItems(appIds: readonly number[], signal?: AbortSignal): Promise<Map<number, SteamStoreItem>> {
+export async function fetchStoreItems(appIds: readonly number[], country: string, signal?: AbortSignal): Promise<Map<number, SteamStoreItem>> {
   const items = new Map<number, SteamStoreItem>();
   for (let start = 0; start < appIds.length; start += STORE_ITEMS_PER_REQUEST) {
     const chunk = appIds.slice(start, start + STORE_ITEMS_PER_REQUEST);
-    const data = await steamGet<{ response?: { store_items?: unknown[] } }>("IStoreBrowseService/GetItems/v1", { input_json: storeItemsInput(chunk) }, signal);
+    const data = await steamGet<{ response?: { store_items?: unknown[] } }>("IStoreBrowseService/GetItems/v1", { input_json: storeItemsInput(chunk, country) }, signal);
     for (const raw of data.response?.store_items ?? []) {
       const item = mapStoreItem(raw);
       if (item) items.set(item.appid, item);

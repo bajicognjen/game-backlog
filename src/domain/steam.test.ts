@@ -9,16 +9,19 @@ import {
   lastPlayedDay,
   lastPlayedOn,
   minutesToHours,
+  onSaleCount,
   parseHiddenApps,
   parseSteamIdInput,
   steamLibrary,
   steamSearchTitle,
   steamWishlist,
+  wishlistRows,
   type SteamWishlistEntry,
   planSteamImport,
   steamAppIdOf,
   type SteamOwnedGame,
 } from "./steam";
+import type { SteamPrice, SteamStoreItem } from "./steamStore";
 import type { Game, PlaySession } from "./types";
 
 const details = (steamUrl: string | null): Game["details"] => ({
@@ -396,5 +399,56 @@ describe("steamWishlist", () => {
     const { wishlist, hidden } = steamWishlist([], wishes, [620, 553850]);
     expect(hidden.map((e) => e.name)).toEqual(["HELLDIVERS™ 2", "Portal 2"]);
     expect(wishlist).toHaveLength(3);
+  });
+});
+
+describe("wishlistRows", () => {
+  const item = (appid: number, price: SteamPrice): SteamStoreItem => ({
+    appid,
+    name: "",
+    storeUrl: `https://store.steampowered.com/app/${appid}/`,
+    releaseDate: null,
+    comingSoon: false,
+    deck: "unknown",
+    reviewLabel: null,
+    reviewPercent: null,
+    reviewCount: null,
+    coverUrl: null,
+    free: false,
+    price,
+  });
+  const price = (discountPct: number): SteamPrice => ({
+    finalCents: 1000 - discountPct * 10,
+    originalCents: 1000,
+    finalText: "",
+    originalText: "",
+    discountPct,
+    discountEndsAt: null,
+  });
+  /** `discountPct` null: a wish Steam has no store page for any more. */
+  const entry = (appid: number, name: string, priority: number, added: string, discountPct: number | null): SteamWishlistEntry => ({
+    appid,
+    name,
+    priority,
+    dateAdded: Date.parse(`${added}T12:00:00Z`) / 1000,
+    store: discountPct === null ? null : item(appid, price(discountPct)),
+  });
+  const wishes = [
+    entry(620, "Portal 2", 0, "2024-01-10", 0),
+    entry(264710, "Subnautica", 2, "2023-05-01", 50),
+    entry(413150, "Stardew Valley", 1, "2022-02-02", 0),
+    entry(553850, "HELLDIVERS™ 2", 0, "2025-03-03", 0),
+    entry(292030, "The Witcher® 3: Wild Hunt", 0, "2021-01-01", 80),
+    entry(1, "Delisted", 0, "2020-01-01", null),
+  ];
+  const witcher = game(1, "The Witcher 3", { source: "igdb", externalId: 1942, details: details("https://store.steampowered.com/app/292030") });
+
+  it("puts sales first by discount, then the owner's ranking, then the newest, and keeps games already in the app, marked", () => {
+    const rows = wishlistRows([witcher], wishes);
+    expect(rows.map((r) => r.entry.name)).toEqual(["The Witcher® 3: Wild Hunt", "Subnautica", "Stardew Valley", "HELLDIVERS™ 2", "Portal 2", "Delisted"]);
+    expect(rows.map((r) => r.inApp)).toEqual([true, false, false, false, false, false]);
+    expect(rows.map((r) => r.discountPct)).toEqual([80, 50, 0, 0, 0, 0]);
+    expect(onSaleCount(rows)).toBe(2);
+    expect(onSaleCount([])).toBe(0);
   });
 });

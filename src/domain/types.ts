@@ -157,6 +157,8 @@ export interface Settings {
   /** Steam Web API key and the account to read playtime from (a SteamID64 or profile URL). Local, never exported. */
   steamApiKey: string;
   steamId: string;
+  /** Two-letter code of the Steam store region prices are shown for (see `parseSteamCountry`). Local, never exported. */
+  steamCountry: string;
   /** Steam app ids hidden from the "From Steam" list (games not to plan). Local, never exported. */
   steamHiddenApps: number[];
   /** Keys of Steam status hints answered "Not now" (see `statusHints`). Local, never exported. */

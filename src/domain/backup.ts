@@ -3,6 +3,7 @@ import { withPlanOrder } from "./plan";
 import { completedGames, plannedGames } from "./schedule";
 import { parseDetails } from "./details";
 import { withHoursPlayed } from "./sessions";
+import { DEFAULT_STEAM_COUNTRY } from "./steamStore";
 import { ALL_PLANS, GAME_STATUSES, GAME_TYPES, GENRES, LEGACY_GAME_TYPES, PLATFORMS, isGameSource, type Game, type PlaySession, type Settings, type Theme } from "./types";
 
 /**
@@ -63,6 +64,7 @@ export function createBackup(
       igdbTokenExpiresAt: 0,
       steamApiKey: "",
       steamId: "",
+      steamCountry: DEFAULT_STEAM_COUNTRY,
       steamHiddenApps: [],
       steamDismissedHints: [],
     },
@@ -175,6 +177,7 @@ function parseSettings(obj: Record<string, unknown>): Settings {
     igdbTokenExpiresAt: 0,
     steamApiKey: "",
     steamId: "",
+    steamCountry: DEFAULT_STEAM_COUNTRY,
     steamHiddenApps: [],
     steamDismissedHints: [],
   };
