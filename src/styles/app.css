@@ -989,6 +989,24 @@ textarea {
   font-size: var(--text-sm);
 }
 
+/* A sale that appeared since the last look. */
+.new-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.lowest-badge {
+  color: var(--success);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .wishlist-status {
   margin: 0;
 }

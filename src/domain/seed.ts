@@ -13,6 +13,7 @@ export const SEED_SETTINGS: Settings = {
   steamApiKey: "",
   steamId: "",
   steamCountry: DEFAULT_STEAM_COUNTRY,
+  wishlistSeenAt: 0,
   steamHiddenApps: [],
   steamDismissedHints: [],
 };

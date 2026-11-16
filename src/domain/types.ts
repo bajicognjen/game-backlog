@@ -159,6 +159,8 @@ export interface Settings {
   steamId: string;
   /** Two-letter code of the Steam store region prices are shown for (see `parseSteamCountry`). Local, never exported. */
   steamCountry: string;
+  /** When the Wishlist section was last open with the list loaded (epoch ms; 0 for never): sales after it count as new. Local, never exported. */
+  wishlistSeenAt: number;
   /** Steam app ids hidden from the "From Steam" list (games not to plan). Local, never exported. */
   steamHiddenApps: number[];
   /** Keys of Steam status hints answered "Not now" (see `statusHints`). Local, never exported. */

@@ -65,6 +65,7 @@ export function createBackup(
       steamApiKey: "",
       steamId: "",
       steamCountry: DEFAULT_STEAM_COUNTRY,
+      wishlistSeenAt: 0,
       steamHiddenApps: [],
       steamDismissedHints: [],
     },
@@ -178,6 +179,7 @@ function parseSettings(obj: Record<string, unknown>): Settings {
     steamApiKey: "",
     steamId: "",
     steamCountry: DEFAULT_STEAM_COUNTRY,
+    wishlistSeenAt: 0,
     steamHiddenApps: [],
     steamDismissedHints: [],
   };

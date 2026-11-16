@@ -49,7 +49,7 @@ export function fromStoredState(raw: unknown): SnapshotState {
 
 type LocalSettings = Pick<
   Settings,
-  "igdbClientId" | "igdbClientSecret" | "igdbAccessToken" | "igdbTokenExpiresAt" | "steamApiKey" | "steamId" | "steamCountry" | "steamHiddenApps" | "steamDismissedHints"
+  "igdbClientId" | "igdbClientSecret" | "igdbAccessToken" | "igdbTokenExpiresAt" | "steamApiKey" | "steamId" | "steamCountry" | "wishlistSeenAt" | "steamHiddenApps" | "steamDismissedHints"
 >;
 
 /** The settings `parseBackup` blanks, read straight from the document with the same leniency as the SQLite settings table. */
@@ -65,6 +65,7 @@ function localSettingsOf(value: unknown): LocalSettings {
     steamApiKey: text(s.steamApiKey),
     steamId: text(s.steamId),
     steamCountry: parseSteamCountry(s.steamCountry),
+    wishlistSeenAt: typeof s.wishlistSeenAt === "number" && Number.isFinite(s.wishlistSeenAt) && s.wishlistSeenAt > 0 ? s.wishlistSeenAt : 0,
     steamHiddenApps: parseHiddenApps(asJson(s.steamHiddenApps)),
     steamDismissedHints: parseDismissedHints(asJson(s.steamDismissedHints)),
   };

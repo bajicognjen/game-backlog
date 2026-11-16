@@ -51,6 +51,7 @@ const credentials = {
   steamApiKey: "steam-key",
   steamId: "76561198000000000",
   steamCountry: "DE",
+  wishlistSeenAt: 1_700_000_000_000,
   steamHiddenApps: [10, 20],
   steamDismissedHints: ["start:1"],
 };

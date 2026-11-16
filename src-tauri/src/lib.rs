@@ -73,6 +73,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/0011_together.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 12,
+            description: "steam price memory",
+            sql: include_str!("../migrations/0012_steam_prices.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

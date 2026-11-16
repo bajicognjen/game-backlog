@@ -43,7 +43,7 @@ export function toRemoteDocument(state: SnapshotState, now: Date = new Date()): 
   const stored = toStoredState(state, now);
   return {
     ...stored,
-    settings: { ...stored.settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0, steamApiKey: "", steamId: "", steamCountry: DEFAULT_STEAM_COUNTRY, steamHiddenApps: [], steamDismissedHints: [] },
+    settings: { ...stored.settings, igdbClientId: "", igdbClientSecret: "", igdbAccessToken: "", igdbTokenExpiresAt: 0, steamApiKey: "", steamId: "", steamCountry: DEFAULT_STEAM_COUNTRY, wishlistSeenAt: 0, steamHiddenApps: [], steamDismissedHints: [] },
   };
 }
 

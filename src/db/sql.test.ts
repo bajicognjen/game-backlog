@@ -34,8 +34,10 @@ import {
   insertSessionStatement,
   insertSessionWithIdStatement,
 } from "./sessions";
+import { priceMemoryFromRow, priceMemoryStatements, selectPriceMemory, type PriceMemoryRow } from "./priceMemory";
 import { settingsStatements, upsertSetting } from "./settings";
 import { lit } from "./sql";
+import type { PriceMemory } from "../domain/priceMemory";
 
 const MIGRATIONS = [
   "0001_initial.sql",
@@ -49,6 +51,7 @@ const MIGRATIONS = [
   "0009_details.sql",
   "0010_design.sql",
   "0011_together.sql",
+  "0012_steam_prices.sql",
 ].map((file) =>
   readFileSync(new URL(`../../src-tauri/migrations/${file}`, import.meta.url), "utf8"),
 );
@@ -802,5 +805,32 @@ describe("undo", () => {
       completed_at: null,
       completed_order: null,
     });
+  });
+});
+
+describe("steam price memory", () => {
+  const row = (appid: number, finalCents: number): PriceMemory => ({
+    appid,
+    finalCents,
+    originalCents: 5999,
+    discountPct: 50,
+    discountEndsAt: 1795208400000,
+    finalText: "29,99€",
+    saleSince: 1763000000000,
+    lowestCents: finalCents,
+    lowestText: "29,99€",
+    lowestAt: 1763000000000,
+    loadedAt: 1763000000000,
+  });
+  const read = (country: string) => (db.prepare(selectPriceMemory(country)).all() as unknown as PriceMemoryRow[]).map(priceMemoryFromRow);
+
+  it("replaces one region's rows as a batch, keeps the other region's, and reads nulls back as nulls", () => {
+    batch(priceMemoryStatements("RS", [row(1, 2999), row(2, 1999)]));
+    batch(priceMemoryStatements("DE", [row(1, 3499)]));
+    expect(read("RS")).toEqual([row(1, 2999), row(2, 1999)]);
+    batch(priceMemoryStatements("RS", [{ ...row(2, 1799), saleSince: null, discountEndsAt: null, finalText: "it's 17,99€" }]));
+    expect(read("RS")).toEqual([{ ...row(2, 1799), saleSince: null, discountEndsAt: null, finalText: "it's 17,99€" }]);
+    expect(read("DE")).toHaveLength(1);
+    expect(read("US")).toEqual([]);
   });
 });

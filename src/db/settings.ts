@@ -17,6 +17,7 @@ const KEYS: Record<keyof Settings, string> = {
   steamApiKey: "steam_api_key",
   steamId: "steam_id",
   steamCountry: "steam_country",
+  wishlistSeenAt: "wishlist_seen_at",
   steamHiddenApps: "steam_hidden_apps",
   steamDismissedHints: "steam_dismissed_hints",
 };
@@ -37,6 +38,7 @@ export async function loadSettings(): Promise<Settings> {
     steamApiKey: map.get(KEYS.steamApiKey) ?? "",
     steamId: map.get(KEYS.steamId) ?? "",
     steamCountry: parseSteamCountry(map.get(KEYS.steamCountry)),
+    wishlistSeenAt: Number(map.get(KEYS.wishlistSeenAt) ?? 0) || 0,
     steamHiddenApps: parseHiddenApps(map.get(KEYS.steamHiddenApps)),
     steamDismissedHints: parseDismissedHints(map.get(KEYS.steamDismissedHints)),
   };
