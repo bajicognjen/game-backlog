@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDate } from "../domain/dates";
-import { onSaleCount, steamConfigured, wishlistRows, type SteamWishlistEntry, type WishlistRow } from "../domain/steam";
+import { isLowestYet, isNewSale, type PriceMemory } from "../domain/priceMemory";
+import { onSaleCount, steamConfigured, wishlistRows, type WishlistRow } from "../domain/steam";
 import type { SteamStoreItem } from "../domain/steamStore";
 import { t } from "../i18n/en";
 import { openExternal } from "../platform/links";
-import { steamFailureOf, type SteamFailure } from "../platform/steam";
-import { loadWishlist, steamFailureMessage } from "../state/steam";
+import { steamFailureMessage } from "../state/steam";
 import { useStore } from "../state/store";
+import { useWishlist, wishlistKey } from "../state/wishlist";
 import { Icon } from "./Icon";
 
 interface Props {
@@ -16,47 +17,48 @@ interface Props {
   onSetUpSteam(): void;
 }
 
-type Stage = { kind: "idle" } | { kind: "loading" } | { kind: "failed"; reason: SteamFailure } | { kind: "ready"; entries: SteamWishlistEntry[] };
-
 /**
  * The Steam wishlist with the store's current prices, collapsed by default.
- * Steam is asked the first time the section opens and on Refresh, not on
- * every start: the store answers per 50 games, and prices change slowly.
- * The list stays as loaded while the section is closed and reopened.
+ * The list loads at start when Steam is set up (see `state/wishlist.ts`), so
+ * the heading can say what is on sale and what is new since the last look
+ * before the section is opened; Refresh asks Steam again.
  */
 export function WishlistSection({ onAdd, onSetUpSteam }: Props) {
   const games = useStore((s) => s.games);
   const configured = useStore((s) => steamConfigured(s.settings));
+  const key = useStore((s) => (steamConfigured(s.settings) ? wishlistKey(s.settings) : null));
   const country = useStore((s) => s.settings.steamCountry);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const stage = useWishlist((s) => s.stage);
+  const entries = useWishlist((s) => s.entries);
+  const memory = useWishlist((s) => s.memory);
+  const seenAt = useWishlist((s) => s.seenAt);
+  const load = useWishlist((s) => s.load);
+  const reset = useWishlist((s) => s.reset);
   const [open, setOpen] = useState(false);
-  const [stage, setStage] = useState<Stage>({ kind: "idle" });
-  /** Bumped by the first opening and by Refresh; the effect asks Steam once per value. */
-  const [attempt, setAttempt] = useState(0);
 
+  // The load at start, and again for another account or store region; nothing without Steam.
   useEffect(() => {
-    if (attempt === 0 || !configured) return;
-    const controller = new AbortController();
-    setStage({ kind: "loading" });
-    loadWishlist(controller.signal).then(
-      (entries) => !controller.signal.aborted && setStage({ kind: "ready", entries }),
-      (error) => !controller.signal.aborted && setStage({ kind: "failed", reason: steamFailureOf(error) }),
-    );
-    return () => controller.abort();
-    // A new store country means new prices.
-  }, [attempt, configured, country]);
+    if (key === null) reset();
+    else void load();
+  }, [key, load, reset]);
 
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next && stage.kind === "idle") setAttempt((n) => n + 1);
-  }
+  // Open with the list on screen counts as a look. The marks rest on the look before the load, so they stay until the next one.
+  useEffect(() => {
+    if (open && stage.kind === "ready") void updateSettings({ wishlistSeenAt: Date.now() });
+  }, [open, stage, updateSettings]);
 
   // Recomputed from the live games, so a game just added shows as in the app at once.
-  const rows = useMemo(() => (stage.kind === "ready" ? wishlistRows(games, stage.entries) : []), [stage, games]);
+  const rows = useMemo(() => (stage.kind === "ready" ? wishlistRows(games, entries) : []), [stage, entries, games]);
   const onSale = onSaleCount(rows);
+  const fresh = rows.filter((row) => isNewSale(memory.get(row.entry.appid), seenAt)).length;
   const summary =
     stage.kind === "ready"
-      ? `${t.wishlist.count.replace("{count}", String(rows.length))} · ${onSale > 0 ? t.wishlist.onSale.replace("{count}", String(onSale)) : t.wishlist.noneOnSale}`
+      ? [
+          t.wishlist.count.replace("{count}", String(rows.length)),
+          onSale > 0 ? t.wishlist.onSale.replace("{count}", String(onSale)) : t.wishlist.noneOnSale,
+          ...(fresh > 0 ? [t.wishlist.newSince.replace("{count}", String(fresh))] : []),
+        ].join(" · ")
       : null;
 
   return (
@@ -66,11 +68,11 @@ export function WishlistSection({ onAdd, onSetUpSteam }: Props) {
           <h2 id="wishlist-heading" tabIndex={-1}>
             {t.wishlist.title}
           </h2>
-          <button type="button" className="button" onClick={toggle} aria-expanded={open} aria-controls="wishlist-panel">
+          <button type="button" className="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="wishlist-panel">
             <Icon name={open ? "chevron-up" : "chevron-down"} /> {open ? t.wishlist.hide : t.wishlist.show}
           </button>
-          {open && configured && stage.kind !== "idle" && (
-            <button type="button" className="button" onClick={() => setAttempt((n) => n + 1)} disabled={stage.kind === "loading"}>
+          {open && configured && (
+            <button type="button" className="button" onClick={() => void load()} disabled={stage.kind === "loading"}>
               <Icon name="refresh" /> {t.wishlist.refresh}
             </button>
           )}
@@ -113,13 +115,16 @@ export function WishlistSection({ onAdd, onSetUpSteam }: Props) {
                       <th scope="col" className="date">
                         {t.wishlist.colEnds}
                       </th>
+                      <th scope="col" className="num">
+                        {t.wishlist.colLowest}
+                      </th>
                       <th scope="col">{t.steamLibrary.colReviews}</th>
                       <th scope="col" aria-label={t.steamLibrary.colActions} />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((row) => (
-                      <WishlistLine key={row.entry.appid} row={row} onAdd={onAdd} />
+                      <WishlistLine key={row.entry.appid} row={row} remembered={memory.get(row.entry.appid)} seenAt={seenAt} onAdd={onAdd} />
                     ))}
                   </tbody>
                 </table>
@@ -133,7 +138,7 @@ export function WishlistSection({ onAdd, onSetUpSteam }: Props) {
   );
 }
 
-function WishlistLine({ row, onAdd }: { row: WishlistRow; onAdd(steamName: string): void }) {
+function WishlistLine({ row, remembered, seenAt, onAdd }: { row: WishlistRow; remembered: PriceMemory | undefined; seenAt: number; onAdd(steamName: string): void }) {
   const { entry, inApp, discountPct } = row;
   const store = entry.store;
   const price = store?.price ?? null;
@@ -144,8 +149,28 @@ function WishlistLine({ row, onAdd }: { row: WishlistRow; onAdd(steamName: strin
       <td className="num">
         <PriceCell store={store} />
       </td>
-      <td className="num">{discountPct > 0 ? <span className="sale-badge">−{discountPct}%</span> : dash}</td>
+      <td className="num">
+        {discountPct > 0 ? (
+          <>
+            <span className="sale-badge">−{discountPct}%</span>
+            {isNewSale(remembered, seenAt) && <span className="new-badge">{t.wishlist.newBadge}</span>}
+          </>
+        ) : (
+          dash
+        )}
+      </td>
       <td className="date">{price?.discountEndsAt ? formatDate(price.discountEndsAt) : dash}</td>
+      <td className="num">
+        {remembered ? (
+          <>
+            {remembered.lowestText}
+            <span className="muted"> · </span>
+            {discountPct > 0 && isLowestYet(remembered) ? <span className="lowest-badge">{t.wishlist.lowestYet}</span> : <span className="muted">{formatDate(remembered.lowestAt)}</span>}
+          </>
+        ) : (
+          dash
+        )}
+      </td>
       <td>
         {store?.reviewLabel ? (
           <>

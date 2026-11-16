@@ -115,6 +115,7 @@ describe("parseBackup normalisation", () => {
         steamApiKey: "steamkey",
         steamId: "76561198000000000",
         steamCountry: "DE",
+        wishlistSeenAt: 1_700_000_000_000,
         steamHiddenApps: [987654321],
         steamDismissedHints: ["idle:7:2026-09-20"],
       }),
@@ -131,6 +132,7 @@ describe("parseBackup normalisation", () => {
     expect(parsed.settings.steamApiKey).toBe("");
     expect(parsed.settings.steamId).toBe("");
     expect(parsed.settings.steamCountry).toBe("RS");
+    expect(parsed.settings.wishlistSeenAt).toBe(0);
     expect(parsed.settings.steamHiddenApps).toEqual([]);
     expect(parsed.settings.steamDismissedHints).toEqual([]);
     expect(parsed.games.find((g) => g.id === games[0].id)).toMatchObject({
